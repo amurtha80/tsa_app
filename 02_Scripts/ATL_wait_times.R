@@ -116,6 +116,7 @@
   
   for (i in 1:5) {
     p1 <- lubridate::ceiling_date(Sys.time(), unit = "minute")
+    print(Sys.time())
     scrape_tsa_data_atl()
     theDelay <- as.numeric(difftime(p1,Sys.time(),unit="secs"))
     Sys.sleep(max(0, theDelay))
@@ -126,6 +127,7 @@
   # Disconnect DB ----
   
   DBI::dbDisconnect(con, shutdown = TRUE)
-  # rm(i)
-  # rm(theDelay)
+  rm(i)
+  rm(p1)
+  rm(theDelay)
   rm(con)
