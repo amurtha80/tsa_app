@@ -67,6 +67,16 @@ dbExecute(con, "CREATE TABLE airport_sites(
 # View tables
 dbGetQuery(con, "SHOW TABLES;")
 
+
+# Testing Queries
+# dbGetQuery(con, "SELECT airport, count(airport) as obs_count FROM tsa_wait_times GROUP BY airport;")
+
+
+# Edit Queries
+# dbSendQuery(con, "INSERT INTO airport_sites (airport, website) airport_sites VALUES ('LGA', 'https://www.laguardiaairport.com');")
+# dbSendQuery(con, "DELETE FROM tsa_wait_times WHERE airport = 'LGA';")
+
+
 # Disconnect from Database ----
 DBI::dbDisconnect(con, shutdown = TRUE)
 rm(con)
