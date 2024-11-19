@@ -31,7 +31,8 @@ scrape_tsa_data_mco <- function() {
     remote_driver <- rsDriver(browser = "firefox",
                               chromever = NULL,
                               verbose = F,
-                              port = free_port())
+                              port = free_port(),
+                              extraCapabilities = list("moz:firefoxOptions" = list(args = list('--headless'))))
     
     
     # Access Page
@@ -65,10 +66,12 @@ scrape_tsa_data_mco <- function() {
 
 
     wait_time_pre_check <- NA
+    
+    # Comment Out Checks from Testing
+    #print(glue("wait time length ", {length(wait_time)}))
+    #print(glue("gates length ", {length(gates)}))
 
-    print(glue("wait time length ", {length(wait_time)}))
-    print(glue("gates length ", {length(gates)}))
-
+    # Comment Out Checks from Testing
     # Check to make Sure that TSA CheckPoint and Time have the same length
     # if(length(wait_time) != length(gates)){
     #   stop("The length of wait_time and gates do not match.")
