@@ -119,7 +119,7 @@ i <- 1
 
 for (i in 1:5) {
   p1 <- lubridate::ceiling_date(Sys.time(), unit = "minute")
-    print(Sys.time())
+    print(glue(i, "  ", format(Sys.time()))
     scrape_tsa_data_lga()
   theDelay <- as.numeric(difftime(p1,Sys.time(),unit="secs"))
   Sys.sleep(max(0, theDelay))
