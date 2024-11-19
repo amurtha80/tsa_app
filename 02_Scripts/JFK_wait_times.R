@@ -34,7 +34,7 @@ scrape_tsa_data_jfk <- function() {
   # firefox
   remote_driver <- rsDriver(browser = "firefox",
                             chromever = NULL,
-                            verbose = T,
+                            verbose = F,
                             port = free_port(),
                             extraCapabilities = list("moz:firefoxOptions" = list(args = list('--headless'))))
   
