@@ -105,9 +105,12 @@ scrape_tsa_data_jfk <- function() {
   rm(results)
   rm(JFK_data, envir = .GlobalEnv)
   rm(h)
+  brow$close()
   rm(brow)
   
-  remote_driver$close()
+  remote_driver$server$stop()
+  rm(remote_driver)
+  gc()
 }
 
 # purrr::slowly(scrape_tsa_data, rate = rate_delay(pause = 60), quiet = FALSE)
@@ -116,7 +119,7 @@ i <- 1
 
 for (i in 1:5) {
   p1 <- lubridate::ceiling_date(Sys.time(), unit = "minute")
-    print(Sys.time())
+    print(glue(i, "  ", format(Sys.time())))
     scrape_tsa_data_jfk()
   theDelay <- as.numeric(difftime(p1,Sys.time(),unit="secs"))
   Sys.sleep(max(0, theDelay))
@@ -126,5 +129,8 @@ for (i in 1:5) {
 
 # Close the server
 # rm(seleniumCommand)
-remote_driver$server$stop()
-rm(remote_driver)
+rm(i)
+rm(p1)
+dbDisconnect(con)
+rm(con)
+rm(scrape_tsa_data_jfk)
