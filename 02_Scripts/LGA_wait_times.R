@@ -127,6 +127,8 @@ for (i in 1:5) {
   i <- i + 1
 }
 
+# Disconnect DB, Cleanup Script ----
+          
 # Close the server
 # rm(seleniumCommand)
 # remote_driver$server$stop()
@@ -135,5 +137,6 @@ DBI::dbDisconnect(con, shutdown = TRUE)
 rm(i)
 rm(p1)
 rm(theDelay)
+dbDisconnect(con)          
 rm(con)
 rm(scrape_tsa_data_lga)
