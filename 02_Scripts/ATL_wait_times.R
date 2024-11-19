@@ -106,28 +106,30 @@
     rm(page)
     rm(session)
     rm(ATL_data, envir = .GlobalEnv)
-  }
+}
   
-  # purrr::slowly(scrape_tsa_data, rate = rate_delay(pause = 60), quiet = FALSE)
+# purrr::slowly(scrape_tsa_data, rate = rate_delay(pause = 60), quiet = FALSE)
   
-  # Loop Funtion For Test ----
+# Loop Funtion For Test ----
   
-  i <- 1
+i <- 1
   
-  for (i in 1:5) {
-    p1 <- lubridate::ceiling_date(Sys.time(), unit = "minute")
-    print(Sys.time())
-    scrape_tsa_data_atl()
-    theDelay <- as.numeric(difftime(p1,Sys.time(),unit="secs"))
-    Sys.sleep(max(0, theDelay))
+for (i in 1:5) {
+  p1 <- lubridate::ceiling_date(Sys.time(), unit = "minute")
+  print(glue(i, "  ", format(Sys.time())))
+  scrape_tsa_data_atl()
+  theDelay <- as.numeric(difftime(p1,Sys.time(),unit="secs"))
+  Sys.sleep(max(0, theDelay))
+
+  i <- i + 1
+}
   
-    i <- i + 1
-  }
+# Disconnect DB, Script Cleanup ----
   
-  # Disconnect DB ----
-  
-  DBI::dbDisconnect(con, shutdown = TRUE)
-  rm(i)
-  rm(p1)
-  rm(theDelay)
-  rm(con)
+DBI::dbDisconnect(con, shutdown = TRUE)
+rm(i)
+rm(p1)
+rm(theDelay)
+dbDisconnect(con)
+rm(con)
+rm(scrape_tsa_data_atl)
