@@ -131,6 +131,7 @@ for (i in 1:5) {
 # rm(seleniumCommand)
 rm(i)
 rm(p1)
+rm(theDelay)
 dbDisconnect(con)
 rm(con)
 rm(scrape_tsa_data_jfk)
