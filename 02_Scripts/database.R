@@ -1,13 +1,11 @@
-#Current Script working
-
 # Install Packages ----
 
 # install.packages(c("duckdb", "duckplyr", "DBI"))
 
 ## Access Libraries to Project ----
-library(duckdb)
-library(duckplyr)
-library(DBI)
+library(duckdb, verbose = F)
+library(duckplyr, verbose = F)
+library(DBI, verbose = F)
 
 
 # TSA Database ----
@@ -22,6 +20,7 @@ con <- dbConnect(duckdb(), dbdir = "02_Data/tsa_app.duckdb", read_only = FALSE)
 
 
 # Create Airports Table
+# IATA_Code VARCHAR PRIMARY KEY
 dbExecute(con, "CREATE TABLE airports(
   Airport_ID INTEGER,
   Airport_Name  VARCHAR,
@@ -45,8 +44,9 @@ dbExecute(con, "INSERT INTO airports SELECT * FROM read_parquet('02_Data/airport
 
 
 # Create TSA Wait Times Table
+# FOREIGN KEY (airport) REFERENCES airports (IATA_Code)7
 dbExecute(con, "CREATE TABLE tsa_wait_times(
-          airport VARCHAR PRIMARY KEY,
+          airport VARCHAR,
           checkpoint VARCHAR,
           datetime DATETIME,
           date DATE,
@@ -66,8 +66,20 @@ dbExecute(con, "CREATE TABLE airport_sites(
 );")
 
 
+# Create Airport CheckPoint Hours of Operation
+dbExecute(con, "CREATE TABLE airport_checkpoint_hours(
+          airport VARCHAR,
+          timezone VARCHAR,
+          checkpoint VARCHAR,
+          open_time_gen TIMESTAMP_S,
+          close_time_gen TIMESTAMP_S,
+          open_time_prechk TIMESTAMP_S,
+          close_time_prechk TIMESTAMP_S
+);")
+
+
 # View tables
-dbGetQuery(con, "SHOW TABLES;")
+# dbGetQuery(con, "SHOW TABLES;")
 
 
 # Testing Queries
