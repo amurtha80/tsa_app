@@ -46,14 +46,16 @@ dbExecute(con, "INSERT INTO airports SELECT * FROM read_parquet('02_Data/airport
 
 # Create TSA Wait Times Table
 dbExecute(con, "CREATE TABLE tsa_wait_times(
-          airport VARCHAR,
+          airport VARCHAR PRIMARY KEY,
           checkpoint VARCHAR,
           datetime DATETIME,
           date DATE,
           time TIMESTAMP_S,
           timezone VARCHAR,
           wait_time INTEGER,
-          wait_time_pre_check INTEGER
+          wait_time_priority INTEGER,
+          wait_time_pre_check INTEGER,
+          wait_time_clear INTEGER
 );")
 
 
