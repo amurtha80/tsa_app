@@ -3,18 +3,14 @@
 # install.packages(c("rvest", "RSelenium", "netstat", "wdman", "tibble", "dplyr",
 #                     "lubridate", "stringr", "tidyr", "duckdb", "here", "glue"))
 
-library(rvest, verbose = F, warn.conflicts = F)
-library(RSelenium, verbose = F, warn.conflicts = F)
-library(netstat, verbose = F, warn.conflicts = F)
-library(wdman, verbose = F, warn.conflicts = F)
-library(tibble, verbose = F, warn.conflicts = F)
-library(dplyr, verbose = F, warn.conflicts = F)
-library(lubridate, verbose = F, warn.conflicts = F)
-library(stringr, warn.conflicts = F)
-library(tidyr, verbose = F, warn.conflicts = F)
-library(duckdb, verbose = F, warn.conflicts = F)
-library(here, verbose = F, warn.conflicts = F)
-library(glue, verbose = F, warn.conflicts = F)
+# library(rvest, verbose = F, warn.conflicts = F)
+# library(RSelenium, verbose = F, warn.conflicts = F)
+# library(netstat, verbose = F, warn.conflicts = F)
+# library(wdman, verbose = F, warn.conflicts = F)
+# library(tidyverse, verbose = F, warn.conflicts = F)
+# library(duckdb, verbose = F, warn.conflicts = F)
+# library(here, verbose = F, warn.conflicts = F)
+# library(glue, verbose = F, warn.conflicts = F)
 
 
 # setup
@@ -25,10 +21,12 @@ library(glue, verbose = F, warn.conflicts = F)
 
 # Database Connection ----
 
-con <- dbConnect(duckdb::duckdb(), dbdir = "02_Data/tsa_app.duckdb", read_only = FALSE)
+# con <- dbConnect(duckdb::duckdb(), dbdir = "02_Data/tsa_app.duckdb", read_only = FALSE)
 
 # Function to scrape and store TSA checkpoint wait times
 scrape_tsa_data_lga <- function() {
+  
+  print(glue("kickoff LGA scrape ", format(Sys.time(), "%a %b %d %X %Y")))
   
   # firefox
   remote_driver <- rsDriver(browser = "firefox",
@@ -80,14 +78,16 @@ scrape_tsa_data_lga <- function() {
            time = Sys.time() |> 
              with_tz(tzone = "America/New_York") |> 
              floor_date(unit = "minute"),
-           timezone = "America/New_York") |>
+           timezone = "America/New_York",
+           wait_time_priority = NA,
+           wait_time_clear = NA) |>
     # Rename CheckPoint column
     rename(checkpoint = `Terminal...1`) |>
     # Remove unnecessary columns
     select(-(2:5)) |> 
     # Reorder remaining columns
     select(airport, checkpoint, datetime, date, time, timezone, wait_time,
-           wait_time_pre_check)
+           wait_time_priority, wait_time_pre_check, wait_time_clear)
   
   
   # Assign to Global Environment
@@ -109,34 +109,28 @@ scrape_tsa_data_lga <- function() {
   
   remote_driver$server$stop()
   rm(remote_driver)
-  gc()
+  # gc()
   
 }
 
-# purrr::slowly(scrape_tsa_data, rate = rate_delay(pause = 60), quiet = FALSE)
 
-i <- 1
+# i <- 1
+# 
+# for (i in 1:5) {
+#   p1 <- lubridate::ceiling_date(Sys.time(), unit = "minute")
+#     print(glue(i, "  ", format(Sys.time())))
+#     scrape_tsa_data_lga()
+#   theDelay <- as.numeric(difftime(p1,Sys.time(),unit="secs"))
+#   Sys.sleep(max(0, theDelay))
+#   
+#   i <- i + 1
+# }
 
-for (i in 1:5) {
-  p1 <- lubridate::ceiling_date(Sys.time(), unit = "minute")
-    print(glue(i, "  ", format(Sys.time()))
-    scrape_tsa_data_lga()
-  theDelay <- as.numeric(difftime(p1,Sys.time(),unit="secs"))
-  Sys.sleep(max(0, theDelay))
-  
-  i <- i + 1
-}
-
-# Disconnect DB, Cleanup Script ----
-          
 # Close the server
 # rm(seleniumCommand)
-# remote_driver$server$stop()
-# rm(remote_driver)
-DBI::dbDisconnect(con, shutdown = TRUE)
-rm(i)
-rm(p1)
-rm(theDelay)
-dbDisconnect(con)          
-rm(con)
-rm(scrape_tsa_data_lga)
+# rm(i)
+# rm(p1)
+# rm(theDelay)
+# dbDisconnect(con)
+# rm(con)
+# rm(scrape_tsa_data_lga)
