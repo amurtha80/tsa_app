@@ -1,33 +1,36 @@
 # install.packages(c("DBI", "polite", "rvest", "RSelenium",  "tidyverse", 
 # "duckdb", "glue", "here"))
 
-library(DBI, verbose = FALSE, warn.conflicts = FALSE)
-library(polite, verbose = FALSE, warn.conflicts = FALSE)
-library(rvest, verbose = FALSE, warn.conflicts = FALSE)
-library(RSelenium, verbose = FALSE, warn.conflicts = FALSE)
-library(duckdb, verbose = FALSE, warn.conflicts = FALSE)
-library(glue, verbose = FALSE, warn.conflicts = FALSE)
-library(tidyverse, verbose = FALSE, warn.conflicts = FALSE)
-library(here, verbose = FALSE, warn.conflicts = FALSE)
+# library(DBI, verbose = FALSE, warn.conflicts = FALSE)
+# library(polite, verbose = FALSE, warn.conflicts = FALSE)
+# library(rvest, verbose = FALSE, warn.conflicts = FALSE)
+# library(RSelenium, verbose = FALSE, warn.conflicts = FALSE)
+# library(duckdb, verbose = FALSE, warn.conflicts = FALSE)
+# library(glue, verbose = FALSE, warn.conflicts = FALSE)
+# library(tidyverse, verbose = FALSE, warn.conflicts = FALSE)
+# library(here, verbose = FALSE, warn.conflicts = FALSE)
 
-here::here()
+# here::here()
 
 # Database Connection ----
 
-con <- dbConnect(duckdb::duckdb(), dbdir = "02_Data/tsa_app.duckdb", read_only = FALSE)
+# con <- dbConnect(duckdb::duckdb(), dbdir = "02_Data/tsa_app.duckdb", read_only = FALSE)
 
 
 # Function to scrape and store TSA checkpoint wait times
 scrape_tsa_data_den <- function() {
+  
+  print(glue("kickoff DEN scrape ", format(Sys.time(), "%a %b %d %X %Y")))
+  
   # Define URL and initiate polite session
   url <- "https://www.flydenver.com/security/"  # Update with the actual URL
 
   # firefox
   remote_driver <- rsDriver(browser = "firefox",
                             chromever = NULL,
-                            verbose = T,
+                            verbose = F,
                             port = free_port(),
-                           extraCapabilities = list("moz:firefoxOptions" = list(args = list('--headless'))))
+                            extraCapabilities = list("moz:firefoxOptions" = list(args = list('--headless'))))
   
   
   # Access Page
@@ -89,7 +92,9 @@ scrape_tsa_data_den <- function() {
                        time = lubridate::POSIXct(tz = 'EST'),
                        timezone = character(),
                        wait_time = numeric(),
-                       wait_time_pre_check = numeric())
+                       wait_time_priority = numeric(),
+                       wait_time_pre_check = numeric(),
+                       wait_time_clear = numeric())
   } else {
     DEN_data <- get("DEN_data", envir = .GlobalEnv)
   }
@@ -112,7 +117,9 @@ scrape_tsa_data_den <- function() {
     # hms::new_hms(),
     timezone = "America/Denver",
     wait_time = wait_time,  # Assume this is a list of wait times for each checkpoint
-    wait_time_pre_check = wait_time_pre_check
+    wait_time_priority = NA,
+    wait_time_pre_check = wait_time_pre_check,
+    wait_time_clear = NA
   ))
   
   assign("DEN_data", DEN_data, envir = .GlobalEnv)  
@@ -132,24 +139,27 @@ scrape_tsa_data_den <- function() {
   
   remote_driver$server$stop()
   rm(remote_driver)
-  gc()
+  # gc()
 }
 
-i <- 1
 
-for (i in 1:5) {
-  p1 <- lubridate::ceiling_date(Sys.time(), unit = "minute")
-  print(Sys.time())
-  scrape_tsa_data_den()
-  theDelay <- as.numeric(difftime(p1,Sys.time(),unit="secs"))
-  Sys.sleep(max(0, theDelay))
-  
-  i <- i + 1
-}
+# Test Loop ----
+# i <- 1
+# 
+# for (i in 1:5) {
+#   p1 <- lubridate::ceiling_date(Sys.time(), unit = "minute")
+#   print(glue(i, "  ", format(Sys.time())))
+#   scrape_tsa_data_den()
+#   theDelay <- as.numeric(difftime(p1,Sys.time(),unit="secs"))
+#   Sys.sleep(max(0, theDelay))
+#   
+#   i <- i + 1
+# }
 
-rm(i)
-rm(p1)
-rm(theDelay)
-dbDisconnect(con)
-rm(con)
-rm(scrape_tsa_data_den)
+# Cleanup ----
+# rm(i)
+# rm(p1)
+# rm(theDelay)
+# dbDisconnect(con)
+# rm(con)
+# rm(scrape_tsa_data_den)
