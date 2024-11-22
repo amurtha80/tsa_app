@@ -1,28 +1,31 @@
 # install.packages(c("DBI", "polite", "RSelenium", "netstat", "rvest", "tidyverse", "duckdb", 
 #  "lubridate", "magrittr", glue", "here"))
 
-library(polite, verbose = FALSE, warn.conflicts = FALSE)
-library(rvest, verbose = FALSE, warn.conflicts = FALSE)
-library(RSelenium, verbose = FALSE, warn.conflicts = FALSE)
-library(netstat, verbose = FALSE, warn.conflicts = FALSE)
-library(duckdb, verbose = FALSE, warn.conflicts = FALSE)
-library(glue, verbose = FALSE, warn.conflicts = FALSE)
-library(DBI, verbose = FALSE, warn.conflicts = FALSE)
-library(tidyverse, verbose = FALSE, warn.conflicts = FALSE)
-library(here, verbose = FALSE, warn.conflicts = FALSE)
-
-here::here()
+# library(polite, verbose = FALSE, warn.conflicts = FALSE)
+# library(rvest, verbose = FALSE, warn.conflicts = FALSE)
+# library(RSelenium, verbose = FALSE, warn.conflicts = FALSE)
+# library(netstat, verbose = FALSE, warn.conflicts = FALSE)
+# library(duckdb, verbose = FALSE, warn.conflicts = FALSE)
+# library(glue, verbose = FALSE, warn.conflicts = FALSE)
+# library(DBI, verbose = FALSE, warn.conflicts = FALSE)
+# library(tidyverse, verbose = FALSE, warn.conflicts = FALSE)
+# library(here, verbose = FALSE, warn.conflicts = FALSE)
+# 
+# here::here()
 
 
 # Database Connection ----
 
-con <- dbConnect(duckdb::duckdb(), dbdir = "02_Data/tsa_app.duckdb", read_only = FALSE)
+# con <- dbConnect(duckdb::duckdb(), dbdir = "02_Data/tsa_app.duckdb", read_only = FALSE)
 
 
 # Script Function ----
 
 
 scrape_tsa_data_clt <- function() {
+  
+  print(glue("kickoff CLT scrape ", format(Sys.time(), "%a %b %d %X %Y")))
+  
   # Define URL and initiate polite session
   url <- "https://www.cltairport.com/airport-info/security/"  # Update with the actual URL
 
@@ -99,7 +102,9 @@ scrape_tsa_data_clt <- function() {
                        time = lubridate::POSIXct(tz = 'EST'),
                        timezone = character(),
                        wait_time = numeric(),
-                       wait_time_pre_check = numeric())
+                       wait_time_priority = numeric(),
+                       wait_time_pre_check = numeric(),
+                       wait_time_clear = numeric())
   } else {
     CLT_data <- get("CLT_data", envir = .GlobalEnv)
   }
@@ -122,7 +127,9 @@ scrape_tsa_data_clt <- function() {
     # hms::new_hms(),
     timezone = "America/New_York",
     wait_time = wait_time,  # Assume this is a list of wait times for each checkpoint
-    wait_time_pre_check = wait_time_pre_check
+    wait_time_priority = NA,
+    wait_time_pre_check = wait_time_pre_check,
+    wait_time_clear = NA
   ))
   
   
@@ -144,29 +151,29 @@ scrape_tsa_data_clt <- function() {
   
   remote_driver$server$stop()
   rm(remote_driver)
-  gc() 
+  # gc()
   
 }
 
 
 # Test Loop ----
-i <- 1
-
-for (i in 1:5) {
-  p1 <- lubridate::ceiling_date(Sys.time(), unit = "minute")
-  print(glue(i, "  ", format(Sys.time())))
-  scrape_tsa_data_clt()
-  theDelay <- as.numeric(difftime(p1,Sys.time(),unit="secs"))
-  Sys.sleep(max(0, theDelay))
-  
-  i <- i + 1
-}
+# i <- 1
+# 
+# for (i in 1:5) {
+#   p1 <- lubridate::ceiling_date(Sys.time(), unit = "minute")
+#   print(glue(i, "  ", format(Sys.time())))
+#   scrape_tsa_data_clt()
+#   theDelay <- as.numeric(difftime(p1,Sys.time(),unit="secs"))
+#   Sys.sleep(max(0, theDelay))
+#   
+#   i <- i + 1
+# }
 
 
 # Cleanup ----
-rm(i)
-rm(p1)
-rm(theDelay)
-dbDisconnect(con)
-rm(con)
-rm(scrape_tsa_data_clt)
+# rm(i)
+# rm(p1)
+# rm(theDelay)
+# dbDisconnect(con)
+# rm(con)
+# rm(scrape_tsa_data_clt)
