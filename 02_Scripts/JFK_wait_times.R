@@ -1,28 +1,17 @@
-# Script in Process
-
-## TODO (LOW): Refactor text clenaup, and research more efficient tag scraping off of page
-## TODO (LOW): Fix chrome driver issues
-
 # Install Packages ----
 
-# install.packages(c("rvest", "RSelenium", "netstat", "wdman", "tibble", "dplyr",
-#                     "lubridate", "stringr", "tidyr"))
+# install.packages(c("rvest", "RSelenium", "netstat", "wdman", "tidyverse",
+#                     "glue", "here", "polite"))
 
-library(rvest)
-library(RSelenium)
-library(netstat)
-library(wdman)
-library(tibble)
-library(dplyr)
-library(lubridate)
-library(stringr)
-library(tidyr)
+# library(rvest)
+# library(RSelenium)
+# library(netstat)
+# library(wdman)
+# library(tidyverse)
+# library(glue)
+# library(here)
 
-# setup
-wdman::selenium()
-# seleniumCommand <- selenium(retcommand = T, check = F)
-# seleniumCommand
-# binman::list_versions("chromedriver")
+# here::here()
 
 # Database Connection ----
 
@@ -30,6 +19,8 @@ con <- dbConnect(duckdb::duckdb(), dbdir = "02_Data/tsa_app.duckdb", read_only =
 
 # Function to scrape and store TSA checkpoint wait times
 scrape_tsa_data_jfk <- function() {
+  
+  print(glue("kickoff JFK scrape ", format(Sys.time(), "%a %b %d %X %Y")))
   
   # firefox
   remote_driver <- rsDriver(browser = "firefox",
@@ -82,14 +73,16 @@ scrape_tsa_data_jfk <- function() {
            time = Sys.time() |> 
              with_tz(tzone = "America/New_York") |> 
              floor_date(unit = "minute"),
-           timezone = "America/New_York") |>
+           timezone = "America/New_York",
+           wait_time_priority = NA,
+           wait_time_clear = NA) |>
     # Rename CheckPoint column
     rename(checkpoint = `Terminal...1`) |>
     # Remove unnecessary columns
     select(-(2:5)) |> 
     # Reorder remaining columns
     select(airport, checkpoint, datetime, date, time, timezone, wait_time,
-           wait_time_pre_check)
+           wait_time_priority, wait_time_pre_check, wait_time_clear)
   
   
   # Assign to Global Environment
@@ -110,28 +103,27 @@ scrape_tsa_data_jfk <- function() {
   
   remote_driver$server$stop()
   rm(remote_driver)
-  gc()
+  # gc()
 }
 
-# purrr::slowly(scrape_tsa_data, rate = rate_delay(pause = 60), quiet = FALSE)
 
-i <- 1
-
-for (i in 1:5) {
-  p1 <- lubridate::ceiling_date(Sys.time(), unit = "minute")
-    print(glue(i, "  ", format(Sys.time())))
-    scrape_tsa_data_jfk()
-  theDelay <- as.numeric(difftime(p1,Sys.time(),unit="secs"))
-  Sys.sleep(max(0, theDelay))
-  
-  i <- i + 1
-}
+# i <- 1
+# 
+# for (i in 1:5) {
+#   p1 <- lubridate::ceiling_date(Sys.time(), unit = "minute")
+#     print(glue(i, "  ", format(Sys.time())))
+#     scrape_tsa_data_jfk()
+#   theDelay <- as.numeric(difftime(p1,Sys.time(),unit="secs"))
+#   Sys.sleep(max(0, theDelay))
+#   
+#   i <- i + 1
+# }
 
 # Close the server
 # rm(seleniumCommand)
-rm(i)
-rm(p1)
-rm(theDelay)
-dbDisconnect(con)
-rm(con)
-rm(scrape_tsa_data_jfk)
+# rm(i)
+# rm(p1)
+# rm(theDelay)
+# dbDisconnect(con)
+# rm(con)
+# rm(scrape_tsa_data_jfk)
