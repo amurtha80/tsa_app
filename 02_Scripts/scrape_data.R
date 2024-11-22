@@ -1,0 +1,94 @@
+# Package Management ----
+
+## Create Function: Load Packages if they exist, otherwise install then load them
+foo <- function(x) {
+  for(i in x) {
+    # require returns TRUE invisibly if it was able to load package
+    if(! require(i, character.only = TRUE)) {
+      # if package was not able to be loaded then re-install
+      install.packages(i, dependencies = TRUE, verbose = FALSE)
+      # load package after installing
+      require(i, character.only = TRUE, verbose = FALSE)
+    }
+  }
+}
+
+## Then install/load packages...
+foo(c('polite', 'rvest', 'RSelenium', 'duckdb', 'glue', 'DBI', 'tidyverse', 
+      'netstat', 'here'))
+
+
+here::here()
+
+
+# Source Scripts ----
+
+## Loading Airport Scraping functions
+ 
+files <- list.files(path = here::here("01_Scripts/")) |> 
+  stringr::str_subset("_tsa_times.R")
+
+
+funcs <- as.vector(map(here::here("01_Scripts/",files), source))
+rm(files)
+rm(funcs)
+
+global_env <- ls(envir = .GlobalEnv)
+
+# Filter to only functions
+functions <- global_env[sapply(global_env, function(x) is.function(get(x, envir = .GlobalEnv)))]
+rm(global_env)
+
+
+# Test Run Scripts ----
+
+## Run all scripts on a 5 minute loop ----
+
+## Connect to Database
+con <- dbConnect(duckdb::duckdb(), dbdir = "02_Data/tsa_app.duckdb", read_only = FALSE)
+
+## Run Scripts ----
+
+## Create Function to run all scripts
+run_all_functions <- function() {
+  
+  ## Run each function
+  lapply(functions, function(f) do.call(f, list()))
+}
+
+
+i <- 1
+
+for (i in 1:5) {
+  p1 <- lubridate::ceiling_date(Sys.time(), unit = "5 minutes")
+
+  print(glue(i, " ", format(Sys.time())))
+
+  tryCatch(
+    expr = {
+      run_all_functions()
+    },
+    error = function(e) NULL
+  )
+  
+  gc()
+  
+  theDelay <- as.numeric(difftime(p1,Sys.time(),unit="secs"))
+
+  i <- i + 1
+
+  if(i == 6) {
+    break()
+  } else {
+    Sys.sleep(max(0, theDelay))
+  }
+
+}
+
+rm(i)
+rm(p1)
+rm(theDelay)
+rm(functions)
+dbDisconnect(con)
+rm(list = ls())
+gc()
