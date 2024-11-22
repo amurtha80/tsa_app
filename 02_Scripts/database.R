@@ -52,6 +52,7 @@ dbExecute(con, "CREATE TABLE tsa_wait_times(
           date DATE,
           time TIMESTAMP_S,
           timezone VARCHAR,
+          holiday_travel BOOLEAN,
           wait_time INTEGER,
           wait_time_priority INTEGER,
           wait_time_pre_check INTEGER,
