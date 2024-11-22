@@ -1,17 +1,17 @@
 # install.packages(c("DBI", "polite", "RSelenium", "netstat", "rvest", "tidyverse", "duckdb", 
 #  "lubridate", "magrittr", glue", "here"))
-
-library(polite, verbose = FALSE, warn.conflicts = FALSE)
-library(rvest, verbose = FALSE, warn.conflicts = FALSE)
-library(RSelenium, verbose = FALSE, warn.conflicts = FALSE)
-library(netstat, verbose = FALSE, warn.conflicts = FALSE)
-library(duckdb, verbose = FALSE, warn.conflicts = FALSE)
-library(glue, verbose = FALSE, warn.conflicts = FALSE)
-library(DBI, verbose = FALSE, warn.conflicts = FALSE)
-library(tidyverse, verbose = FALSE, warn.conflicts = FALSE)
-library(here, verbose = FALSE, warn.conflicts = FALSE)
-
-here::here()
+# 
+# library(polite, verbose = FALSE, warn.conflicts = FALSE)
+# library(rvest, verbose = FALSE, warn.conflicts = FALSE)
+# library(RSelenium, verbose = FALSE, warn.conflicts = FALSE)
+# library(netstat, verbose = FALSE, warn.conflicts = FALSE)
+# library(duckdb, verbose = FALSE, warn.conflicts = FALSE)
+# library(glue, verbose = FALSE, warn.conflicts = FALSE)
+# library(DBI, verbose = FALSE, warn.conflicts = FALSE)
+# library(tidyverse, verbose = FALSE, warn.conflicts = FALSE)
+# library(here, verbose = FALSE, warn.conflicts = FALSE)
+# 
+# here::here()
 
 
 # Database Connection ----
@@ -22,7 +22,10 @@ con <- dbConnect(duckdb::duckdb(), dbdir = "02_Data/tsa_app.duckdb", read_only =
 # Script Function ----
 
 
-scrape_tsa_data_clt <- function() {
+scrape_tsa_data_mia <- function() {
+  
+  print(glue("kickoff MIA scrape ", format(Sys.time(), "%a %b %d %X %Y")))
+  
   # Define URL and initiate polite session
   url <- "https://www.miami-airport.com/tsa-waittimes.asp"  # Update with the actual URL
   
@@ -47,14 +50,12 @@ scrape_tsa_data_clt <- function() {
 
   #Scrape Table Headers  
   headers <- h |> 
-    html_elements(".ag-header-cell-text") |> 
+    html_elements("span.ag-header-cell-text") |> 
     html_text2()
   
   temp <- last(headers)
   headers <- c(temp, headers) |> 
     head(-1)
-  
-  rm(temp)
   
   
   #Scrape Checkpoint Data
@@ -69,9 +70,10 @@ scrape_tsa_data_clt <- function() {
 
   headers <- rep(headers, len = length(checkpoint_data))
   mia_tbl <- tibble(headers, checkpoint_data)
+  row <- rep(1:(nrow(mia_tbl) / 5), each = 5)
   
   MIA_transform <- mia_tbl |> 
-    mutate(row = rep(1:(nrow(mia_tbl) / 5), each = 5)) |> 
+    cbind(row) |> 
     pivot_wider(names_from = headers, values_from = checkpoint_data) |>  
     select(-row) |> 
     mutate(General = case_when(str_detect(General, pattern = " / ") ~ str_remove_all(str_split_i(General, pattern = "/", 2), "\\D"), 
@@ -93,7 +95,8 @@ scrape_tsa_data_clt <- function() {
            ) |> 
     mutate(across(c(General:Clear), as.numeric)) |> suppressWarnings()
   
-    # Create tibble for data insertion
+  
+  # Create tibble for data insertion
   if(!exists("MIA_data", envir = .GlobalEnv)) {
     MIA_data <- tibble(airport = character(),
                        checkpoint = character(),
@@ -143,6 +146,7 @@ scrape_tsa_data_clt <- function() {
   rm(h)
   rm(headers)
   rm(temp)
+  rm(row)
   rm(checkpoint_data)
   rm(mia_tbl)
   rm(MIA_transform)
@@ -153,38 +157,37 @@ scrape_tsa_data_clt <- function() {
   
   remote_driver$server$stop()
   rm(remote_driver)
-  gc() 
+  # gc() 
 }  
 
 
 # Test Loop ----
-i <- 1
-
-for (i in 1:5) {
-  p1 <- lubridate::ceiling_date(Sys.time(), unit = "minute")
-  
-  print(glue(i, "  ", format(Sys.time())))
-  
-  scrape_tsa_data_mia()
-  
-  theDelay <- as.numeric(difftime(p1,Sys.time(),unit="secs"))
-  
-  i <- i + 1
-  
-  if(i == 6) {
-    break()
-  } else {
-    Sys.sleep(max(0, theDelay))
-  }
-  
-}
+# i <- 1
+# 
+# for (i in 1:5) {
+#   p1 <- lubridate::ceiling_date(Sys.time(), unit = "minute")
+#   
+#   print(glue(i, "  ", format(Sys.time())))
+#   
+#   scrape_tsa_data_mia()
+#   
+#   theDelay <- as.numeric(difftime(p1,Sys.time(),unit="secs"))
+#   
+#   i <- i + 1
+#   
+#   if(i == 6) {
+#     break()
+#   } else {
+#     Sys.sleep(max(0, theDelay))
+#   }
+#   
+# }
 
 
 # Cleanup ----
-rm(i)
-rm(p1)
-rm(theDelay)
-dbDisconnect(con)
-rm(con)
-rm(scrape_tsa_data_mia)
-}  
+# rm(i)
+# rm(p1)
+# rm(theDelay)
+# dbDisconnect(con)
+# rm(con)
+# rm(scrape_tsa_data_mia)
