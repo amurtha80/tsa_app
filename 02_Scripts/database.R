@@ -20,13 +20,12 @@ con <- dbConnect(duckdb(), dbdir = "02_Data/tsa_app.duckdb", read_only = FALSE)
 
 
 # Create Airports Table
-# IATA_Code VARCHAR PRIMARY KEY
 dbExecute(con, "CREATE TABLE airports(
   Airport_ID INTEGER,
   Airport_Name  VARCHAR,
   Airport_City  VARCHAR,
   Airport_Country VARCHAR,
-  IATA_Code VARCHAR,
+  IATA_Code VARCHAR PRIMARY KEY,
   ICAO_code VARCHAR,
   Latitude  DOUBLE,
   Longitude DOUBLE,
@@ -62,14 +61,14 @@ dbExecute(con, "CREATE TABLE tsa_wait_times(
 
 # Create Airport Website Table
 dbExecute(con, "CREATE TABLE airport_sites(
-          airport VARCHAR,
+          airport VARCHAR FOREIGN KEY,
           website VARCHAR
 );")
 
 
 # Create Airport CheckPoint Hours of Operation
 dbExecute(con, "CREATE TABLE airport_checkpoint_hours(
-          airport VARCHAR,
+          airport VARCHAR FOREIGN KEY,
           timezone VARCHAR,
           checkpoint VARCHAR,
           open_time_gen TIMESTAMP_S,
