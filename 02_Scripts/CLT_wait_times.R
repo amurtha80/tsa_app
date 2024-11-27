@@ -1,97 +1,60 @@
-# install.packages(c("DBI", "polite", "RSelenium", "netstat", "rvest", "tidyverse", "duckdb", 
-#  "lubridate", "magrittr", glue", "here"))
+# install.packages(c("DBI", "polite", "RSelenium", "netstat", "rvest", "tidyverse", "duckdb",
+#  "lubridate", "magrittr", "glue", "here", "duckdb", "netstat"))
 
-# library(polite, verbose = FALSE, warn.conflicts = FALSE)
-# library(rvest, verbose = FALSE, warn.conflicts = FALSE)
-# library(RSelenium, verbose = FALSE, warn.conflicts = FALSE)
-# library(netstat, verbose = FALSE, warn.conflicts = FALSE)
-# library(duckdb, verbose = FALSE, warn.conflicts = FALSE)
-# library(glue, verbose = FALSE, warn.conflicts = FALSE)
-# library(DBI, verbose = FALSE, warn.conflicts = FALSE)
-# library(tidyverse, verbose = FALSE, warn.conflicts = FALSE)
-# library(here, verbose = FALSE, warn.conflicts = FALSE)
-# 
-# here::here()
+# suppressWarnings(library(rvest, verbose = F, warn.conflicts = F))
+# suppressWarnings(library(httr, verbose = F, warn.conflicts = F))
+# suppressWarnings(library(stringr, verbose = F, warn.conflicts = F))
+# suppressWarnings(library(polite, verbose = F, warn.conflicts = F))
+# suppressWarnings(library(RSelenium, verbose = F, warn.conflicts = F))
+# suppressWarnings(library(jsonlite, verbose = F, warn.conflicts = F))
+# suppressWarnings(library(tidyr, verbose = F, warn.conflicts = F))
+# suppressWarnings(library(dplyr, verbose = F, warn.conflicts = F))
+# suppressWarnings(library(glue, verbose = F, warn.conflicts = F))
+# suppressWarnings(library(lubridate, verbose = F, warn.conflicts = F))
+# suppressWarnings(library(DBI, verbose = F, warn.conflicts = F))
+# suppressWarnings(library(duckdb, verbose = F, warn.conflicts = F))
+# suppressWarnings(library(netstat, verbose = F, warn.conflicts = F))
 
 
-# Database Connection ----
+here::here()
 
 # con <- dbConnect(duckdb::duckdb(), dbdir = "02_Data/tsa_app.duckdb", read_only = FALSE)
 
-
-# Script Function ----
-
-
 scrape_tsa_data_clt <- function() {
-  
-  print(glue("kickoff CLT scrape ", format(Sys.time(), "%a %b %d %X %Y")))
-  
-  # Define URL and initiate polite session
-  url <- "https://www.cltairport.com/airport-info/security/"  # Update with the actual URL
 
+  print(glue("kickoff CLT scrape ", format(Sys.time(), "%a %b %d %X %Y")))
+
+  # url <- "https://www.cltairport.com/airport-info/security/"  
+  apiurl <- 'https://api.cltairport.mobi/checkpoint-queues/current' # Update with the actual URL
+  UA <- "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 email me at james.a.murtha@gmail.com"
+
+  # my_session <- session("https://www.cltairport.com/airport-info/security/")
+
+  response <- GET(apiurl, user_agent(UA))
+
+  response$status_code
+
+  stuff <- fromJSON(apiurl)
+
+  gates <- stuff$data$items$fullName |> 
+    stringr::word(1, 2, sep = ' ')
   
-  # firefox
-  remote_driver <- rsDriver(browser = "firefox",
-                            chromever = NULL,
-                            verbose = F,
-                            port = free_port(),
-                            extraCapabilities = list("moz:firefoxOptions" = list(args = list('--headless'))))
+  gatetype <- stuff$data$items$accessTypes |> 
+    unlist(use.names = F)
   
+  wait_time <- stuff$data$items$metrics$queueWaitTime$upperBoundSeconds / 60
   
-  # Access Page
-  brow <- remote_driver[["client"]]
-  # brow$open()
-  brow$navigate(url)
+  isClosed <- stuff$data$items$metrics$queueStatus$reportedClosed 
   
-  
-  # Scrape Page
-  h <- brow$getPageSource()
-  h <- read_html(h[[1]])
-  
-  
-  gates <- h |> 
-    html_elements("h2") |> 
-    html_text2() |>
-    magrittr::extract(c(2:3,5:6))
-  
-  
-  availability <- h |> 
-    html_elements('div.css-gtvyll.ehd75gq0 p') |> 
-    html_text2()
-  
-  
-  wait_time <- ifelse(availability == "Now Closed", "Closed", 
-    h |> 
-      html_elements('h3') |> 
-      html_text2() |> 
-      str_sub(-2)) |> 
-    magrittr::extract(c(1:2)) |> 
-    as.numeric() |> 
-    suppressWarnings()
-  
-  wait_time_pre_check <- ifelse(availability == "Now Closed", "Closed",
-    h |> 
-      html_elements('h3') |> 
-      html_text2() |> 
-      str_sub(-2)) |>
-    magrittr::extract(c(3:4)) |>
-    gsub(pattern = 'Closed', replacement = 'NA') |> 
-    as.numeric() |> 
-    suppressWarnings()
-  
-  # Fill in blanks for transformation to tibble
-  wait_time <- c(wait_time, NA, NA)
-  wait_time_pre_check <- c(NA, NA, wait_time_pre_check)
-  
-  
-  # Check to make Sure that TSA CheckPoint and Time have the same length
-  if(length(wait_time) != length(gates)){
-    stop("The length of wait_time and gates do not match.")
-  }
-  if(length(wait_time_pre_check) != length(gates)){
-    stop("The length of wait_time_pre_check and gates to not match.")
-  }
-  
+  mine <- tibble::tibble(
+    airport = rep('CLT', 4),
+    checkpoint = gates,
+    Type = gatetype,
+    wait_time = wait_time,
+    wait_time_priority = rep(NA, 4),
+    wait_time_pre_check = rep(0, 4),
+    wait_time_clear = rep(NA, 4),
+    Status = isClosed)
   
   # Create tibble for data insertion
   if(!exists("CLT_data", envir = .GlobalEnv)) {
@@ -109,52 +72,51 @@ scrape_tsa_data_clt <- function() {
     CLT_data <- get("CLT_data", envir = .GlobalEnv)
   }
   
-  
-  # Insert data into tibble
-  # Prepare data with airport code, date, time, timezone, and wait times
-  CLT_data <- rows_append(CLT_data, tibble(
-    airport = "CLT",
-    checkpoint = gates,
-    datetime = lubridate::now(tzone = 'EST'),
-    date = lubridate::today(),
-    time = Sys.time() |> 
-      with_tz(tzone = "America/New_York") |> 
-      floor_date(unit = "minute"),
-    # time = lubridate::now(tzone = 'EST') |>
-    # floor_date(unit = "minute") |>
-    # with_tz('EST'),
-    # format("%H:%M:%S"),
-    # hms::new_hms(),
-    timezone = "America/New_York",
-    wait_time = wait_time,  # Assume this is a list of wait times for each checkpoint
-    wait_time_priority = NA,
-    wait_time_pre_check = wait_time_pre_check,
-    wait_time_clear = NA
-  ))
-  
-  
+  CLT_data <- mine |> 
+    mutate(datetime = lubridate::now(tzone = 'EST'),
+           date = lubridate::today(tzone = 'EST'),
+           time = Sys.time() |> 
+             with_tz(tzone = "America/New_York") |> 
+             floor_date(unit = "minute"),
+           timezone = "America/New_York",
+           wait_time_pre_check = case_when((Status == "TRUE" ~ NA),
+                                           Type == "PreCheck" ~ wait_time,
+                                           TRUE ~ NA),
+           wait_time = case_when(Type == "General" ~ wait_time,
+                                 (Status == "TRUE" ~ NA),
+                                 TRUE ~ NA)
+    ) |> 
+    select(-Type, -Status) |> 
+    group_by(airport, checkpoint, datetime, date, time, timezone) |>
+    summarize(
+      wait_time = if (all(is.na(wait_time))) NA_real_ else max(wait_time, na.rm = TRUE),
+      wait_time_priority = if (all(is.na(wait_time_priority))) NA_real_ else max(wait_time_priority, na.rm = TRUE),
+      wait_time_pre_check = if (all(is.na(wait_time_pre_check))) NA_real_ else max(wait_time_pre_check, na.rm = TRUE),
+      wait_time_clear = if (all(is.na(wait_time_clear))) NA_real_ else max(wait_time_clear, na.rm = TRUE),
+      .groups = "drop" # Ensure ungrouped result
+      )
+
+
   assign("CLT_data", CLT_data, envir = .GlobalEnv)  
   
   dbAppendTable(con, name = "tsa_wait_times", value = CLT_data)
   
-  print(glue("session has run successfully ", format(Sys.time(), "%a %b %d %X %Y")))
-  rm(wait_time_pre_check)
-  rm(url)
-  rm(h)
-  rm(gates)
-  rm(availability)
-  rm(wait_time)
-  rm(CLT_data, envir = .GlobalEnv)
-  
-  brow$close()
-  rm(brow)
-  
-  remote_driver$server$stop()
-  rm(remote_driver)
-  # gc()
-  
-}
 
+  # rm(url)
+  rm(apiurl)
+  rm(UA)
+  rm(response)
+  rm(gates)
+  rm(gatetype)
+  rm(wait_time)
+  rm(isClosed)
+  rm(stuff)
+  rm(mine)
+  rm(CLT_data)
+  
+  print(glue("session has run successfully ", format(Sys.time(), "%a %b %d %X %Y")))
+
+}
 
 # Test Loop ----
 # i <- 1
@@ -165,7 +127,7 @@ scrape_tsa_data_clt <- function() {
 #   scrape_tsa_data_clt()
 #   theDelay <- as.numeric(difftime(p1,Sys.time(),unit="secs"))
 #   Sys.sleep(max(0, theDelay))
-#   
+# 
 #   i <- i + 1
 # }
 
