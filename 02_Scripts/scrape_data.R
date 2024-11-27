@@ -58,37 +58,42 @@ run_all_functions <- function() {
 }
 
 
-i <- 1
+run_all_functions()
 
-for (i in 1:5) {
-  p1 <- lubridate::ceiling_date(Sys.time(), unit = "5 minutes")
 
-  print(glue(i, " ", format(Sys.time())))
+Sys.sleep(2)
 
-  tryCatch(
-    expr = {
-      run_all_functions()
-    },
-    error = function(e) NULL
-  )
-  
-  gc()
-  
-  theDelay <- as.numeric(difftime(p1,Sys.time(),unit="secs"))
+# i <- 1
+# 
+# for (i in 1:5) {
+#   p1 <- lubridate::ceiling_date(Sys.time(), unit = "5 minutes")
+# 
+#   print(glue(i, " ", format(Sys.time())))
+# 
+#   tryCatch(
+#     expr = {
+#       run_all_functions()
+#     },
+#     error = function(e) NULL
+#   )
+#   
+#   gc()
+#   
+#   theDelay <- as.numeric(difftime(p1,Sys.time(),unit="secs"))
+# 
+#   i <- i + 1
+# 
+#   if(i == 6) {
+#     break()
+#   } else {
+#     Sys.sleep(max(0, theDelay))
+#   }
+# 
+# }
 
-  i <- i + 1
-
-  if(i == 6) {
-    break()
-  } else {
-    Sys.sleep(max(0, theDelay))
-  }
-
-}
-
-rm(i)
-rm(p1)
-rm(theDelay)
+# rm(i)
+# rm(p1)
+# rm(theDelay)
 rm(functions)
 dbDisconnect(con)
 rm(list = ls())
