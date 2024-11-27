@@ -14,19 +14,20 @@ foo <- function(x) {
 }
 
 ## Then install/load packages...
-foo(c('polite', 'rvest', 'RSelenium', 'duckdb', 'glue', 'DBI', 'tidyverse', 
+foo(c('polite', 'rvest', 'httr', 'RSelenium', 'jsonlite', 'duckdb', 'glue', 'DBI', 'tidyverse', 
       'netstat', 'here'))
 
 
 here::here()
 
+rm(foo)
 
 # Source Scripts ----
 
 ## Loading Airport Scraping functions
  
 files <- list.files(path = here::here("01_Scripts/")) |> 
-  stringr::str_subset("_tsa_times.R")
+  stringr::str_subset("_wait_times.R")
 
 
 funcs <- as.vector(map(here::here("01_Scripts/",files), source))
