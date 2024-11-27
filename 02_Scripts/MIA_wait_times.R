@@ -16,7 +16,7 @@
 
 # Database Connection ----
 
-con <- dbConnect(duckdb::duckdb(), dbdir = "02_Data/tsa_app.duckdb", read_only = FALSE)
+# con <- dbConnect(duckdb::duckdb(), dbdir = "02_Data/tsa_app.duckdb", read_only = FALSE)
 
 
 # Script Function ----
@@ -33,8 +33,8 @@ scrape_tsa_data_mia <- function() {
   remote_driver <- rsDriver(browser = "firefox",
                             chromever = NULL,
                             verbose = F,
-                            port = free_port(),
-                            extraCapabilities = list("moz:firefoxOptions" = list(args = list('--headless'))))
+                            port = free_port()
+                            ,extraCapabilities = list("moz:firefoxOptions" = list(args = list('--headless'))))
   
   
   # Access Page
@@ -42,6 +42,8 @@ scrape_tsa_data_mia <- function() {
   # brow$open()
   brow$navigate(url)
   
+  # Allow time for page to load
+  Sys.sleep(1.5)
   
   # Scrape Page
   h <- brow$getPageSource()
@@ -164,23 +166,23 @@ scrape_tsa_data_mia <- function() {
 # Test Loop ----
 # i <- 1
 # 
-# for (i in 1:5) {
+# for (i in 1:10) {
 #   p1 <- lubridate::ceiling_date(Sys.time(), unit = "minute")
-#   
+# 
 #   print(glue(i, "  ", format(Sys.time())))
-#   
+# 
 #   scrape_tsa_data_mia()
-#   
+# 
 #   theDelay <- as.numeric(difftime(p1,Sys.time(),unit="secs"))
-#   
+# 
 #   i <- i + 1
-#   
+# 
 #   if(i == 6) {
 #     break()
 #   } else {
 #     Sys.sleep(max(0, theDelay))
 #   }
-#   
+# 
 # }
 
 
@@ -191,3 +193,4 @@ scrape_tsa_data_mia <- function() {
 # dbDisconnect(con)
 # rm(con)
 # rm(scrape_tsa_data_mia)
+  
