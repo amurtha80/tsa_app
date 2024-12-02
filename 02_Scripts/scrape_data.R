@@ -15,10 +15,11 @@ foo <- function(x) {
 
 ## Then install/load packages...
 foo(c('polite', 'rvest', 'httr', 'RSelenium', 'jsonlite', 'duckdb', 'glue', 'DBI', 'tidyverse', 
-      'netstat', 'here'))
+      'netstat', 'here', 'fs'))
 
 
 here::here()
+
 
 rm(foo)
 
@@ -26,13 +27,22 @@ rm(foo)
 
 ## Loading Airport Scraping functions
  
-files <- list.files(path = here::here("01_Scripts/")) |> 
+
+
+files <- list.files(path = here::here("02_Scripts")) |>
   stringr::str_subset("_wait_times.R")
+print("files object works")
 
+Sys.sleep(2)
+funcs <- as.vector(map(here::here("02_Scripts", files), source))
+# funcs <- as.vector(map(.x = glue("02_Scripts/{files}"), .f = source))
+# funcs <- as.vector(source(here::here("02_Scripts/", "ATL_wait_times.R")))
+print("funcs object works")
 
-funcs <- as.vector(map(here::here("01_Scripts/",files), source))
+Sys.sleep(2)
 rm(files)
 rm(funcs)
+
 
 global_env <- ls(envir = .GlobalEnv)
 
@@ -46,7 +56,7 @@ rm(global_env)
 ## Run all scripts on a 5 minute loop ----
 
 ## Connect to Database
-con <- dbConnect(duckdb::duckdb(), dbdir = "02_Data/tsa_app.duckdb", read_only = FALSE)
+con <- dbConnect(duckdb::duckdb(), dbdir = here::here("01_Data", "tsa_app.duckdb"), read_only = FALSE)
 
 ## Run Scripts ----
 
@@ -58,43 +68,43 @@ run_all_functions <- function() {
 }
 
 
-run_all_functions()
+# run_all_functions()
 
 
-Sys.sleep(2)
+# Sys.sleep(2)
 
-# i <- 1
-# 
-# for (i in 1:5) {
-#   p1 <- lubridate::ceiling_date(Sys.time(), unit = "5 minutes")
-# 
-#   print(glue(i, " ", format(Sys.time())))
-# 
-#   tryCatch(
-#     expr = {
-#       run_all_functions()
-#     },
-#     error = function(e) NULL
-#   )
-#   
-#   gc()
-#   
-#   theDelay <- as.numeric(difftime(p1,Sys.time(),unit="secs"))
-# 
-#   i <- i + 1
-# 
-#   if(i == 6) {
-#     break()
-#   } else {
-#     Sys.sleep(max(0, theDelay))
-#   }
-# 
-# }
+i <- 1
 
-# rm(i)
-# rm(p1)
-# rm(theDelay)
+for (i in 1:288) {
+  p1 <- lubridate::ceiling_date(Sys.time(), unit = "5 minutes")
+
+  print(glue(i, " ", format(Sys.time())))
+
+  tryCatch(
+    expr = {
+      run_all_functions()
+    },
+    error = function(e) NULL
+  )
+
+  gc()
+
+  theDelay <- as.numeric(difftime(p1,Sys.time(),unit="secs"))
+
+  i <- i + 1
+
+  if(i == 289) {
+    break()
+  } else {
+    Sys.sleep(max(0, theDelay))
+  }
+
+}
+
+rm(i)
+rm(p1)
+rm(theDelay)
 rm(functions)
-dbDisconnect(con)
+dbDisconnect(con, shutdown = TRUE)
 rm(list = ls())
 gc()
