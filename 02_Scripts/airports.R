@@ -6,6 +6,7 @@
 library(nanoparquet)
 library(dplyr)
 library(tibble) 
+library(here)
 
 ## Data Schema ----
 
@@ -46,6 +47,8 @@ library(tibble)
 #   Source          = character()
 # )
 
+here::here()
+
 names <- c("Airport_ID", "Airport_Name", "Airport_City", "Airport_Country", 
            "IATA_Code", "ICAO_Code", "Latitude", "Longitude", "Altitude", "Timezone",
            "DST", "TZ_db_Timezone", "Type", "Source")
@@ -73,7 +76,7 @@ airports <- airports |>
 ## Write Data Out ----
 
 # Write to Parquet
-nanoparquet::write_parquet(airports, "02_data/airports.parquet")
+nanoparquet::write_parquet(airports, "01_Data/airports.parquet")
 
 ## Cleanup ----
 
