@@ -15,7 +15,7 @@
 
 # Database Connection ----
 
-# con <- dbConnect(duckdb::duckdb(), dbdir = "02_Data/tsa_app.duckdb", read_only = FALSE)
+# con <- dbConnect(duckdb::duckdb(), dbdir = "01_Data/tsa_app.duckdb", read_only = FALSE)
 
 
 # Script Function ----
@@ -41,7 +41,7 @@ scrape_tsa_data_mco <- function() {
     brow <- remote_driver[["client"]]
     # brow$open()
     brow$navigate(url)
-    
+    Sys.sleep(3)
     
     # Scrape Page
     h <- brow$getPageSource()
@@ -49,16 +49,19 @@ scrape_tsa_data_mco <- function() {
 
 
     # Click Accept All Cookie Button
-    Sys.sleep(3)
-    button <- brow$findElement(using = 'id', "CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll")
-    if(button$isElementDisplayed() == TRUE) {button$clickElement()} 
+    if(length(brow$findElement(using = 'id', "CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll")) != 0) {
+      button <- brow$findElement(using = 'id', "CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll")
+      if(button$isElementDisplayed()[[1]]) {
+        button$clickElement()
+      }
+    }
 
-    # Sys.sleep(1)
+
     gates <- h |> 
       # h5.css-1osfado-headings-H5-WidgetContainer-WidgetTitle-SecurityWaitTimesCard-SWTCardTitle.e1v0x5ca2
       html_elements("h5.css-1osfado-headings-H5-WidgetContainer-WidgetTitle-SecurityWaitTimesCard-SWTCardTitle.e1v0x5ca2") |>
-      html_text2() 
-      # |> magrittr::extract(c(1:3))
+      html_text2() |> 
+        magrittr::extract(c(1:3))
 
 
     wait_time <- h |> 
@@ -124,7 +127,9 @@ scrape_tsa_data_mco <- function() {
     
     dbAppendTable(con, name = "tsa_wait_times", value = MCO_data)
     
-    print(glue("session has run successfully ", format(Sys.time(), "%a %b %d %X %Y")))
+    # print(glue("session has run successfully ", format(Sys.time(), "%a %b %d %X %Y")))
+    print(glue("{nrow(MCO_data)} row(s) of data have been added to tsa_wait_times"))
+    
     rm(wait_time_pre_check)
     rm(url)
     rm(h)
@@ -138,8 +143,8 @@ scrape_tsa_data_mco <- function() {
     
     remote_driver$server$stop()
     rm(remote_driver)
-    # gc()  
 }
+
 
 
 # Test Loop ----
