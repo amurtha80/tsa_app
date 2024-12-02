@@ -15,7 +15,7 @@
 
 # Database Connection ----
 
-# con <- dbConnect(duckdb::duckdb(), dbdir = "02_Data/tsa_app.duckdb", read_only = FALSE)
+# con <- dbConnect(duckdb::duckdb(), dbdir = "01_Data/tsa_app.duckdb", read_only = FALSE)
 
 
 # Script Function ----
@@ -123,8 +123,10 @@ scrape_tsa_data_dca <- function() {
   
   dbAppendTable(con, name = "tsa_wait_times", value = DCA_data)
   
+  # print(glue("session has run successfully ", format(Sys.time(), "%a %b %d %X %Y")))
+  print(glue("{nrow(DCA_data)} row(s) of data have been added to tsa_wait_times"))
   
-  print(glue("session has run successfully ", format(Sys.time(), "%a %b %d %X %Y")))
+  
   rm(url)
   rm(h)
   # rm(gates)
