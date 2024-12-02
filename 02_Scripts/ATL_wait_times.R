@@ -15,7 +15,7 @@
   
   # Database Connection ----
   
-  # con <- dbConnect(duckdb::duckdb(), dbdir = "02_Data/tsa_app.duckdb", read_only = FALSE)
+  # con <- dbConnect(duckdb::duckdb(), dbdir = "01_Data/tsa_app.duckdb", read_only = FALSE)
   
   # Script Function ----
   
@@ -106,7 +106,8 @@
   
   dbAppendTable(con, name = "tsa_wait_times", value = ATL_data)
   
-    print(glue("session has run successfully ", format(Sys.time(), "%a %b %d %X %Y")))
+    # print(glue("session has run successfully ", format(Sys.time(), "%a %b %d %X %Y")))
+    print(glue("{nrow(ATL_data)} row(s) of data have been added to tsa_wait_times"))
     rm(tsa_time)
     rm(url)
     rm(tsa_terminal_checkpoint)
