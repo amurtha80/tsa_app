@@ -1,31 +1,38 @@
 # Install Packages ----
 
-# install.packages(c("duckdb", "duckplyr", "DBI"))
+# install.packages(c("RSQLite", "nanoparquet", "duckdb", "duckplyr", "DBI"))
 
 ## Access Libraries to Project ----
-library(duckdb, verbose = F)
-library(duckplyr, verbose = F)
+library(RSQLite, verbose = F)
+# library(duckdb, verbose = F)
+# library(duckplyr, verbose = F)
 library(DBI, verbose = F)
+library(here, verbose = F)
+library(nanoparquet, verbose = F)
 
+here::here()
 
 # TSA Database ----
 
 ## Create Database ----
 
-# Create TSA Database
-con <- dbConnect(duckdb(), dbdir = "02_Data/tsa_app.duckdb", read_only = FALSE)
+# Create TSA Database DuckDB
+# con <- dbConnect(duckdb(), dbdir = "01_Data/tsa_app.duckdb", read_only = FALSE)
+
+# Create TSA Database SQLite
+sqlite_db <- dbConnect(RSQLite::SQLite(), "01_Data/tsa_app.db")
 
 
 ## Create Tables ----
 
 
 # Create Airports Table
-dbExecute(con, "CREATE TABLE airports(
+dbExecute(sqlite_db, "CREATE TABLE airports(
   Airport_ID INTEGER,
   Airport_Name  VARCHAR,
   Airport_City  VARCHAR,
   Airport_Country VARCHAR,
-  IATA_Code VARCHAR PRIMARY KEY,
+  IATA_Code VARCHAR,
   ICAO_code VARCHAR,
   Latitude  DOUBLE,
   Longitude DOUBLE,
@@ -38,13 +45,21 @@ dbExecute(con, "CREATE TABLE airports(
 );")
 
 
-# Insert Parquet file into Airports Table
-dbExecute(con, "INSERT INTO airports SELECT * FROM read_parquet('02_Data/airports.parquet');")
+# Insert Parquet file into Airports Table - DuckDB
+# dbExecute(sqlite_db, 
+#           "INSERT INTO airports SELECT * FROM read_parquet('01_Data/airports.parquet');")
 
+# Insert Parquet file into Airports Table - SQLite
+temp_airports <- nanoparquet::read_parquet(here::here('01_Data', 'airports.parquet'))
+
+dbWriteTable(conn = sqlite_db, name = "airports", value = temp_airports, 
+             overwrite = TRUE)
+
+rm(temp_airports)
 
 # Create TSA Wait Times Table
 # FOREIGN KEY (airport) REFERENCES airports (IATA_Code)7
-dbExecute(con, "CREATE TABLE tsa_wait_times(
+dbExecute(sqlite_db, "CREATE TABLE tsa_wait_times(
           airport VARCHAR,
           checkpoint VARCHAR,
           datetime DATETIME,
@@ -60,15 +75,15 @@ dbExecute(con, "CREATE TABLE tsa_wait_times(
 
 
 # Create Airport Website Table
-dbExecute(con, "CREATE TABLE airport_sites(
-          airport VARCHAR FOREIGN KEY,
+dbExecute(sqlite_db, "CREATE TABLE airport_sites(
+          airport VARCHAR,
           website VARCHAR
 );")
 
 
 # Create Airport CheckPoint Hours of Operation
-dbExecute(con, "CREATE TABLE airport_checkpoint_hours(
-          airport VARCHAR FOREIGN KEY,
+dbExecute(sqlite_db, "CREATE TABLE airport_checkpoint_hours(
+          airport VARCHAR,
           timezone VARCHAR,
           checkpoint VARCHAR,
           open_time_gen TIMESTAMP_S,
@@ -79,18 +94,21 @@ dbExecute(con, "CREATE TABLE airport_checkpoint_hours(
 
 
 # View tables
-# dbGetQuery(con, "SHOW TABLES;")
+# dbGetQuery(sqlite_db, "SHOW TABLES;")
+# dbListTables(sqlite_db)
 
 
 # Testing Queries
-# dbGetQuery(con, "SELECT airport, count(airport) as obs_count FROM tsa_wait_times GROUP BY airport;")
+# dbGetQuery(sqlite_db, "SELECT airport, count(airport) as obs_count FROM tsa_wait_times GROUP BY airport;")
 
 
 # Edit Queries
-# dbSendQuery(con, "INSERT INTO airport_sites (airport, website) airport_sites VALUES ('LGA', 'https://www.laguardiaairport.com');")
-# dbSendQuery(con, "DELETE FROM tsa_wait_times WHERE airport = 'LGA';")
+# dbSendQuery(sqlite_db, "INSERT INTO airport_sites (airport, website) airport_sites VALUES (
+#             'JFK', 'https://www.jfkairport.com',
+#             'LGA', 'https://www.laguardiaairport.com');")
+# dbSendQuery(sqlite_db, "DELETE FROM tsa_wait_times WHERE airport = 'LGA';")
 
 
 # Disconnect from Database ----
-DBI::dbDisconnect(con, shutdown = TRUE)
-rm(con)
+DBI::dbDisconnect(sqlite_db, shutdown = TRUE)
+rm(sqlite_db)
