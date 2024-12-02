@@ -14,7 +14,7 @@
 
 # Database Connection ----
 
-# con <- dbConnect(duckdb::duckdb(), dbdir = "02_Data/tsa_app.duckdb", read_only = FALSE)
+# con <- dbConnect(duckdb::duckdb(), dbdir = "01_Data/tsa_app.duckdb", read_only = FALSE)
 
 
 # Function to scrape and store TSA checkpoint wait times
@@ -126,7 +126,10 @@ scrape_tsa_data_den <- function() {
   
   dbAppendTable(con, name = "tsa_wait_times", value = DEN_data)
   
-  print(glue("session has run successfully ", format(Sys.time(), "%a %b %d %X %Y")))
+  # print(glue("session has run successfully ", format(Sys.time(), "%a %b %d %X %Y")))
+  print(glue("{nrow(DEN_data)} row(s) of data have been added to tsa_wait_times"))
+  
+  
   rm(gates)
   rm(wait_time)
   rm(wait_time_pre_check)
