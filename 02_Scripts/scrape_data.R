@@ -44,6 +44,8 @@ rm(files)
 rm(funcs)
 
 
+functions <- as.vector(lsf.str())
+# Tried the following to get to work with Windows Task Scheduler, Failed
 # global_env <- ls(envir = .GlobalEnv)
 # print("global_env object works")
 
@@ -51,7 +53,7 @@ rm(funcs)
 # functions <- global_env[sapply(global_env,
 #                         function(x) is.function(get(x, envir = .GlobalEnv)))]
 # functions <- ls(pattern = "^function \\(.+$") 
-functions <- as.vector(lsf.str())
+
 
 # rm(global_env)
 
@@ -73,10 +75,10 @@ run_all_functions <- function() {
 }
 
 
-run_all_functions()
+# run_all_functions()
 
 
-i <- 1
+ i <- 1
 
 for (i in 1:288) {
   p1 <- lubridate::ceiling_date(Sys.time(), unit = "5 minutes")
