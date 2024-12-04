@@ -44,11 +44,16 @@ rm(files)
 rm(funcs)
 
 
-global_env <- ls(envir = .GlobalEnv)
+# global_env <- ls(envir = .GlobalEnv)
+# print("global_env object works")
 
 # Filter to only functions
-functions <- global_env[sapply(global_env, function(x) is.function(get(x, envir = .GlobalEnv)))]
-rm(global_env)
+# functions <- global_env[sapply(global_env,
+#                         function(x) is.function(get(x, envir = .GlobalEnv)))]
+# functions <- ls(pattern = "^function \\(.+$") 
+functions <- as.vector(lsf.str())
+
+# rm(global_env)
 
 
 # Test Run Scripts ----
@@ -68,10 +73,8 @@ run_all_functions <- function() {
 }
 
 
-# run_all_functions()
+run_all_functions()
 
-
-# Sys.sleep(2)
 
 i <- 1
 
@@ -79,7 +82,7 @@ for (i in 1:288) {
   p1 <- lubridate::ceiling_date(Sys.time(), unit = "5 minutes")
 
   print(glue(i, " ", format(Sys.time())))
-
+  
   tryCatch(
     expr = {
       run_all_functions()
