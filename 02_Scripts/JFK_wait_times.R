@@ -3,16 +3,16 @@
 # install.packages(c("rvest", "RSelenium", "netstat", "wdman", "tidyverse", "duckdb",
 #                     "glue", "here", "polite"))
 
-# library(rvest)
-# library(RSelenium)
-# library(netstat)
-# library(wdman)
-# library(duckdb)
-# library(tidyverse)
-# library(glue)
-# library(here)
+library(rvest)
+library(RSelenium)
+library(netstat)
+library(wdman)
+library(duckdb)
+library(tidyverse)
+library(glue)
+library(here)
 
-# here::here()
+here::here()
 
 # Database Connection ----
 
@@ -22,6 +22,8 @@
 scrape_tsa_data_jfk <- function() {
   
   print(glue("kickoff JFK scrape ", format(Sys.time(), "%a %b %d %X %Y")))
+  
+  url <- "https://www.jfkairport.com"
   
   # firefox
   remote_driver <- rsDriver(browser = "firefox",
@@ -34,7 +36,7 @@ scrape_tsa_data_jfk <- function() {
   # Access Page
   brow <- remote_driver[["client"]]
   # brow$open()
-  brow$navigate("https://www.jfkairport.com")
+  brow$navigate(url)
   
   
   # Scrape Page
@@ -105,6 +107,7 @@ scrape_tsa_data_jfk <- function() {
   
   brow$close()
   rm(brow)
+  rm(url)
   
   remote_driver$server$stop()
   rm(remote_driver)
