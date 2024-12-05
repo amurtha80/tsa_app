@@ -15,7 +15,7 @@ foo <- function(x) {
 
 ## Then install/load packages...
 foo(c('polite', 'rvest', 'httr', 'RSelenium', 'jsonlite', 'duckdb', 'glue', 'DBI', 'tidyverse', 
-      'netstat', 'here', 'fs'))
+      'netstat', 'here', 'fs', 'chromote'))
 
 Sys.sleep(1)
 here::here()
@@ -75,7 +75,7 @@ run_all_functions <- function() {
 }
 
 
-# run_all_functions()
+run_all_functions()
 
 
  i <- 1
