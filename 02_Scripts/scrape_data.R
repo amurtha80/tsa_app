@@ -17,7 +17,7 @@ foo <- function(x) {
 foo(c('polite', 'rvest', 'httr', 'RSelenium', 'jsonlite', 'duckdb', 'glue', 'DBI', 'tidyverse', 
       'netstat', 'here', 'fs'))
 
-
+Sys.sleep(1)
 here::here()
 
 
@@ -33,13 +33,13 @@ files <- list.files(path = here::here("02_Scripts")) |>
   stringr::str_subset("_wait_times.R")
 print("files object works")
 
-Sys.sleep(2)
+Sys.sleep(1)
 funcs <- as.vector(map(here::here("02_Scripts", files), source))
 # funcs <- as.vector(map(.x = glue("02_Scripts/{files}"), .f = source))
 # funcs <- as.vector(source(here::here("02_Scripts/", "ATL_wait_times.R")))
 print("funcs object works")
 
-Sys.sleep(2)
+Sys.sleep(1)
 rm(files)
 rm(funcs)
 
