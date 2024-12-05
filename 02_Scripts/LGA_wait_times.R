@@ -28,6 +28,8 @@ scrape_tsa_data_lga <- function() {
   
   print(glue("kickoff LGA scrape ", format(Sys.time(), "%a %b %d %X %Y")))
   
+  url <- "https://www.laguardiaairport.com"
+  
   # firefox
   remote_driver <- rsDriver(browser = "firefox",
                             chromever = NULL,
@@ -39,7 +41,7 @@ scrape_tsa_data_lga <- function() {
   # Access Page
   brow <- remote_driver[["client"]]
   # brow$open()
-  brow$navigate("https://www.laguardiaairport.com")
+  brow$navigate(url)
   
   
   # Scrape Page
@@ -108,6 +110,7 @@ scrape_tsa_data_lga <- function() {
   
   brow$close()
   rm(brow)
+  rm(url)
   
   remote_driver$server$stop()
   rm(remote_driver)
