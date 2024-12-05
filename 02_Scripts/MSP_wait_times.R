@@ -132,7 +132,7 @@ if(!exists("MSP_data", envir = .GlobalEnv)) {
 # for (i in 1:5) {
 #   p1 <- lubridate::ceiling_date(Sys.time(), unit = "minute")
 #   print(glue(i, "  ", format(Sys.time())))
-#   scrape_tsa_data_atl()
+#   scrape_tsa_data_msp()
 #   theDelay <- as.numeric(difftime(p1,Sys.time(),unit="secs"))
 #   Sys.sleep(max(0, theDelay))
 #   
@@ -144,6 +144,6 @@ if(!exists("MSP_data", envir = .GlobalEnv)) {
 # rm(i)
 # rm(p1)
 # rm(theDelay)
-# dbDisconnect(con)
+# dbDisconnect(con, shutdown = T)
 # rm(con)
 # rm(scrape_tsa_data_msp)
