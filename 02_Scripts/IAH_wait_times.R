@@ -1,5 +1,5 @@
 # install.packages(c("DBI", "polite", "rvest", "tidyverse", "duckdb", 
-#  "lubridate", "magrittr", glue", "here"))
+#  "lubridate", "magrittr", glue", "here", "chromote"))
 
 # library(polite, verbose = FALSE, warn.conflicts = FALSE)
 # library(rvest, verbose = FALSE, warn.conflicts = FALSE)
@@ -10,6 +10,7 @@
 # library(DBI, verbose = FALSE, warn.conflicts = FALSE)
 # library(tidyverse, verbose = FALSE, warn.conflicts = FALSE)
 # library(here, verbose = FALSE, warn.conflicts = FALSE)
+# library(chromote, verbose = FALSE, warn.conflicts = FALSE)
 
 # here::here()
 
@@ -91,8 +92,9 @@ scrape_tsa_data_iah <- function() {
     wait_time_clear = case_when((grepl(pattern = "[:alpha:]\\*\\*$", x = data$Terminal)) ~ data$wait_time,
                                 TRUE ~ NA_integer_)
     )
-  )  |> 
-    mutate(checkpoint = str_replace_all(cur_data()$checkpoint, pattern = "[^[:alnum:][:space:]]", ""))
+  ) 
+  
+  IAH_data$checkpoint  <-  str_replace_all(IAH_data$checkpoint, pattern = "[^[:alnum:][:space:]]", "")
 
   assign("IAH_data", IAH_data, envir = .GlobalEnv)  
   
