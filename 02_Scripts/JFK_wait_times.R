@@ -3,16 +3,16 @@
 # install.packages(c("rvest", "RSelenium", "netstat", "wdman", "tidyverse", "duckdb",
 #                     "glue", "here", "polite"))
 
-library(rvest)
-library(RSelenium)
-library(netstat)
-library(wdman)
-library(duckdb)
-library(tidyverse)
-library(glue)
-library(here)
+# library(rvest)
+# library(RSelenium)
+# library(netstat)
+# library(wdman)
+# library(duckdb)
+# library(tidyverse)
+# library(glue)
+# library(here)
 
-here::here()
+# here::here()
 
 # Database Connection ----
 
