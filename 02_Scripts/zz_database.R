@@ -50,12 +50,12 @@ dbExecute(sqlite_db, "CREATE TABLE airports(
 #           "INSERT INTO airports SELECT * FROM read_parquet('01_Data/airports.parquet');")
 
 # Insert Parquet file into Airports Table - SQLite
-temp_airports <- nanoparquet::read_parquet(here::here('01_Data', 'airports.parquet'))
+# temp_airports <- nanoparquet::read_parquet(here::here('01_Data', 'airports.parquet'))
 
-dbWriteTable(conn = sqlite_db, name = "airports", value = temp_airports, 
-             overwrite = TRUE)
-
-rm(temp_airports)
+# dbWriteTable(conn = sqlite_db, name = "airports", value = temp_airports, 
+#              overwrite = TRUE)
+# 
+# rm(temp_airports)
 
 # Create TSA Wait Times Table
 # FOREIGN KEY (airport) REFERENCES airports (IATA_Code)7
@@ -103,9 +103,17 @@ dbExecute(sqlite_db, "CREATE TABLE airport_checkpoint_hours(
 
 
 # Edit Queries
-# dbSendQuery(sqlite_db, "INSERT INTO airport_sites (airport, website) airport_sites VALUES (
-#             'JFK', 'https://www.jfkairport.com',
-#             'LGA', 'https://www.laguardiaairport.com');")
+# dbSendQuery(sqlite_db, "INSERT INTO airport_sites (airport, website) VALUES 
+#             ('ATL', 'https://www.atl.com/times/'),
+#             ('CLT', 'https://api.cltairport.mobi/checkpoint-queues/current'),
+#             ('DCA', 'https://www.flyreagan.com/travel-information/security-information'),
+#             ('DEN', 'https://www.flydenver.com/security/'),
+#             ('IAH', 'https://www.fly2houston.com/iah/security'),
+#             ('JFK', 'https://www.jfkairport.com'),
+#             ('LGA', 'https://www.laguardiaairport.com'),
+#             ('MCO', 'https://flymco.com/security/'),
+#             ('MIA', 'https://www.miami-airport.com/tsa-waittimes.asp'),
+#             ('MSP', 'https://www.mspairport.com/airport/security-screening/security-wait-times');")
 # dbSendQuery(sqlite_db, "DELETE FROM tsa_wait_times WHERE airport = 'LGA';")
 
 
