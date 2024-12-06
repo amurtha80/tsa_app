@@ -22,6 +22,12 @@ here::here()
 # Create TSA Database SQLite
 sqlite_db <- dbConnect(RSQLite::SQLite(), "01_Data/tsa_app.db")
 
+## SQLite Database Settings ----
+# Update SQLite Database read/write settings to have concurrency
+# dbSendQuery(sqlite_db, "PRAGMA journal_mode=WAL;")
+# Update SQLite Database read/write settings to remove concurrency
+# dbSendQuery(sqlite_db, "PRAGMA journal_mode=delete;")
+
 
 ## Create Tables ----
 
@@ -93,16 +99,16 @@ dbExecute(sqlite_db, "CREATE TABLE airport_checkpoint_hours(
 );")
 
 
-# View tables
+## View tables ----
 # dbGetQuery(sqlite_db, "SHOW TABLES;")
 # dbListTables(sqlite_db)
 
 
-# Testing Queries
+## Testing Queries ----
 # dbGetQuery(sqlite_db, "SELECT airport, count(airport) as obs_count FROM tsa_wait_times GROUP BY airport;")
 
 
-# Edit Queries
+## Edit Queries ----
 # dbSendQuery(sqlite_db, "INSERT INTO airport_sites (airport, website) VALUES 
 #             ('ATL', 'https://www.atl.com/times/'),
 #             ('CLT', 'https://api.cltairport.mobi/checkpoint-queues/current'),
@@ -117,6 +123,6 @@ dbExecute(sqlite_db, "CREATE TABLE airport_checkpoint_hours(
 # dbSendQuery(sqlite_db, "DELETE FROM tsa_wait_times WHERE airport = 'LGA';")
 
 
-# Disconnect from Database ----
+## Disconnect from Database ----
 DBI::dbDisconnect(sqlite_db, shutdown = TRUE)
 rm(sqlite_db)
