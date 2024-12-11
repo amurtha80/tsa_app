@@ -166,3 +166,12 @@ scrape_tsa_data_den <- function() {
 # dbDisconnect(con)
 # rm(con)
 # rm(scrape_tsa_data_den)
+
+
+## TODO ----
+## Research error when killing Chrome processes in Windows Task Manager
+
+# kickoff DEN scrape Fri Dec 06 4:30:11 PM 2024
+# [2024-12-06 16:30:45] [error] handle_read_frame error: asio.system:10054 (An existing connection was forcibly closed by the remote host.)
+# 3 row(s) of data have been added to tsa_wait_times
+# kickoff EWR scrape Fri Dec 06 4:30:47 PM 2024
