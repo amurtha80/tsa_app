@@ -15,7 +15,7 @@
 # suppressWarnings(library(tidyjson, verbose = F, warn.conflicts = F))
 
 
-here::here()
+# here::here()
 
 # con <- dbConnect(duckdb::duckdb(), dbdir = "01_Data/tsa_app.duckdb", read_only = FALSE)
 
@@ -119,6 +119,8 @@ scrape_tsa_data_DFW <- function() {
   rm(DFW_data)
   
 }
+
+scrape_tsa_data_DFW()
 
 # Test Loop ----
 # i <- 1
