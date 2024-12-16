@@ -12,7 +12,7 @@
 # library(here, verbose = FALSE, warn.conflicts = FALSE)
 # library(chromote, verbose = FALSE, warn.conflicts = FALSE)
 
-here::here()
+# here::here()
 
 
 # Database Connection ----
@@ -93,6 +93,7 @@ scrape_tsa_data_ewr <- function() {
   
   rm(results)
   rm(EWR_data, envir = .GlobalEnv)
+  page$session$close()
   rm(page)
   rm(session)
   rm(url)

@@ -115,7 +115,7 @@ scrape_tsa_data_clt <- function() {
   rm(isClosed)
   rm(stuff)
   rm(mine)
-  rm(CLT_data)
+  rm(CLT_data, envir = .GlobalEnv)
   
 }
 
