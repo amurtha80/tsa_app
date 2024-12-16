@@ -2,3 +2,6 @@
 .Rhistory
 .RData
 .Ruserdata
+01_Data/
+demo_app.R
+app.R
