@@ -4,11 +4,11 @@
 foo <- function(x) {
   for(i in x) {
     # require returns TRUE invisibly if it was able to load package
-    if(! require(i, character.only = TRUE)) {
+    if(! require(i, character.only = TRUE, quietly = TRUE)) {
       # if package was not able to be loaded then re-install
-      install.packages(i, dependencies = TRUE, verbose = FALSE)
+      install.packages(i, dependencies = TRUE, verbose = FALSE, quiet = TRUE)
       # load package after installing
-      require(i, character.only = TRUE, verbose = FALSE)
+      require(i, character.only = TRUE, verbose = FALSE, quietly = TRUE)
     }
   }
 }
