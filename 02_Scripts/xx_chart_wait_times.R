@@ -25,6 +25,7 @@ here::here()
 #     slots for that day/time combination
 # 4. Plot horizontal line in 15 minute intervals as the maximum time with a 60 
 #     minute buffer on each side
+# 5. Update database.R script to include new table for analysis of timeseries data
 
 ## Query data from tsa_wait_times table, group by airport and day of week, and 
 ## then aggregate by 15 minute timeframe
