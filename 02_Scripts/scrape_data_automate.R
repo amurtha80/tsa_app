@@ -65,7 +65,7 @@ functions <- as.vector(lsf.str())
 ## Run all scripts on a 5 minute loop ----
 
 ## Connect to Database
-con <- dbConnect(duckdb::duckdb(), dbdir = here::here("01_Data", "tsa_app.duckdb"), read_only = FALSE)
+con_write <- dbConnect(duckdb::duckdb(), dbdir = here::here("01_Data", "tsa_app.duckdb"), read_only = FALSE)
 
 ## Run Scripts ----
 
