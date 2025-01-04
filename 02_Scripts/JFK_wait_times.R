@@ -93,7 +93,7 @@ scrape_tsa_data_jfk <- function() {
   
   
   # Insert observations into tsa_wait_times table
-  dbAppendTable(con, name = "tsa_wait_times", value = JFK_data)
+  dbAppendTable(con_write, name = "tsa_wait_times", value = JFK_data)
   
   
   # Cleanup to rerun
