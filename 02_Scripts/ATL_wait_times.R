@@ -104,7 +104,7 @@
     
   assign("ATL_data", ATL_data, envir = .GlobalEnv)  
   
-  dbAppendTable(con, name = "tsa_wait_times", value = ATL_data)
+  dbAppendTable(con_write, name = "tsa_wait_times", value = ATL_data)
   
     # print(glue("session has run successfully ", format(Sys.time(), "%a %b %d %X %Y")))
     print(glue("{nrow(ATL_data)} row(s) of data have been added to tsa_wait_times"))
