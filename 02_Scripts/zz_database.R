@@ -105,7 +105,15 @@ dbExecute(sqlite_db, "CREATE TABLE airport_checkpoint_hours(
 
 
 ## Testing Queries ----
+# Query for observation count by airport
 # dbGetQuery(sqlite_db, "SELECT airport, count(airport) as obs_count FROM tsa_wait_times GROUP BY airport;")
+# 
+# Query for most recent observations from most recent run
+# dbGetQuery(con_read, 
+# "SELECT a.airport, a.datetime, count(*) as obs from tsa_wait_times a INNER JOIN 
+# (SELECT airport, max(datetime) as datetime FROM tsa_wait_times GROUP BY airport) b 
+# ON a.airport = b.airport AND a.datetime = b.datetime GROUP BY a.airport, a.datetime 
+# ORDER BY a.airport;")
 
 
 ## Edit Queries ----
