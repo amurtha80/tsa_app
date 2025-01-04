@@ -99,7 +99,7 @@ scrape_tsa_data_iah <- function() {
   assign("IAH_data", IAH_data, envir = .GlobalEnv)  
   
   
-  dbAppendTable(con, name = "tsa_wait_times", value = IAH_data)
+  dbAppendTable(con_write, name = "tsa_wait_times", value = IAH_data)
   
   
   # print(glue("session has run successfully ", format(Sys.time(), "%a %b %d %X %Y")))
