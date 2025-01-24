@@ -28,7 +28,7 @@ scrape_tsa_data_ewr <- function() {
   # Define URL and initiate polite session
   url <- "https://www.newarkairport.com/"  # Update with the actual URL
   session <- polite::bow(url)
- 
+  options(chromote.headless = "new")
   
   # Access Page
   page <- read_html_live(url)
