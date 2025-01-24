@@ -125,7 +125,7 @@ scrape_tsa_data_mco <- function() {
     
     assign("MCO_data", MCO_data, envir = .GlobalEnv)  
     
-    dbAppendTable(con, name = "tsa_wait_times", value = MCO_data)
+    dbAppendTable(con_write, name = "tsa_wait_times", value = MCO_data)
     
     # print(glue("session has run successfully ", format(Sys.time(), "%a %b %d %X %Y")))
     print(glue("{nrow(MCO_data)} row(s) of data have been added to tsa_wait_times"))

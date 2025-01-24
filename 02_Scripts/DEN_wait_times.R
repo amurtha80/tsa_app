@@ -125,7 +125,7 @@ scrape_tsa_data_den <- function() {
   
   assign("DEN_data", DEN_data, envir = .GlobalEnv)  
   
-  dbAppendTable(con, name = "tsa_wait_times", value = DEN_data)
+  dbAppendTable(con_write, name = "tsa_wait_times", value = DEN_data)
   
   # print(glue("session has run successfully ", format(Sys.time(), "%a %b %d %X %Y")))
   print(glue("{nrow(DEN_data)} row(s) of data have been added to tsa_wait_times"))

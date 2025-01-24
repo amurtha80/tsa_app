@@ -97,7 +97,7 @@ scrape_tsa_data_lga <- function() {
   
   
   # Insert observations into tsa_wait_times table
-  dbAppendTable(con, name = "tsa_wait_times", value = LGA_data)
+  dbAppendTable(con_write, name = "tsa_wait_times", value = LGA_data)
   
   
   # Cleanup to rerun

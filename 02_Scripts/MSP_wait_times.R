@@ -107,7 +107,7 @@ if(!exists("MSP_data", envir = .GlobalEnv)) {
   assign("MSP_data", MSP_data, envir = .GlobalEnv)  
   
 
-  dbAppendTable(con, name = "tsa_wait_times", value = MSP_data)
+  dbAppendTable(con_write, name = "tsa_wait_times", value = MSP_data)
   
 
   # print(glue("session has run successfully ", format(Sys.time(), "%a %b %d %X %Y")))
