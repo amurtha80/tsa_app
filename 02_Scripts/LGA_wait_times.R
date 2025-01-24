@@ -21,7 +21,7 @@
 
 # Database Connection ----
 
-# con <- dbConnect(duckdb::duckdb(), dbdir = "01_Data/tsa_app.duckdb", read_only = FALSE)
+# con_write <- dbConnect(duckdb::duckdb(), dbdir = "01_Data/tsa_app.duckdb", read_only = FALSE)
 
 # Function to scrape and store TSA checkpoint wait times
 scrape_tsa_data_lga <- function() {
@@ -34,7 +34,7 @@ scrape_tsa_data_lga <- function() {
   remote_driver <- rsDriver(browser = "firefox",
                             chromever = NULL,
                             verbose = F,
-                            port = free_port(),
+                            port = netstat::free_port(random = TRUE),
                             extraCapabilities = list("moz:firefoxOptions" = list(args = list('--headless'))))
   
   
