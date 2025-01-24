@@ -17,7 +17,7 @@
 
 # here::here()
 
-# con <- dbConnect(duckdb::duckdb(), dbdir = "01_Data/tsa_app.duckdb", read_only = FALSE)
+# con_write <- dbConnect(duckdb::duckdb(), dbdir = "01_Data/tsa_app.duckdb", read_only = FALSE)
 
 scrape_tsa_data_DFW <- function() {
   
@@ -100,7 +100,7 @@ scrape_tsa_data_DFW <- function() {
   
   assign("DFW_data", DFW_data, envir = .GlobalEnv)  
   
-  dbAppendTable(con, name = "tsa_wait_times", value = DFW_data)
+  dbAppendTable(con_write, name = "tsa_wait_times", value = DFW_data)
   
   # print(glue("session has run successfully ", format(Sys.time(), "%a %b %d %X %Y")))
   print(glue("{nrow(DFW_data)} row(s) of data have been added to tsa_wait_times"))
