@@ -10,12 +10,12 @@
   # library(DBI, verbose = FALSE, warn.conflicts = FALSE)
   # library(tidyverse, verbose = FALSE, warn.conflicts = FALSE)
   # library(here, verbose = FALSE, warn.conflicts = FALSE)
-  # 
+
   # here::here()
   
   # Database Connection ----
   
-  # con <- dbConnect(duckdb::duckdb(), dbdir = "01_Data/tsa_app.duckdb", read_only = FALSE)
+  # con_write <- dbConnect(duckdb::duckdb(), dbdir = "01_Data/tsa_app.duckdb", read_only = FALSE)
   
   # Script Function ----
   
