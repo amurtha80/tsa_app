@@ -15,7 +15,7 @@
 
 # Database Connection ----
 
-# con <- dbConnect(duckdb::duckdb(), dbdir = "01_Data/tsa_app.duckdb", read_only = FALSE)
+# con_write <- dbConnect(duckdb::duckdb(), dbdir = "01_Data/tsa_app.duckdb", read_only = FALSE)
 
 
 # Script Function ----
@@ -33,15 +33,16 @@ scrape_tsa_data_mco <- function() {
     remote_driver <- rsDriver(browser = "firefox",
                               chromever = NULL,
                               verbose = F,
-                              port = free_port(),
-                              extraCapabilities = list("moz:firefoxOptions" = list(args = list('--headless'))))
+                              port = netstat::free_port(random = TRUE),
+                              extraCapabilities = list("moz:firefoxOptions" = list(args = list('--headless')))
+                              )
     
     
     # Access Page
     brow <- remote_driver[["client"]]
     # brow$open()
     brow$navigate(url)
-    Sys.sleep(3)
+    Sys.sleep(3.35)
     
     # Scrape Page
     h <- brow$getPageSource()
@@ -54,7 +55,15 @@ scrape_tsa_data_mco <- function() {
       if(button$isElementDisplayed()[[1]]) {
         button$clickElement()
       }
-    }
+    } 
+    
+    # Click Accept All Cookie Button - revised
+    # if(length(brow$findElement(using = 'id', "CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll")) != 0) {
+    #   button <- brow$findElement(using = 'id', "CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll")
+    #   if(button$isElementDisplayed()[[1]]) {
+    #     button$clickElement()
+    #   }
+    # }
 
 
     gates <- h |> 
