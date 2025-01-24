@@ -12,6 +12,7 @@
 # library(tidyverse, verbose = FALSE, warn.conflicts = FALSE)
 # library(here, verbose = FALSE, warn.conflicts = FALSE)
 
+# here::here()
 
 # Database Connection ----
 
@@ -42,28 +43,29 @@ scrape_tsa_data_mco <- function() {
     brow <- remote_driver[["client"]]
     # brow$open()
     brow$navigate(url)
-    Sys.sleep(3.35)
+    Sys.sleep(3.1)
     
     # Scrape Page
     h <- brow$getPageSource()
     h <- read_html(h[[1]])
 
 
-    # Click Accept All Cookie Button
-    if(length(brow$findElement(using = 'id', "CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll")) != 0) {
-      button <- brow$findElement(using = 'id', "CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll")
-      if(button$isElementDisplayed()[[1]]) {
-        button$clickElement()
-      }
-    } 
-    
-    # Click Accept All Cookie Button - revised
-    # if(length(brow$findElement(using = 'id', "CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll")) != 0) {
+    # # Click Accept All Cookie Button
+    # if(length(brow$findElements(using = 'id', "CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll")) != 0) {
     #   button <- brow$findElement(using = 'id', "CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll")
     #   if(button$isElementDisplayed()[[1]]) {
     #     button$clickElement()
     #   }
-    # }
+    # } 
+    
+    # Click Accept All Cookie Button - revised
+    doesCookieButton_Exist <- isTRUE(length(brow$findElements(using = 'id', "CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll")) != 0)
+    if(doesCookieButton_Exist) {
+      button <- brow$findElement(using = 'id', "CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll")
+      if(button$isElementDisplayed()[[1]]) {
+        button$clickElement()
+      }
+    }
 
 
     gates <- h |> 
@@ -146,6 +148,7 @@ scrape_tsa_data_mco <- function() {
     rm(wait_time)
     rm(MCO_data, envir = .GlobalEnv)
     rm(button)
+    rm(doesCookieButton_Exist)
     
     brow$close()
     rm(brow)
