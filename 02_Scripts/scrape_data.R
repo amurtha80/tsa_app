@@ -63,7 +63,7 @@ functions <- as.vector(lsf.str())
 ## Run all scripts on a 5 minute loop ----
 
 ## Connect to Database
-con <- dbConnect(duckdb::duckdb(), dbdir = here::here("01_Data", "tsa_app.duckdb"), read_only = FALSE)
+con_write <- dbConnect(duckdb::duckdb(), dbdir = here::here("01_Data", "tsa_app.duckdb"), read_only = FALSE)
 
 ## Run Scripts ----
 
@@ -110,6 +110,6 @@ rm(i)
 rm(p1)
 rm(theDelay)
 rm(functions)
-dbDisconnect(con, shutdown = TRUE)
+dbDisconnect(con_write, shutdown = TRUE)
 rm(list = ls())
 gc()

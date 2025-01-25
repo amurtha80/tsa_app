@@ -16,9 +16,9 @@
 # suppressWarnings(library(netstat, verbose = F, warn.conflicts = F))
 
 
-here::here()
+# here::here()
 
-# con <- dbConnect(duckdb::duckdb(), dbdir = "01_Data/tsa_app.duckdb", read_only = FALSE)
+# con_write <- dbConnect(duckdb::duckdb(), dbdir = "01_Data/tsa_app.duckdb", read_only = FALSE)
 
 scrape_tsa_data_clt <- function() {
 
@@ -118,6 +118,8 @@ scrape_tsa_data_clt <- function() {
   rm(CLT_data, envir = .GlobalEnv)
   
 }
+
+  # scrape_tsa_data_clt()
 
 # Test Loop ----
 # i <- 1

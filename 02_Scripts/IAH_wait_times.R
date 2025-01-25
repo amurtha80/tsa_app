@@ -16,7 +16,7 @@
 
 # Database Connection ----
 
-# con <- dbConnect(duckdb::duckdb(), dbdir = "01_Data/tsa_app.duckdb", read_only = FALSE)
+# con_write <- dbConnect(duckdb::duckdb(), dbdir = "01_Data/tsa_app.duckdb", read_only = FALSE)
 
 
 # Function to scrape and store TSA checkpoint wait times
@@ -27,7 +27,8 @@ scrape_tsa_data_iah <- function() {
   # Define URL and initiate polite session
   url <- "https://www.fly2houston.com/iah/security"  # Update with the actual URL
   session <- polite::bow(url)
-
+  options(chromote.headless = "new")
+  
   # Scrape and parse data
   # page <- polite::scrape(session)
   page <- read_html_live(url)
