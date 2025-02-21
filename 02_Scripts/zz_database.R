@@ -16,8 +16,13 @@ here::here()
 
 ## Create Database ----
 
-# Create TSA Database DuckDB
-# con <- dbConnect(duckdb(), dbdir = "01_Data/tsa_app.duckdb", read_only = FALSE)
+# Create TSA Database DuckDB - write connection
+# con_write <- dbConnect(duckdb(), dbdir = "01_Data/tsa_app.duckdb", read_only = FALSE)
+
+
+# Create TSA Database DuckDB - read connection
+# con_read <- dbConnect(duckdb(), dbdir = "01_Data/tsa_app.duckdb", read_only = TRUE)
+
 
 # Create TSA Database SQLite
 sqlite_db <- dbConnect(RSQLite::SQLite(), "01_Data/tsa_app.db")
@@ -100,20 +105,24 @@ dbExecute(sqlite_db, "CREATE TABLE airport_checkpoint_hours(
 
 
 ## View tables ----
-# dbGetQuery(sqlite_db, "SHOW TABLES;")
-# dbListTables(sqlite_db)
+dbGetQuery(sqlite_db, "SHOW TABLES;")
+dbListTables(sqlite_db)
 
 
 ## Testing Queries ----
 # Query for observation count by airport
-# dbGetQuery(sqlite_db, "SELECT airport, count(airport) as obs_count FROM tsa_wait_times GROUP BY airport;")
-# 
+# dbGetQuery(sqlite_db, "SELECT airport, count(airport) as obs_count FROM tsa_wait_times GROUP BY airport;") 
+
+
 # Query for most recent observations from most recent run
-# dbGetQuery(con_read, 
-# "SELECT a.airport, a.datetime, count(*) as obs from tsa_wait_times a INNER JOIN 
-# (SELECT airport, max(datetime) as datetime FROM tsa_wait_times GROUP BY airport) b 
-# ON a.airport = b.airport AND a.datetime = b.datetime GROUP BY a.airport, a.datetime 
+# SQLite expresses date calculation as DATE('now', '-1 day'
+# dbGetQuery(sqlite_db,
+# "SELECT a.airport, a.datetime, count(*) as obs from tsa_wait_times a INNER JOIN
+# (SELECT airport, datetime FROM tsa_wait_times WHERE datetime >= CURRENT_DATE - INTERVAL 1 DAY
+# GROUP BY airport) b
+# ON a.airport = b.airport AND a.datetime = b.datetime GROUP BY a.airport, a.datetime
 # ORDER BY a.airport;")
+
 
 
 ## Edit Queries ----
