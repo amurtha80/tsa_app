@@ -58,4 +58,5 @@ here::here()
 ##            ## TODO how to center selected value on bar chart
 ##            scale_x_continuous(min 60 min before selected, max 60 min after selected) + 
 ##            coordinates +
-##            theme
+##            theme +
+##            misc
