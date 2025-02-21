@@ -70,16 +70,21 @@ con_write <- dbConnect(duckdb::duckdb(), dbdir = here::here("01_Data", "tsa_app.
 ## Create Function to run all scripts
 run_all_functions <- function() {
   
+  ## Randomly assign list of functions so for mixing up timing when scraping
+  ## Strategy so that the random timing makes scraping appear human
+  functions <- sample(functions)
+  
   ## Run each function
   lapply(functions, function(f) do.call(f, list()))
 }
 
 
-# run_all_functions()
+run_all_functions()
 
 
  i <- 1
 
+# 288 iterations = 1 Day
 for (i in 1:288) {
   p1 <- lubridate::ceiling_date(Sys.time(), unit = "5 minutes")
 
@@ -98,6 +103,7 @@ for (i in 1:288) {
 
   i <- i + 1
 
+  # 288 iterations + 1 to terminate loop = 1 Day
   if(i == 289) {
     break()
   } else {
