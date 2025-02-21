@@ -65,6 +65,8 @@ scrape_tsa_data_mco <- function() {
       if(button$isElementDisplayed()[[1]]) {
         button$clickElement()
       }
+    } else {
+      button <- NULL
     }
 
 
@@ -147,7 +149,13 @@ scrape_tsa_data_mco <- function() {
     rm(gates)
     rm(wait_time)
     rm(MCO_data, envir = .GlobalEnv)
-    rm(button)
+    tryCatch(
+      expr = {
+        rm(button, envir = .GlobalEnv)
+      },
+      warning = function(w) {},
+      error = function(e) {}
+    )
     rm(doesCookieButton_Exist)
     
     brow$close()
