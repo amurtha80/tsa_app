@@ -9,6 +9,7 @@ library(here, verbose = F, quietly = T, warn.conflicts = F)
 library(dplyr, verbose = F, quietly = T, warn.conflicts = F)
 library(ggplot2, verbose = F, quietly = T, warn.conflicts = F)
 library(lubridate, verbose = F, quietly = T, warn.conflicts = F)
+library(rstudioapi, verbose = F, quietly = T, warn.conflicts = F)
 
 
 ## Access working directory ----
@@ -28,7 +29,7 @@ here::here()
 # 5. Update database.R script to include new table for analysis of timeseries data
 
 ## Query data from tsa_wait_times table, group by airport and day of week, and 
-## then aggregate by 15 minute timeframe
+## then aggregate by 15 minute time frame
 ##
 ##
 ## temp <- <dataframe and code> |> 
@@ -44,19 +45,17 @@ here::here()
 ##
 ## push temp dataframe to database table
 ##
-##  library(RSQLite, verbose = F, quietly = T, warn.conflicts = F)
-##
 ##
 ## to pretend Shiny for now... RStudio api inputs
-##  dayOfWeek <- rstudioapi::show_prompt(title = "Day of Week", message = "Please Select Day of Week")
-##  timeOfDay <- rstudioapi::show_prompt(title = "Time of Day", message = "Please select time of Day")
+ # dayOfWeek <- rstudioapi::showPrompt(title = "Day of Week", message = "Please Select Day of Week")
+ # timeOfDay <- rstudioapi::showPrompt(title = "Time of Day", message = "Please select time of Day")
 ##
 ##
-## plot barchart
+## plot bar chart
 ## chart <- ggplot(aes(x = bucket_time, y = avg_time_std)) + ## how do I combo plot with max
 ##            geom_col(<attributes for average time>) +
 ##            geom_point(<attributes for max time>) +
-##            ## TODO how to center selected value on barchart
+##            ## TODO how to center selected value on bar chart
 ##            scale_x_continuous(min 60 min before selected, max 60 min after selected) + 
 ##            coordinates +
 ##            theme
