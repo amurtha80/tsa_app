@@ -48,7 +48,7 @@ scrape_tsa_data_den <- function() {
   gates <- h |> 
     html_elements('.name') |> 
     html_text2() |> 
-    magrittr::extract(c(1,3,5)) 
+    magrittr::extract(c(1,3)) 
 
   
   # chkpnt_type <- h |> 
@@ -63,7 +63,7 @@ scrape_tsa_data_den <- function() {
     gsub(pattern = ' ', replacement = 'NA') |> 
     as.numeric() |> 
     suppressWarnings() |> 
-    magrittr::extract(c(1,2,4))
+    magrittr::extract(c(1,3))
   
   
   wait_time_pre_check <- h |> 
@@ -72,8 +72,8 @@ scrape_tsa_data_den <- function() {
     gsub(pattern = ' ', replacement = 'NA') |> 
     as.numeric() |> 
     suppressWarnings() |> 
-    magrittr::extract(c(3,5)) |> 
-    {\(.) append(NA, .)}()
+    magrittr::extract(c(2,4)) ## |> 
+    ##{\(.) append(NA, .)}()
   
   
   # Check to make Sure that TSA CheckPoint and Time have the same length
