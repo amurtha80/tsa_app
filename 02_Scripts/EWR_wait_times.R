@@ -37,7 +37,8 @@ scrape_tsa_data_ewr <- function() {
   results <- page |> 
     html_elements('.av-responsive-table') |> 
     html_table(fill = TRUE) |> 
-    dplyr::bind_rows() 
+    dplyr::bind_rows() |> 
+    suppressMessages()
   
   # Transform Data
   EWR_data <- results |> 
