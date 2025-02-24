@@ -45,7 +45,8 @@ scrape_tsa_data_jfk <- function() {
   results <- h |> 
     html_elements('.av-responsive-table') |> 
     html_table(fill = TRUE) |> 
-    dplyr::bind_rows()
+    dplyr::bind_rows() |> 
+    suppressMessages()
   
   # Tranform Data
   JFK_data <- results |> 
