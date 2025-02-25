@@ -102,7 +102,7 @@ scrape_tsa_data_clt <- function() {
   dbAppendTable(con_write, name = "tsa_wait_times", value = CLT_data)
   
   # print(glue("session has run successfully ", format(Sys.time(), "%a %b %d %X %Y")))
-  print(glue("{nrow(CLT_data)} row(s) of data have been added to tsa_wait_times"))
+  print(glue("{nrow(CLT_data)} appended to tsa_wait_times at ", format(Sys.time(), "%a %b %d %X %Y")))
   
 
   # rm(url)
