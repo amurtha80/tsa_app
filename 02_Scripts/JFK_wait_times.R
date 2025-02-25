@@ -1,16 +1,16 @@
-# Install Packages ----
+# install.packages(c("DBI", "polite", "rvest", "tidyverse", "duckdb", 
+#  "lubridate", "magrittr", glue", "here", "chromote"))
 
-# install.packages(c("rvest", "RSelenium", "netstat", "wdman", "tidyverse", "duckdb",
-#                     "glue", "here", "polite"))
-
-# library(rvest)
-# library(RSelenium)
-# library(netstat)
-# library(wdman)
-# library(duckdb)
-# library(tidyverse)
-# library(glue)
-# library(here)
+# library(polite, verbose = FALSE, warn.conflicts = FALSE)
+# library(rvest, verbose = FALSE, warn.conflicts = FALSE)
+# library(duckdb, verbose = FALSE, warn.conflicts = FALSE)
+# library(lubridate, verbose = FALSE, warn.conflicts = FALSE)
+# library(magrittr, verbose = FALSE, warn.conflicts = FALSE)
+# library(glue, verbose = FALSE, warn.conflicts = FALSE)
+# library(DBI, verbose = FALSE, warn.conflicts = FALSE)
+# library(tidyverse, verbose = FALSE, warn.conflicts = FALSE)
+# library(here, verbose = FALSE, warn.conflicts = FALSE)
+# library(chromote, verbose = FALSE, warn.conflicts = FALSE)
 
 # here::here()
 
@@ -18,35 +18,24 @@
 
 # con_write <- dbConnect(duckdb::duckdb(), dbdir = "01_Data/tsa_app.duckdb", read_only = FALSE)
 
-# Function to scrape and store TSA checkpoint wait times
 scrape_tsa_data_jfk <- function() {
   
   print(glue("kickoff JFK scrape ", format(Sys.time(), "%a %b %d %X %Y")))
   
   url <- "https://www.jfkairport.com"
   
-  # firefox
-  remote_driver <- rsDriver(browser = "firefox",
-                            chromever = NULL,
-                            verbose = F,
-                            port = netstat::free_port(random = TRUE),
-                            extraCapabilities = list("moz:firefoxOptions" = list(args = list('--headless'))))
+  session <- session(url)
+  Sys.sleep(2)
+  options(chromote.headless = "new")
+
+  page <- read_html_live(url)
   
-  
-  # Access Page
-  brow <- remote_driver[["client"]]
-  # brow$open()
-  brow$navigate(url)
-  
-  
-  # Scrape Page
-  h <- brow$getPageSource()
-  h <- read_html(h[[1]])
-  results <- h |> 
+  results <- page |> 
     html_elements('.av-responsive-table') |> 
     html_table(fill = TRUE) |> 
     dplyr::bind_rows() |> 
     suppressMessages()
+  
   
   # Tranform Data
   JFK_data <- results |> 
@@ -99,23 +88,28 @@ scrape_tsa_data_jfk <- function() {
   
   # Cleanup to rerun
   # print(glue("session has run successfully ", format(Sys.time(), "%a %b %d %X %Y")))
-  print(glue("{nrow(JFK_data)} row(s) of data have been added to tsa_wait_times"))
+  print(glue("{nrow(JFK_data)} row(s) appended to tsa_wait_times at ", format(Sys.time(), "%a %b %d %X %Y")))
   
+ 
+  # rm(checkpoints)
+  # rm(notes)
+  # rm(data)
   
   rm(results)
-  rm(JFK_data, envir = .GlobalEnv)
-  rm(h)
-  
-  brow$close()
-  rm(brow)
+  page$session$close()
+  rm(page)
+  rm(session)
   rm(url)
-  
-  remote_driver$server$stop()
-  rm(remote_driver)
+  rm(JFK_data, envir = .GlobalEnv)
   # gc()
+  
 }
 
+# Test Run one time
+# scrape_tsa_data_jfk()
 
+
+# Test Run in loop
 # i <- 1
 # 
 # for (i in 1:5) {
@@ -129,10 +123,9 @@ scrape_tsa_data_jfk <- function() {
 # }
 
 # Close the server
-# rm(seleniumCommand)
 # rm(i)
 # rm(p1)
 # rm(theDelay)
-# dbDisconnect(con)
-# rm(con)
+# dbDisconnect(con_write)
+# rm(con_write)
 # rm(scrape_tsa_data_jfk)
