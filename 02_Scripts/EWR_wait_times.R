@@ -90,7 +90,7 @@ scrape_tsa_data_ewr <- function() {
   
   # Cleanup to rerun
   # print(glue("session has run successfully ", format(Sys.time(), "%a %b %d %X %Y")))
-  print(glue("{nrow(EWR_data)} row(s) of data have been added to tsa_wait_times"))
+  print(glue("{nrow(EWR_data)} appended to tsa_wait_times at ", format(Sys.time(), "%a %b %d %X %Y")))
   
   rm(results)
   rm(EWR_data, envir = .GlobalEnv)
