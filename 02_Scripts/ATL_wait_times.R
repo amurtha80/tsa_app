@@ -107,7 +107,7 @@
   dbAppendTable(con_write, name = "tsa_wait_times", value = ATL_data)
   
     # print(glue("session has run successfully ", format(Sys.time(), "%a %b %d %X %Y")))
-    print(glue("{nrow(ATL_data)} row(s) of data have been added to tsa_wait_times"))
+    print(glue("{nrow(ATL_data)} appended to tsa_wait_times at ", format(Sys.time(), "%a %b %d %X %Y")))
     rm(tsa_time)
     rm(url)
     rm(tsa_terminal_checkpoint)
