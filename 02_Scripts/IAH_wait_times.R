@@ -104,7 +104,7 @@ scrape_tsa_data_iah <- function() {
   
   
   # print(glue("session has run successfully ", format(Sys.time(), "%a %b %d %X %Y")))
-  print(glue("{nrow(IAH_data)} row(s) of data have been added to tsa_wait_times"))
+  print(glue("{nrow(IAH_data)} appended to tsa_wait_times at ", format(Sys.time(), "%a %b %d %X %Y")))
   rm(url)
   rm(checkpoints)
   rm(notes)
