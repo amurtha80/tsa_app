@@ -105,7 +105,7 @@ scrape_tsa_data_lga <- function() {
 
 
 # Test Run one time
-scrape_tsa_data_lga()
+# scrape_tsa_data_lga()
 
 
 # Test Run in loop
