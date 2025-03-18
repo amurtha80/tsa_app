@@ -1,4 +1,5 @@
 # Package Management ----
+options(tidyverse.quiet = TRUE)
 
 ## Create Function: Load Packages if they exist, otherwise install then load them
 foo <- function(x) {
@@ -79,13 +80,13 @@ run_all_functions <- function() {
 }
 
 
-run_all_functions()
+# run_all_functions()
 
 
  i <- 1
 
 # 288 iterations = 1 Day
-for (i in 1:288) {
+for (i in 1:24) {
   p1 <- lubridate::ceiling_date(Sys.time(), unit = "5 minutes")
 
   print(glue(i, " ", format(Sys.time())))
@@ -104,7 +105,7 @@ for (i in 1:288) {
   i <- i + 1
 
   # 288 iterations + 1 to terminate loop = 1 Day
-  if(i == 289) {
+  if(i == 25) {
     break()
   } else {
     Sys.sleep(max(0, theDelay))
