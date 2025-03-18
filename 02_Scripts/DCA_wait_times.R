@@ -1,9 +1,8 @@
-# install.packages(c("DBI", "polite", "rvest", "RSelenium", "tidyverse", "duckdb", 
-#  "glue", "here"))
+# install.packages(c("DBI", "polite", "rvest", "tidyverse", "duckdb", 
+#  "lubridate", "magrittr", glue", "here", "chromote"))
 
 # library(polite, verbose = FALSE, warn.conflicts = FALSE)
 # library(rvest, verbose = FALSE, warn.conflicts = FALSE)
-# library(RSelenium, verbose = FALSE, warn.conflicts = FALSE)
 # library(duckdb, verbose = FALSE, warn.conflicts = FALSE)
 # library(lubridate, verbose = FALSE, warn.conflicts = FALSE)
 # library(magrittr, verbose = FALSE, warn.conflicts = FALSE)
@@ -11,7 +10,8 @@
 # library(DBI, verbose = FALSE, warn.conflicts = FALSE)
 # library(tidyverse, verbose = FALSE, warn.conflicts = FALSE)
 # library(here, verbose = FALSE, warn.conflicts = FALSE)
-# library(netstat, verbose = FALSE, warn.conflicts = FALSE)
+# library(chromote, verbose = FALSE, warn.conflicts = FALSE)
+
 
 # here::here()
 
@@ -30,40 +30,27 @@ scrape_tsa_data_dca <- function() {
   
   url <- 'https://www.flyreagan.com/travel-information/security-information' # Update with the actual URL
   
-  # firefox
-  remote_driver <- rsDriver(browser = "firefox",
-                            chromever = NULL,
-                            verbose = F,
-                            port = netstat::free_port(random = TRUE),
-                            extraCapabilities = list("moz:firefoxOptions" = list(args = list('--headless'))))
+  session <- polite::bow(url)
+  options(chromote.headless = "new")
+  
+  # Scrape and parse data
+  # page <- polite::scrape(session)
+  page <- read_html_live(url)
   
   
-  # Access Page
-  brow <- remote_driver[["client"]]
-  # brow$open()
-  brow$navigate(url)
-  
-  
-  # Scrape Page
-  h <- brow$getPageSource()
-  h <- read_html(h[[1]])
-
-  
-  # gates <- h |> 
-  #   html_elements("div.table-header-cell") |> 
-  #   html_text2() |> 
-  #   magrittr::extract(c(1:3))
-  
-  
-  times <- h |> 
-    html_elements(".resp-table-row") |> 
-    html_text2() |> 
+  times <- page |> 
+    rvest::html_elements(".resp-table-row") |> 
+    rvest::html_text2() |> 
     str_remove_all(pattern = "Directions") |> 
     str_split("\n") |> 
     stringi::stri_list2matrix(byrow = T)
   
   
+  # Create column names for tibble
   colnames(times) <-  c("Checkpoint", "General", "TSA_Pre", "Blank")
+  
+  
+  # Create wait times tibble from scraped data
   wait_times <- as_tibble(times) |> 
     magrittr::extract(1:3) |> 
     mutate(General = case_when(General == "" ~ "NA",
@@ -76,7 +63,7 @@ scrape_tsa_data_dca <- function() {
                                TRUE~ word(TSA_Pre, 2, 2, sep = '-') |> word(1, 1)) |> 
              as.numeric() |> 
              suppressWarnings()
-                      )
+    )
   
   
   # Create tibble for data insertion
@@ -95,7 +82,6 @@ scrape_tsa_data_dca <- function() {
   } else {
     DCA_data <- get("DCA_data", envir = .GlobalEnv)
   }
-  
   
   
   # Insert data into tibble
@@ -129,18 +115,16 @@ scrape_tsa_data_dca <- function() {
   print(glue("{nrow(DCA_data)} appended to tsa_wait_times at ", format(Sys.time(), "%a %b %d %X %Y")))
   
   
-  rm(url)
-  rm(h)
   # rm(gates)
   rm(times)
   rm(wait_times)
   rm(DCA_data, envir = .GlobalEnv)
   
-  brow$close()
-  rm(brow)
+  page$session$close()
+  rm(page)
   
-  remote_driver$server$stop()
-  rm(remote_driver)
+  rm(session)
+  rm(url)
   # gc() 
 }
 
