@@ -1,18 +1,18 @@
 # install.packages(c("DBI", "polite", "rvest", "RSelenium", "tidyverse", "duckdb", 
 #  "lubridate", "magrittr", glue", "here"))
 
-# library(polite, verbose = FALSE, warn.conflicts = FALSE)
-# library(rvest, verbose = FALSE, warn.conflicts = FALSE)
-# library(RSelenium, verbose = FALSE, warn.conflicts = FALSE)
-# library(duckdb, verbose = FALSE, warn.conflicts = FALSE)
-# library(lubridate, verbose = FALSE, warn.conflicts = FALSE)
-# library(magrittr, verbose = FALSE, warn.conflicts = FALSE)
-# library(glue, verbose = FALSE, warn.conflicts = FALSE)
-# library(DBI, verbose = FALSE, warn.conflicts = FALSE)
-# library(tidyverse, verbose = FALSE, warn.conflicts = FALSE)
-# library(here, verbose = FALSE, warn.conflicts = FALSE)
+library(polite, verbose = FALSE, warn.conflicts = FALSE)
+library(rvest, verbose = FALSE, warn.conflicts = FALSE)
+library(RSelenium, verbose = FALSE, warn.conflicts = FALSE)
+library(duckdb, verbose = FALSE, warn.conflicts = FALSE)
+library(lubridate, verbose = FALSE, warn.conflicts = FALSE)
+library(magrittr, verbose = FALSE, warn.conflicts = FALSE)
+library(glue, verbose = FALSE, warn.conflicts = FALSE)
+library(DBI, verbose = FALSE, warn.conflicts = FALSE)
+library(tidyverse, verbose = FALSE, warn.conflicts = FALSE)
+library(here, verbose = FALSE, warn.conflicts = FALSE)
 
-# here::here()
+here::here()
 
 # Database Connection ----
 
@@ -43,7 +43,7 @@ scrape_tsa_data_mco <- function() {
     brow <- remote_driver[["client"]]
     # brow$open()
     brow$navigate(url)
-    Sys.sleep(3.1)
+    Sys.sleep(3.2)
     
     # Scrape Page
     h <- brow$getPageSource()
@@ -141,7 +141,7 @@ scrape_tsa_data_mco <- function() {
     dbAppendTable(con_write, name = "tsa_wait_times", value = MCO_data)
     
     # print(glue("session has run successfully ", format(Sys.time(), "%a %b %d %X %Y")))
-    print(glue("{nrow(MCO_data)} appended to tsa_wait_times at ", format(Sys.time(), "%a %b %d %X %Y")))
+    print(glue("{nrow(MCO_data)} rows appended to tsa_wait_times at ", format(Sys.time(), "%a %b %d %X %Y")))
     
     rm(wait_time_pre_check)
     rm(url)
