@@ -73,7 +73,8 @@ run_all_functions <- function() {
   
   ## Randomly assign list of functions so for mixing up timing when scraping
   ## Strategy so that the random timing makes scraping appear human
-  functions <- sample(functions)
+  # functions <- sample(functions)
+  print(glue("There are ", length(functions), " airports to scrape"))
   
   ## Run each function
   lapply(functions, function(f) do.call(f, list()))
@@ -86,7 +87,7 @@ run_all_functions <- function() {
  i <- 1
 
 # 288 iterations = 1 Day
-for (i in 1:24) {
+for (i in 1:276) {
   p1 <- lubridate::ceiling_date(Sys.time(), unit = "5 minutes")
 
   print(glue(i, " ", format(Sys.time())))
@@ -105,7 +106,7 @@ for (i in 1:24) {
   i <- i + 1
 
   # 288 iterations + 1 to terminate loop = 1 Day
-  if(i == 25) {
+  if(i == 277) {
     break()
   } else {
     Sys.sleep(max(0, theDelay))
