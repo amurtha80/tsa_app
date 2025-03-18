@@ -3,14 +3,14 @@
 # install.packages(c("RSQLite", "nanoparquet", "duckdb", "duckplyr", "DBI"))
 
 ## Access Libraries to Project ----
-library(RSQLite, verbose = F)
+# library(RSQLite, verbose = F)
 # library(duckdb, verbose = F)
 # library(duckplyr, verbose = F)
-library(DBI, verbose = F)
-library(here, verbose = F)
-library(nanoparquet, verbose = F)
+# library(DBI, verbose = F)
+# library(here, verbose = F)
+# library(nanoparquet, verbose = F)
 
-here::here()
+# here::here()
 
 # TSA Database ----
 
@@ -25,7 +25,7 @@ here::here()
 
 
 # Create TSA Database SQLite
-sqlite_db <- dbConnect(RSQLite::SQLite(), "01_Data/tsa_app.db")
+# sqlite_db <- dbConnect(RSQLite::SQLite(), "01_Data/tsa_app.db")
 
 ## SQLite Database Settings ----
 # Update SQLite Database read/write settings to have concurrency
@@ -123,6 +123,12 @@ dbListTables(sqlite_db)
 # ON a.airport = b.airport AND a.datetime = b.datetime GROUP BY a.airport, a.datetime
 # ORDER BY a.airport;")
 
+# DuckDb Implementation of Same Query
+# dbGetQuery(con_read, 
+#            "SELECT airport, CAST(datetime as date) as date, count (*) as obs FROM tsa_wait_times 
+#             WHERE (CAST(datetime AS date) >= CURRENT_DATE - INTERVAL 1 DAY)
+#             GROUP BY airport, CAST(datetime as date) ORDER BY airport;")
+
 
 
 ## Edit Queries ----
@@ -142,4 +148,6 @@ dbListTables(sqlite_db)
 
 ## Disconnect from Database ----
 DBI::dbDisconnect(sqlite_db, shutdown = TRUE)
+rm(conn_write)
+rm(conn_read)
 rm(sqlite_db)
