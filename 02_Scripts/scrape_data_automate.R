@@ -49,7 +49,11 @@ rm(funcs)
 functions <- as.vector(lsf.str())
 # Tried the following to get to work with Windows Task Scheduler, Failed
 # global_env <- ls(envir = .GlobalEnv)
-# print("global_env object works")
+# if(exists(global_env, envir = .GlobalEnv)){
+#   print("global_env object works")
+# } else {
+#   print("global_env does not exist, please debug")
+# }
 
 # Filter to only functions
 # functions <- global_env[sapply(global_env,
