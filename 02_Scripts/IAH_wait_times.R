@@ -32,6 +32,7 @@ scrape_tsa_data_iah <- function() {
   # Scrape and parse data
   # page <- polite::scrape(session)
   page <- read_html_live(url)
+  Sys.sleep(0.5)
   checkpoints <- page |> 
     rvest::html_elements("table.m-0") |> 
     rvest::html_table()
