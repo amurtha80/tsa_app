@@ -125,30 +125,30 @@ scrape_tsa_data_dca <- function() {
   
   rm(session)
   rm(url)
-  # gc() 
+  # gc()
 }
 
 
 # Test Loop ----
 # i <- 1
 # 
-# for (i in 1:5) {
+# for (i in 1:24) {
 #   p1 <- lubridate::ceiling_date(Sys.time(), unit = "minute")
-#   
+# 
 #   print(glue(i, "  ", format(Sys.time())))
-#   
+# 
 #   scrape_tsa_data_dca()
-#   
+# 
 #   theDelay <- as.numeric(difftime(p1,Sys.time(),unit="secs"))
-#   
+# 
 #   i <- i + 1
-#   
-#   if(i == 6) {
+# 
+#   if(i == 25) {
 #     break()
 #   } else {
 #     Sys.sleep(max(0, theDelay))
 #   }
-#   
+# 
 # }
 
 
