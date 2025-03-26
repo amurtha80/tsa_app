@@ -1,18 +1,18 @@
 # install.packages(c("DBI", "polite", "rvest", "RSelenium", "tidyverse", "duckdb", 
 #  "lubridate", "magrittr", glue", "here"))
 
-library(polite, verbose = FALSE, warn.conflicts = FALSE)
-library(rvest, verbose = FALSE, warn.conflicts = FALSE)
-library(RSelenium, verbose = FALSE, warn.conflicts = FALSE)
-library(duckdb, verbose = FALSE, warn.conflicts = FALSE)
-library(lubridate, verbose = FALSE, warn.conflicts = FALSE)
-library(magrittr, verbose = FALSE, warn.conflicts = FALSE)
-library(glue, verbose = FALSE, warn.conflicts = FALSE)
-library(DBI, verbose = FALSE, warn.conflicts = FALSE)
-library(tidyverse, verbose = FALSE, warn.conflicts = FALSE)
-library(here, verbose = FALSE, warn.conflicts = FALSE)
+# library(polite, verbose = FALSE, warn.conflicts = FALSE)
+# library(rvest, verbose = FALSE, warn.conflicts = FALSE)
+# library(RSelenium, verbose = FALSE, warn.conflicts = FALSE)
+# library(duckdb, verbose = FALSE, warn.conflicts = FALSE)
+# library(lubridate, verbose = FALSE, warn.conflicts = FALSE)
+# library(magrittr, verbose = FALSE, warn.conflicts = FALSE)
+# library(glue, verbose = FALSE, warn.conflicts = FALSE)
+# library(DBI, verbose = FALSE, warn.conflicts = FALSE)
+# library(tidyverse, verbose = FALSE, warn.conflicts = FALSE)
+# library(here, verbose = FALSE, warn.conflicts = FALSE)
 
-here::here()
+# here::here()
 
 # Database Connection ----
 
