@@ -32,6 +32,7 @@ scrape_tsa_data_lga <- function() {
   
   
   page <- read_html_live(url)
+  Sys.sleep(0.3)
   
   # Read TSA Checkpoint Wait Time Data from Website Table
   results <- page |> 
