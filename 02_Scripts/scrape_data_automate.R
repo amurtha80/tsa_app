@@ -17,7 +17,9 @@ foo <- function(x) {
 
 ## Then install/load packages...
 foo(c('polite', 'rvest', 'httr', 'RSelenium', 'jsonlite', 'duckdb', 'glue', 'DBI', 'tidyverse', 
-      'netstat', 'here', 'fs', 'chromote'))
+      'netstat', 'here', 'fs', 'chromote', 'pak'))
+
+pak::pak("rstudio/chromote")
 
 Sys.sleep(1)
 here::here()
