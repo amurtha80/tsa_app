@@ -32,34 +32,48 @@ scrape_tsa_data_iah <- function() {
   # Scrape and parse data
   # page <- polite::scrape(session)
   page <- read_html_live(url)
-  Sys.sleep(0.5)
-  checkpoints <- page |> 
-    rvest::html_elements("table.m-0") |> 
-    rvest::html_table()
-
+  Sys.sleep(0.3)
   
-  notes <- page |> 
-    rvest::html_elements("div.security-note") |> 
+  # page$click(".css-19957wq-TagButton-StyledTagButton.e2v3h8e0")
+  # Sys.sleep(0.5)
+  
+  
+  checkpoints_std <- page |> 
+    rvest::html_elements(".css-b1azl9-InfoCard-styles-InfoCardTitle.e1x13lbf4") |> 
+    rvest::html_text()
+    # rvest::html_table()
+  
+  times_std <- page |> 
+    rvest::html_elements(".css-hegrzh-InfoCard-styles-InfoCardRemark.e1x13lbf8") |> 
     rvest::html_text() |> 
-    stringr::str_remove_all("\n") |> 
-    str_trim()
-  
-  checkpoints <- checkpoints[[1]]
-  
-  data <- checkpoints |> 
-    slice(1:(n()-1)) |> 
-    rename(wait_time = `Approx. Wait`)
-  
-  data$wait_time <- stringr::str_extract(string = data$wait_time, pattern = "(\\d)+") |> 
+    word(1) |> 
     as.numeric()
   
+  std_tbl <- tibble(checkpoints_std, times_std)
   
-  # chkpnt_map <- tibble(
-  #   symbol = c("*", "**", "***"),
-  #   mapping = c("TSA PreCheck", "Clear", "TSA Precheck")
-  # )
+  page$click(".css-171js4o-TagButton-StyledTagButton.e2v3h8e0")
+  Sys.sleep(0.3)
+  
+  checkpoints_pre <- page |> 
+    rvest::html_elements(".css-b1azl9-InfoCard-styles-InfoCardTitle.e1x13lbf4") |> 
+    rvest::html_text()
+  
+  times_pre <- page |> 
+    rvest::html_elements(".css-hegrzh-InfoCard-styles-InfoCardRemark.e1x13lbf8") |> 
+    rvest::html_text() |> 
+    word(1) |> 
+    as.numeric()
 
+  pre_tbl <- tibble(checkpoints_pre, times_pre)
   
+  last_updtd <- page |> 
+    rvest::html_element(".css-kv0fdb-RefreshData-RefreshDataWrap.eabli8d0 div") |> 
+    rvest::html_text()
+  
+  data_tbl <- std_tbl |> 
+    left_join(pre_tbl, by = join_by(checkpoints_std == checkpoints_pre))
+  
+
   if(!exists("IAH_data", envir = .GlobalEnv)) {
     IAH_data <- tibble(airport = character(),
                        checkpoint = character(),
@@ -79,24 +93,20 @@ scrape_tsa_data_iah <- function() {
   # Prepare data with airport code, date, time, timezone, and wait times
   IAH_data <- rows_append(IAH_data, tibble(
     airport = "IAH",
-    checkpoint = data$Terminal,
+    checkpoint = data_tbl$checkpoints_std,
     datetime = lubridate::now(tzone = 'America/Chicago'),
     date = lubridate::today(),
     time = Sys.time() |> 
       with_tz(tzone = "America/Chicago") |> 
       floor_date(unit = "minute"),
     timezone = "America/Chicago",
-    wait_time = data$wait_time,
+    wait_time = data_tbl$times_std,
     wait_time_priority = NA,
-    wait_time_pre_check = case_when((grepl(pattern = "[:alpha:]\\*\\*\\*$", x = data$Terminal)) ~ data$wait_time,
-                                    (grepl(pattern = "[:alpha:]\\*$", x = data$Terminal)) ~ data$wait_time,  
-                                  TRUE ~ NA_integer_ ),
-    wait_time_clear = case_when((grepl(pattern = "[:alpha:]\\*\\*$", x = data$Terminal)) ~ data$wait_time,
-                                TRUE ~ NA_integer_)
+    wait_time_pre_check = data_tbl$times_pre,
+    wait_time_clear = NA
     )
   ) 
   
-  IAH_data$checkpoint  <-  str_replace_all(IAH_data$checkpoint, pattern = "[^[:alnum:][:space:]]", "")
 
   assign("IAH_data", IAH_data, envir = .GlobalEnv)  
   
@@ -107,13 +117,18 @@ scrape_tsa_data_iah <- function() {
   # print(glue("session has run successfully ", format(Sys.time(), "%a %b %d %X %Y")))
   print(glue("{nrow(IAH_data)} appended to tsa_wait_times at ", format(Sys.time(), "%a %b %d %X %Y")))
   rm(url)
-  rm(checkpoints)
-  rm(notes)
-  rm(data)
+  rm(checkpoints_std)
+  rm(checkpoints_pre)
+  rm(times_std)
+  rm(times_pre)
+  rm(last_updtd)
+  rm(std_tbl)
+  rm(pre_tbl)
+  rm(data_tbl)
   page$session$close()
   rm(page)
   rm(session)
-  rm(IAH_data, envir = .GlobalEnv)
+  # rm(IAH_data, envir = .GlobalEnv)
   
 }
 
