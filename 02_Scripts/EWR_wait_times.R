@@ -32,6 +32,7 @@ scrape_tsa_data_ewr <- function() {
   
   # Access Page
   page <- read_html_live(url)
+  Sys.sleep(0.3)
   
   # Scrape Page
   results <- page |> 
