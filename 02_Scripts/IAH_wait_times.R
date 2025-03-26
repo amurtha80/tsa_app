@@ -128,7 +128,7 @@ scrape_tsa_data_iah <- function() {
   page$session$close()
   rm(page)
   rm(session)
-  # rm(IAH_data, envir = .GlobalEnv)
+  rm(IAH_data, envir = .GlobalEnv)
   
 }
 
