@@ -29,6 +29,7 @@ scrape_tsa_data_jfk <- function() {
   options(chromote.headless = "new")
 
   page <- read_html_live(url)
+  Sys.sleep(0.3)
   
   results <- page |> 
     html_elements('.av-responsive-table') |> 
