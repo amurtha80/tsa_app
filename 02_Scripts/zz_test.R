@@ -20,8 +20,8 @@ foo(c('polite', 'rvest', 'httr', 'RSelenium', 'jsonlite', 'duckdb', 'glue', 'DBI
       'netstat', 'here', 'fs', 'chromote'))
 
 
-Sys.sleep(1)
-getwd()
+Sys.sleep(0.2)
+# getwd()
 
 
 rm(foo)
@@ -33,22 +33,22 @@ rm(foo)
 
 files <- list.files(path = "C:/Users/james/Documents/R/tsa_app/02_Scripts") |>
   stringr::str_subset("_wait_times.R")
-print(files)
+# print(files)
 print("files object works")
 
-Sys.sleep(1)
+Sys.sleep(0.2)
 funcs <- as.vector(map(here::here("C:/Users/james/Documents/R/tsa_app/02_Scripts", files), source))
 # funcs <- as.vector(map(.x = glue("02_Scripts/{files}"), .f = source))
 # funcs <- as.vector(source(here::here("02_Scripts/", "ATL_wait_times.R")))
 print("funcs object works")
 
-Sys.sleep(1)
+Sys.sleep(0.2)
 rm(files)
 rm(funcs)
 
 
 functions <- as.vector(lsf.str())
-print(functions)
+# print(functions)
 # Tried the following to get to work with Windows Task Scheduler, Failed
 # global_env <- ls(envir = .GlobalEnv)
 # if(exists(global_env, envir = .GlobalEnv)){
@@ -71,21 +71,29 @@ print(functions)
 ## Run all scripts on a 5 minute loop ----
 
 ## Connect to Database
-print(here::here("C:/Users/james/Documents/R/tsa_app/01_Data", "tsa_app.duckdb"))
+# print(here::here("C:/Users/james/Documents/R/tsa_app/01_Data", "tsa_app.duckdb"))
 con_write <- dbConnect(duckdb::duckdb(), dbdir = here::here("C:/Users/james/Documents/R/tsa_app/01_Data", "tsa_app.duckdb"), read_only = FALSE)
-print(con_write)
-dbListTables(con_write)
+# print(con_write)
+# dbListTables(con_write)
 
 
 ## Create Function to run all scripts
 run_all_functions <- function() {
   
+  print(glue("******-- Start Run ", format(Sys.time()), " --******"))
+  
+  
   ## Randomly assign list of functions so for mixing up timing when scraping
   ## Strategy so that the random timing makes scraping appear human
   functions <- sample(functions)
   
+  
   ## Run each function
   lapply(functions, function(f) do.call(f, list()))
+  
+  
+  print(glue("******-- Completed Run ", format(Sys.time()), " --******"))
+  
 }
 
 ## Run Script
