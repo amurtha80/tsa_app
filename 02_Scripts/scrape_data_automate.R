@@ -1,3 +1,5 @@
+sink("C:/Users/james/Documents/R/tsa_app/runlog.txt", append = TRUE, type = "output")
+
 # Package Management ----
 
 ## Create Function: Load Packages if they exist, otherwise install then load them
@@ -17,12 +19,10 @@ foo <- function(x) {
 
 ## Then install/load packages...
 foo(c('polite', 'rvest', 'httr', 'RSelenium', 'jsonlite', 'duckdb', 'glue', 'DBI', 'tidyverse', 
-      'netstat', 'here', 'fs', 'chromote', 'pak'))
+      'netstat', 'here', 'fs', 'chromote'))
 
-pak::pak("rstudio/chromote")
 
-Sys.sleep(1)
-here::here()
+Sys.sleep(0.2)
 
 
 rm(foo)
@@ -33,17 +33,19 @@ rm(foo)
  
 
 
-files <- list.files(path = here::here("02_Scripts")) |>
+files <- list.files(path = "C:/Users/james/Documents/R/tsa_app/02_Scripts") |>
   stringr::str_subset("_wait_times.R")
 print("files object works")
 
-Sys.sleep(1)
-funcs <- as.vector(map(here::here("02_Scripts", files), source))
+
+Sys.sleep(0.2)
+funcs <- as.vector(map(here::here("C:/Users/james/Documents/R/tsa_app/02_Scripts", files), source))
 # funcs <- as.vector(map(.x = glue("02_Scripts/{files}"), .f = source))
 # funcs <- as.vector(source(here::here("02_Scripts/", "ATL_wait_times.R")))
 print("funcs object works")
 
-Sys.sleep(1)
+
+Sys.sleep(0.2)
 rm(files)
 rm(funcs)
 
@@ -68,22 +70,53 @@ functions <- as.vector(lsf.str())
 
 # Test Run Scripts ----
 
+
 ## Run all scripts on a 5 minute loop ----
 
+
 ## Connect to Database
-con_write <- dbConnect(duckdb::duckdb(), dbdir = here::here("01_Data", "tsa_app.duckdb"), read_only = FALSE)
+con_write <- dbConnect(duckdb::duckdb(), dbdir = here::here("C:/Users/james/Documents/R/tsa_app/01_Data", "tsa_app.duckdb"), read_only = FALSE)
+
 
 ## Run Scripts ----
+
 
 ## Create Function to run all scripts
 run_all_functions <- function() {
   
+  print(glue("******-- Start Run ", format(Sys.time()), " --******"))
+  
+  
+  ## Randomly assign list of functions so for mixing up timing when scraping
+  ## Strategy so that the random timing makes scraping appear human
+  functions <- sample(functions)
+  
+  
   ## Run each function
   lapply(functions, function(f) do.call(f, list()))
+  
+  
+  print(glue("******-- Completed Run ", format(Sys.time()), " --******"))
+  
 }
 
 
+## Run Script
 run_all_functions()
+
+
+# Cleanup ----
+
+rm(functions)
+rm(run_all_functions)
+
+
+## Shutdown Database
+dbDisconnect(con_write, shutdown = TRUE)
+rm(con_write)
+
+sink()
+gc()
 
 
 #  i <- 1
@@ -117,8 +150,8 @@ run_all_functions()
 # rm(i)
 # rm(p1)
 # rm(theDelay)
-rm(functions)
-rm(run_all_functions)
-dbDisconnect(con_write, shutdown = TRUE)
+# rm(functions)
+# rm(run_all_functions)
+# dbDisconnect(con_write, shutdown = TRUE)
 # rm(list = ls())
-gc()
+# gc()
