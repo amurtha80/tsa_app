@@ -27,6 +27,7 @@
 # Create TSA Database SQLite
 # sqlite_db <- dbConnect(RSQLite::SQLite(), "01_Data/tsa_app.db")
 
+
 ## SQLite Database Settings ----
 # Update SQLite Database read/write settings to have concurrency
 # dbSendQuery(sqlite_db, "PRAGMA journal_mode=WAL;")
@@ -124,10 +125,10 @@ dbListTables(sqlite_db)
 # ORDER BY a.airport;")
 
 # DuckDb Implementation of Same Query
-# dbGetQuery(con_read, 
-#            "SELECT airport, CAST(datetime as date) as date, count (*) as obs FROM tsa_wait_times 
-#             WHERE (CAST(datetime AS date) >= CURRENT_DATE - INTERVAL 1 DAY)
-#             GROUP BY airport, CAST(datetime as date) ORDER BY airport;")
+# dbGetQuery(con_read,
+#            "SELECT airport, date, count (*) as obs FROM tsa_wait_times
+#             WHERE date >= ((SELECT MAX(date) FROM tsa_wait_times)-1)
+#             GROUP BY airport, date ORDER BY airport;")
 
 
 
