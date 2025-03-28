@@ -18,6 +18,8 @@ foo <- function(x) {
 foo(c('polite', 'rvest', 'httr', 'RSelenium', 'jsonlite', 'duckdb', 'glue', 'DBI', 'tidyverse', 
       'netstat', 'here', 'fs', 'chromote'))
 
+# pak::pak('rstudio/chromote')
+
 Sys.sleep(1)
 here::here()
 
