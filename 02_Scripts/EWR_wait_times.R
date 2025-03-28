@@ -50,8 +50,11 @@ scrape_tsa_data_ewr <- function() {
              str_remove_all('\n') |> 
              str_remove_all('min') |>
              str_remove_all('GeneralLine')) |> 
-    mutate(wait_time = case_when(wait_time == "NoWait" ~ "0", TRUE ~ wait_time) |>
-             as.numeric()) |> 
+    mutate(wait_time = case_when(wait_time == "NoWait" ~ "0", 
+                                 wait_time == "" ~ NA,
+                                 TRUE ~ wait_time),
+           wait_time = as.numeric(wait_time)) |> 
+    suppressWarnings() |> 
     # TSA Pre check Wait Time
     mutate(wait_time_pre_check = results$`TSA Pre✓ Line` |> 
              str_remove_all(' ') |> 
@@ -59,8 +62,10 @@ scrape_tsa_data_ewr <- function() {
              str_remove_all('min') |> 
              str_remove_all('TSAPre✓Line')) |> 
     mutate(wait_time_pre_check = case_when(wait_time_pre_check == "NoWait" ~ "0",
-                                           TRUE ~ wait_time_pre_check) |> 
-             as.numeric()) |> 
+                                           wait_time_pre_check == "" ~ NA,
+                                           TRUE ~ wait_time_pre_check),
+           wait_time_pre_check = as.numeric(wait_time_pre_check)) |> 
+    suppressWarnings() |> 
     # DateTime
     mutate(datetime = lubridate::now(tzone = 'EST'),
            # Date
