@@ -1,17 +1,21 @@
 # Install Packages ----
-# install.packages(c("duckdb", "RSQLite", "DBI", "here", "dplyr", "ggplot2",
-                    # "lubridate", "rstudioapi"))
-
+# install.packages(c("duckdb", "DBI", "here", "dplyr", "ggplot2",
+                    # "lubridate", "hms",  "rstudioapi", "glue", "ggrounded"))
+# install.packages("RSQLite")
 
 ## Access Libraries to Project ----
 library(duckdb, verbose = F, quietly = T, warn.conflicts = F)
 # library(RSQLite, verbose = F, quietly = T, warn.conflicts = F)
 library(DBI, verbose = F, quietly = T, warn.conflicts = F)
-library(here, verbose = F, quietly = T, warn.conflicts = F)
+library(here, verbose = F, quietly = T, warn.conflicts = F) |> 
+  suppressMessages()
 library(dplyr, verbose = F, quietly = T, warn.conflicts = F)
 library(ggplot2, verbose = F, quietly = T, warn.conflicts = F)
+library(ggrounded, verbose = F, quietly = T, warn.conflicts = F)
 library(lubridate, verbose = F, quietly = T, warn.conflicts = F)
+library(hms, verbose = F, quietly = T, warn.conflicts = F)
 library(rstudioapi, verbose = F, quietly = T, warn.conflicts = F)
+library(glue, verbose = F, quietly = T, warn.conflicts = F)
 
 
 ## Access working directory ----
@@ -43,6 +47,7 @@ here::here()
     # Filter to last 365 days from most recent date
     filter(date >= max(date)-365) |> 
     # Create bucket time and weekday fields
+    # mutate(bucket_time = as.POSIXct(lubridate::ceiling_date(time, "15 mins")),
     mutate(bucket_time = hms::as_hms(lubridate::ceiling_date(time, "15 mins")),
            weekday = lubridate::wday(time, label = TRUE, abbr = TRUE)) |>
     # Group by airport, checkpoint, weekday, and bucket time
@@ -53,7 +58,8 @@ here::here()
               avg_time_tsa_precheck = ceiling(mean(wait_time_pre_check)),
               max_time_tsa_precheck = max(wait_time_pre_check),
               avg_time_clear = ceiling(mean(wait_time_clear)),
-              max_time_clear = max(wait_time_clear))
+              max_time_clear = max(wait_time_clear)) |> 
+    suppressMessages()
 
 
   # Push temp dataframe to database table
@@ -69,22 +75,55 @@ here::here()
   timeOfDay <- rstudioapi::showPrompt(title = "Time of Day", message = "Please select time of Day in 15 Minute Intervals (hh:mm:00)") |> 
     hms::as_hms()
 
-  start_time <- timeOfDay - hours(1)
-  end_time <- timeOfDay + hours(1)
+  start_time <- hms::as_hms(as.POSIXct(timeOfDay, tz = "EST") - hours(1))
+  end_time <- hms::as_hms(as.POSIXct(timeOfDay, tz = "EST") + hours(1))
   
   # TODO - Solve bucket_time == between(lubridate::as.period(timeOfDay), start_time, end_time)
-  temp_selection <- temp |> filter(airport == location, checkpoint == checkpnt, weekday == dayOfWeek, bucket_time >= (timeOfDay - hours(1)) & bucket_time <= (timeOfDay + hours(1)))
+  temp_selection <- temp |> filter(airport == location, 
+                                   checkpoint == checkpnt, 
+                                   weekday == dayOfWeek, 
+                                   bucket_time >= start_time & bucket_time <= end_time) |> 
+    mutate(highlight = ifelse(bucket_time == bucket_time[5], "Central", "Other"),
+           # bucket_time = factor(bucket_time, levels = bucket_time),
+           bucket_time = format(as.POSIXlt(bucket_time), "%H:%M") |> factor(),
+           labelColor = ifelse(highlight == "Central", "white", "black"))
   
-##
-## plot bar chart
-## chart <- ggplot(temp_selection, aes(x = bucket_time, y = avg_time_std)) + ## how do I combo plot with max
-##            geom_col(<attributes for average time>) +
-##            geom_point(<attributes for max time>) +
-##            ## TODO how to center selected value on bar chart
-##            scale_x_continuous(min 60 min before selected, max 60 min after selected) + 
-##            coordinates +
-##            theme +
-##            misc
+plotTitle <- glue("Average Minutes for {checkpnt} Checkpoint at {location} on {dayOfWeek} at {timeOfDay}")
+  
+# plot bar chart
+  ## TODO how do I combo plot with max
+chart <- ggplot(temp_selection, aes(x = bucket_time, y = avg_time_std, fill = highlight)) + 
+            ## TODO how to center selected value on bar chart
+            geom_col_rounded(width = 0.9, position = position_dodge(), show.legend = FALSE,
+              aes(fill = highlight)) +  #Rounded corners (ggplot2 v3.4.0+)
+            geom_text(aes(label = round(avg_time_std, 1), color = labelColor), 
+                      vjust = 1.3,  # Push text just below the top inside the bar
+                      size = 3.5,
+                      fontface = "bold") +
+            geom_point(aes(y = max_time_std), shape = 21, size = 3, fill = "violet", color = "violet") +
+            geom_text(aes(y = max_time_std, label = round(max_time_std, 1), color = "black"),
+                      vjust = -1,
+                      size = 3.5,
+                      fontface = "bold") +
+            scale_color_identity() +
+            scale_fill_manual(values = c("Central" = "purple", "Other" = "darkgray")) +
+            labs(title = plotTitle,
+                 x = NULL,  # Remove x-axis title for minimal look
+                 y = "Average Minutes") +
+            theme_minimal() +
+            theme(plot.title = element_text(hjust = 0.5),
+                axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 10, face = "bold"),  # Rotate x-axis labels
+                panel.grid.major.x = element_blank(),  # Remove vertical grid lines
+                panel.grid.minor = element_blank()) +
+            annotate("text", 
+                     x = 1,  # Adjust as needed
+                     y = max(temp_selection$max_time_std) + 2, 
+                     label = "🟣 = Max Wait Time", 
+                     color = "violet", 
+                     size = 3.5,
+                     hjust = 0)
+
+chart
 
 # Script Cleanup
   # Remove temp table
