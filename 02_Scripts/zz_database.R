@@ -131,6 +131,31 @@ dbListTables(sqlite_db)
 #             GROUP BY airport, date ORDER BY airport;")
 
 
+# Query for looking at a specific airport, specific terminal, specific day, average time
+# DuckDB Implementation
+# The end range for the hour requested is BETWEEN 9 AND 9 because EXTRACT HOUR only
+# gives whole hour values, not minutes or seconds, so XX:59:59 is still the same hour
+# as XX:00:00
+# dbGetQuery(con_read,
+#           "SELECT airport, checkpoint, date, EXTRACT(HOUR FROM time) as hour,
+#            FLOOR(EXTRACT(MINUTE FROM time) / 15) *15 as minute_interval, 
+#            CEIL(AVG(wait_time)) as avg_wait_time
+#            FROM tsa_wait_times WHERE airport = 'ATL' AND checkpoint = 'INT''L MAIN'
+#            AND EXTRACT(DOW FROM date) = 6 AND (EXTRACT(HOUR FROM time) BETWEEN 10 AND 10)
+#            GROUP BY airport, checkpoint, date, hour, minute_interval
+#            ORDER BY airport, checkpoint, date, minute_interval;")
+
+
+# Query for looking at a specific airport, specific terminal, specific day, max time
+# DuckDB Implementation
+# dbGetQuery(con_read,
+#            "SELECT airport, checkpoint, date, EXTRACT(HOUR FROM time) as hour,
+#            FLOOR(EXTRACT(MINUTE FROM time) / 15) *15 as minute_interval, 
+#            CEIL(MAX(wait_time)) as max_wait_time
+#            FROM tsa_wait_times WHERE airport = 'ATL' AND checkpoint = 'INT''L MAIN'
+#            AND EXTRACT(DOW FROM date) = 6 AND (EXTRACT(HOUR FROM time) BETWEEN 10 AND 10)
+#            GROUP BY airport, checkpoint, date, hour, minute_interval
+#            ORDER BY airport, checkpoint, date, minute_interval;")
 
 ## Edit Queries ----
 # dbSendQuery(sqlite_db, "INSERT INTO airport_sites (airport, website) VALUES 

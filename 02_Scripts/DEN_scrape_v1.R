@@ -1,17 +1,15 @@
-# install.packages(c("DBI", "polite", "rvest", "tidyverse", "duckdb", 
-#  "lubridate", "magrittr", glue", "here", "chromote"))
+# install.packages(c("DBI", "polite", "rvest", "RSelenium",  "tidyverse", 
+# "duckdb", "glue", "here"))
 
+# library(DBI, verbose = FALSE, warn.conflicts = FALSE)
 # library(polite, verbose = FALSE, warn.conflicts = FALSE)
 # library(rvest, verbose = FALSE, warn.conflicts = FALSE)
+# library(RSelenium, verbose = FALSE, warn.conflicts = FALSE)
 # library(duckdb, verbose = FALSE, warn.conflicts = FALSE)
-# library(lubridate, verbose = FALSE, warn.conflicts = FALSE)
-# library(magrittr, verbose = FALSE, warn.conflicts = FALSE)
 # library(glue, verbose = FALSE, warn.conflicts = FALSE)
-# library(DBI, verbose = FALSE, warn.conflicts = FALSE)
 # library(tidyverse, verbose = FALSE, warn.conflicts = FALSE)
 # library(here, verbose = FALSE, warn.conflicts = FALSE)
-# library(chromote, verbose = FALSE, warn.conflicts = FALSE)
-
+# library(netstat, verbose = FALSE, warn.conflicts = FALSE)
 
 # here::here()
 
@@ -20,30 +18,43 @@
 # con_write <- dbConnect(duckdb::duckdb(), dbdir = "01_Data/tsa_app.duckdb", read_only = FALSE)
 
 
-# Script Function ----
-
 # Function to scrape and store TSA checkpoint wait times
 scrape_tsa_data_den <- function() {
   
   print(glue("kickoff DEN scrape ", format(Sys.time(), "%a %b %d %X %Y")))
   
-  
   # Define URL and initiate polite session
   url <- "https://www.flydenver.com/security/"  # Update with the actual URL
+
+  # firefox
+  remote_driver <- rsDriver(browser = "firefox",
+                            chromever = NULL,
+                            verbose = F,
+                            port = netstat::free_port(random = TRUE),
+                            extraCapabilities = list("moz:firefoxOptions" = list(args = list('--headless'))))
   
   
-  session <- polite::bow(url)
-  options(chromote.headless = "new")
-  
-  # Scrape and parse data
-  # page <- polite::scrape(session)
-  page <- read_html_live(url)
+  # Access Page
+  brow <- remote_driver[["client"]]
+  # brow$open()
+  brow$navigate(url)
   
   
-  gates <- page |> 
+  # Scrape Page
+  h <- brow$getPageSource()
+  h <- read_html(h[[1]])
+
+
+  gates <- h |> 
     html_elements('.name') |> 
     html_text2() |> 
     magrittr::extract(c(1,3)) 
+
+  
+  # chkpnt_type <- h |> 
+  #   html_elements('.wait-type') |>
+  #   html_text2() |> 
+  #   {\(.) case_when(. == "Minimal Screening Lanes Available" ~ "Standard", TRUE ~ .)}()
   
   
   wait_time <- h |> 
@@ -62,7 +73,7 @@ scrape_tsa_data_den <- function() {
     as.numeric() |> 
     suppressWarnings() |> 
     magrittr::extract(c(2,4)) ## |> 
-  ##{\(.) append(NA, .)}()
+    ##{\(.) append(NA, .)}()
   
   
   # Check to make Sure that TSA CheckPoint and Time have the same length
@@ -123,16 +134,16 @@ scrape_tsa_data_den <- function() {
   rm(gates)
   rm(wait_time)
   rm(wait_time_pre_check)
-  rm(page)
+  rm(url)
+  rm(h)
   rm(DEN_data, envir = .GlobalEnv)
   
-  page$session$close()
-  rm(page)
+  brow$close()
+  rm(brow)
   
-  rm(session)
-  rm(url)
+  remote_driver$server$stop()
+  rm(remote_driver)
   # gc()
-  
 }
 
 
