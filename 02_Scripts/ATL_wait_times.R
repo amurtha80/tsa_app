@@ -30,7 +30,7 @@
     
   # Scrape and parse data
   # page <- polite::scrape(session)
-  page <- read_html(url)
+  page <- rvest::read_html(url)
   tsa_terminal <- page |> 
     rvest::html_elements("div h1") |> 
     rvest::html_text() |> 
