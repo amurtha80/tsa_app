@@ -1,6 +1,6 @@
 # Install Packages ----
-# install.packages(c("duckdb", "DBI", "here", "dplyr", "ggplot2",
-                    # "lubridate", "hms",  "rstudioapi", "glue", "ggrounded"))
+# install.packages(c("duckdb", "DBI", "here", "dplyr", "ggplot2", "svglite"
+#                     "lubridate", "hms",  "rstudioapi", "glue", "ggrounded"))
 # install.packages("RSQLite")
 
 ## Access Libraries to Project ----
@@ -11,6 +11,7 @@ library(here, verbose = F, quietly = T, warn.conflicts = F) |>
   suppressMessages()
 library(dplyr, verbose = F, quietly = T, warn.conflicts = F)
 library(ggplot2, verbose = F, quietly = T, warn.conflicts = F)
+library(svglite, verbose = F, quietly = T, warn.conflicts = F)
 library(ggrounded, verbose = F, quietly = T, warn.conflicts = F)
 library(lubridate, verbose = F, quietly = T, warn.conflicts = F)
 library(hms, verbose = F, quietly = T, warn.conflicts = F)
@@ -48,7 +49,8 @@ here::here()
     filter(date >= max(date)-365) |> 
     # Create bucket time and weekday fields
     # mutate(bucket_time = as.POSIXct(lubridate::ceiling_date(time, "15 mins")),
-    mutate(bucket_time = hms::as_hms(lubridate::ceiling_date(time, "15 mins")),
+    mutate(checkpoint = toupper(checkpoint),
+           bucket_time = hms::as_hms(lubridate::ceiling_date(time, "15 mins")),
            weekday = lubridate::wday(time, label = TRUE, abbr = TRUE)) |>
     # Group by airport, checkpoint, weekday, and bucket time
     group_by(airport, checkpoint, weekday, bucket_time) |>
@@ -88,7 +90,7 @@ here::here()
            bucket_time = format(as.POSIXlt(bucket_time), "%H:%M") |> factor(),
            labelColor = ifelse(highlight == "Central", "white", "black"))
   
-plotTitle <- glue("Average Minutes for {checkpnt} Checkpoint at {location} on {dayOfWeek} at {timeOfDay}")
+plotTitle <- glue("Average Minutes for {checkpnt} Checkpoint \nat {location} on {dayOfWeek} at {timeOfDay}")
   
 # plot bar chart
   ## TODO how do I combo plot with max
@@ -100,16 +102,17 @@ chart <- ggplot(temp_selection, aes(x = bucket_time, y = avg_time_std, fill = hi
                       vjust = 1.3,  # Push text just below the top inside the bar
                       size = 3.5,
                       fontface = "bold") +
-            geom_point(aes(y = max_time_std), shape = 21, size = 3, fill = "violet", color = "violet") +
+            geom_point(aes(y = max_time_std), shape = 21, size = 3, fill = "skyblue3", color = "skyblue3") +
             geom_text(aes(y = max_time_std, label = round(max_time_std, 1), color = "black"),
                       vjust = -1,
                       size = 3.5,
                       fontface = "bold") +
             scale_color_identity() +
-            scale_fill_manual(values = c("Central" = "purple", "Other" = "darkgray")) +
+            scale_fill_manual(values = c("Central" = "skyblue3", "Other" = "darkgray")) +
             labs(title = plotTitle,
                  x = NULL,  # Remove x-axis title for minimal look
-                 y = "Average Minutes") +
+                 y = "Average Minutes", 
+                 fontface = "bold") +
             theme_minimal() +
             theme(plot.title = element_text(hjust = 0.5),
                 axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 10, face = "bold"),  # Rotate x-axis labels
@@ -118,12 +121,14 @@ chart <- ggplot(temp_selection, aes(x = bucket_time, y = avg_time_std, fill = hi
             annotate("text", 
                      x = 1,  # Adjust as needed
                      y = max(temp_selection$max_time_std) + 2, 
-                     label = "🟣 = Max Wait Time", 
-                     color = "violet", 
-                     size = 3.5,
+                     label = "🔵 = Max Wait Time", 
+                     color = "skyblue3", 
+                     size = 4,
                      hjust = 0)
 
 chart
+ggsave("tsa_wait_time_JFK_req.svg", plot = chart, path = here::here(),
+       width = 4, height = 5, units = "in", dpi = 300)
 
 # Script Cleanup
   # Remove temp table
