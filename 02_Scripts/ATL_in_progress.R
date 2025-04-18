@@ -32,8 +32,13 @@ scrape_tsa_data_atl <- function() {
 
 
 # firefox
+<<<<<<< HEAD
 remote_driver <- RSelenium::rsDriver(browser = "chrome",
                           chromever = "113.0.5672.63",
+=======
+remote_driver <- RSelenium::rsDriver(browser = "firefox",
+                          chromever = NULL,
+>>>>>>> cfbb0c2496145d863788dcaf955d64aa3744b6d5
                           verbose = F,
                           port = netstat::free_port(random = TRUE) #,
                           # extraCapabilities = list("moz:firefoxOptions" = list(args = list('--headless')))
