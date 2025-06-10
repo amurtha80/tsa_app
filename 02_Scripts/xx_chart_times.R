@@ -65,7 +65,7 @@ here::here()
 
 
   # Push temp dataframe to database table
-  dbWriteTable(con_read_test, "tsa_wait_time_summ", temp, overwrite = TRUE)
+  dbWriteTable(tsa_app_test, "tsa_wait_time_summ", temp, overwrite = TRUE)
 
 #
 ## to pretend Shiny for now... RStudio api inputs
