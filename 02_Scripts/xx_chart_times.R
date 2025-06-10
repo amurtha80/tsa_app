@@ -40,7 +40,7 @@ here::here()
 
 
   # Create TSA Database DuckDB - read connection
-  tsa_app_test <- dbConnect(duckdb(), dbdir = "01_Data/tsa_app_test.duckdb", read_only = TRUE)
+  tsa_app_test <- dbConnect(duckdb(), dbdir = "01_Data/tsa_app_test.duckdb", read_only = FALSE)
 
   # Grab Table from database
   temp <- tbl(tsa_app_test, "tsa_wait_times") |>
@@ -61,6 +61,7 @@ here::here()
               max_time_tsa_precheck = max(wait_time_pre_check),
               avg_time_clear = ceiling(mean(wait_time_clear)),
               max_time_clear = max(wait_time_clear)) |> 
+    ungroup() |> 
     suppressMessages()
 
 
@@ -138,5 +139,7 @@ ggsave("tsa_wait_time_JFK_req.svg", plot = chart, path = here::here(),
   dbDisconnect(tsa_app_test, shutdown = TRUE)
   # Remove database object
   rm(tsa_app_test)
+  rm(list = ls())
   # Garbage Collection
   gc()
+  
