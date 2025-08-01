@@ -133,7 +133,9 @@ ggsave("tsa_wait_time_JFK_req.svg", plot = chart, path = here::here(),
 
 # Script Cleanup
   # Remove temp table
+  rm(chart)
   rm(temp)
+  rm(temp_selection)
 
   # Disconnect from database
   dbDisconnect(tsa_app_test, shutdown = TRUE)
