@@ -40,10 +40,10 @@ here::here()
 
 
   # Create TSA Database DuckDB - read connection
-  con_read_test <- dbConnect(duckdb(), dbdir = "01_Data/tsa_app_test.duckdb", read_only = TRUE)
+  tsa_app_test <- dbConnect(duckdb(), dbdir = "01_Data/tsa_app_test.duckdb", read_only = FALSE)
 
   # Grab Table from database
-  temp <- tbl(con_read_test, "tsa_wait_times") |>
+  temp <- tbl(tsa_app_test, "tsa_wait_times") |>
     collect() |> 
     # Filter to last 365 days from most recent date
     filter(date >= max(date)-365) |> 
@@ -65,7 +65,7 @@ here::here()
 
 
   # Push temp dataframe to database table
-  dbWriteTable(con_read_test, "tsa_wait_time_summ", temp, overwrite = TRUE)
+  dbWriteTable(tsa_app_test, "tsa_wait_time_summ", temp, overwrite = TRUE)
 
 #
 ## to pretend Shiny for now... RStudio api inputs
@@ -137,6 +137,7 @@ ggsave("tsa_wait_time_JFK_req.svg", plot = chart, path = here::here(),
   # Disconnect from database
   dbDisconnect(tsa_app_test, shutdown = TRUE)
   # Remove database object
-  rm(con_read_test)
+  rm(tsa_app_test)
   # Garbage Collection
   gc()
+  
