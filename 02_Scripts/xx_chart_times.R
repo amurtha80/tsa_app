@@ -61,6 +61,7 @@ here::here()
               max_time_tsa_precheck = max(wait_time_pre_check),
               avg_time_clear = ceiling(mean(wait_time_clear)),
               max_time_clear = max(wait_time_clear)) |> 
+    ungroup() |> 
     suppressMessages()
 
 
@@ -132,12 +133,16 @@ ggsave("tsa_wait_time_JFK_req.svg", plot = chart, path = here::here(),
 
 # Script Cleanup
   # Remove temp table
+  rm(chart)
   rm(temp)
+  rm(temp_selection)
 
   # Disconnect from database
   dbDisconnect(tsa_app_test, shutdown = TRUE)
   # Remove database object
   rm(tsa_app_test)
+  rm(list = ls())
+
   # Garbage Collection
   gc()
   
