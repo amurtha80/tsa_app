@@ -25,8 +25,8 @@ scrape_tsa_data_iah <- function() {
   print(glue("kickoff IAH scrape ", format(Sys.time(), "%a %b %d %X %Y")))
   
   # Define URL and initiate polite session
-  url <- "https://www.fly2houston.com/iah/security"  # Update with the actual URL
-  session <- polite::bow(url)
+  url <- "https://www.fly2houston.com/iah/security/"  # Update with the actual URL
+  # session <- polite::bow(url)
   options(chromote.headless = "new")
   
   # Scrape and parse data

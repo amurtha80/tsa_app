@@ -33,6 +33,7 @@ scrape_tsa_data_mco <- function() {
     # firefox
     remote_driver <- rsDriver(browser = "firefox",
                               chromever = NULL,
+                              phantomver = NULL,
                               verbose = F,
                               port = netstat::free_port(random = TRUE),
                               extraCapabilities = list("moz:firefoxOptions" = list(args = list('--headless')))
