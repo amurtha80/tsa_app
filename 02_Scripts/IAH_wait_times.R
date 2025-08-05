@@ -32,7 +32,7 @@ scrape_tsa_data_iah <- function() {
   # Scrape and parse data
   # page <- polite::scrape(session)
   page <- read_html_live(url)
-  Sys.sleep(0.4)
+  Sys.sleep(0.5)
   
   # page$click(".css-19957wq-TagButton-StyledTagButton.e2v3h8e0")
   # Sys.sleep(0.5)
@@ -69,8 +69,9 @@ scrape_tsa_data_iah <- function() {
     
     Sys.sleep(0.2) #brief pause to avoid hammering the server
     chromote::default_chromote_object()$close()
+    Sys.sleep(0.1)
     page <- read_html_live(url)
-    Sys.sleep(0.3)
+    Sys.sleep(0.4)
     checkpoints_std <- scrape_checkpoints_std(page)
     times_std <- scrape_times_std(page)
   }
@@ -85,7 +86,7 @@ scrape_tsa_data_iah <- function() {
   
   #Navigate to precheck checkpoint wait times
   page$click(".css-171js4o-TagButton-StyledTagButton.e2v3h8e0")
-  Sys.sleep(0.3)
+  Sys.sleep(0.5)
   
   
   scrape_checkpoints_pre <- function(page) {
@@ -118,8 +119,9 @@ scrape_tsa_data_iah <- function() {
     
     Sys.sleep(0.2) #brief pause to avoid hammering the server
     chromote::default_chromote_object()$close()
+    Sys.sleep(0.1)
     page <- read_html_live(url)
-    Sys.sleep(0.3)
+    Sys.sleep(0.4)
     
     #Navigate to precheck checkpoint wait times
     page$click(".css-171js4o-TagButton-StyledTagButton.e2v3h8e0")
@@ -190,7 +192,11 @@ scrape_tsa_data_iah <- function() {
   # print(glue("session has run successfully ", format(Sys.time(), "%a %b %d %X %Y")))
   print(glue("{nrow(IAH_data)} appended to tsa_wait_times at ", format(Sys.time(), "%a %b %d %X %Y")))
   rm(url)
+  rm(scrape_checkpoints_std)
+  rm(scrape_times_std)
   rm(checkpoints_std)
+  rm(scrape_checkpoints_pre)
+  rm(scrape_times_pre)
   rm(checkpoints_pre)
   rm(times_std)
   rm(times_pre)
@@ -205,7 +211,7 @@ scrape_tsa_data_iah <- function() {
   
 }
 
-# scrape_tsa_data_iah()
+scrape_tsa_data_iah()
 
 # Loop Funtion For Test ----
 
