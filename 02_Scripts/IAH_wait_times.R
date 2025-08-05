@@ -32,48 +32,121 @@ scrape_tsa_data_iah <- function() {
   # Scrape and parse data
   # page <- polite::scrape(session)
   page <- read_html_live(url)
-  Sys.sleep(0.3)
+  Sys.sleep(0.4)
   
   # page$click(".css-19957wq-TagButton-StyledTagButton.e2v3h8e0")
   # Sys.sleep(0.5)
   
   
-  checkpoints_std <- page |> 
-    rvest::html_elements(".css-b1azl9-InfoCard-styles-InfoCardTitle.e1x13lbf4") |> 
-    rvest::html_text()
-    # rvest::html_table()
+  scrape_checkpoints_std <- function(page) {
+    page |> 
+      rvest::html_elements(".css-b1azl9-InfoCard-styles-InfoCardTitle.e1x13lbf4") |> 
+      rvest::html_text()
+      # rvest::html_table()
+  }
   
-  times_std <- page |> 
-    rvest::html_elements(".css-hegrzh-InfoCard-styles-InfoCardRemark.e1x13lbf8") |> 
-    rvest::html_text() |> 
-    word(1) |> 
-    as.numeric()
+  scrape_times_std <- function(page) {
+    page |> 
+      rvest::html_elements(".css-hegrzh-InfoCard-styles-InfoCardRemark.e1x13lbf8") |> 
+      rvest::html_text() |> 
+      word(1) |> 
+      #as.numeric() #--Comment out to replace with readr function
+      readr::parse_number()
+  }
   
-  std_tbl <- tibble(checkpoints_std, times_std)
+  # Original scrape code for pulling the vectors into a tibble
+  # std_tbl <- tibble(checkpoints_std, times_std)
   
+  #Initial Scrape for standard checkpoints
+  checkpoints_std <- scrape_checkpoints_std(page)
+  times_std <- scrape_times_std(page)
+  
+  #Check Validity of vectors
+  if (length(checkpoints_std) != length(times_std) || 
+      length(checkpoints_std) == 0 || length(times_std) == 0) {
+    
+    message("Warning: Mismatch or empty data detected. Retrying scrape...")
+    
+    Sys.sleep(0.2) #brief pause to avoid hammering the server
+    chromote::default_chromote_object()$close()
+    page <- read_html_live(url)
+    Sys.sleep(0.3)
+    checkpoints_std <- scrape_checkpoints_std(page)
+    times_std <- scrape_times_std(page)
+  }
+  
+  # Only create tibble if valid
+  if (length(checkpoints_std) == length(times_std) && length(checkpoints_std) > 0) {
+    std_tbl <- tibble(checkpoints_std, times_std)
+  } else {
+    stop("Scraping failed after retry: lengths still mismatched or empty.")
+  }
+  
+  
+  #Navigate to precheck checkpoint wait times
   page$click(".css-171js4o-TagButton-StyledTagButton.e2v3h8e0")
   Sys.sleep(0.3)
   
-  checkpoints_pre <- page |> 
-    rvest::html_elements(".css-b1azl9-InfoCard-styles-InfoCardTitle.e1x13lbf4") |> 
-    rvest::html_text()
   
-  times_pre <- page |> 
-    rvest::html_elements(".css-hegrzh-InfoCard-styles-InfoCardRemark.e1x13lbf8") |> 
-    rvest::html_text() |> 
-    word(1) |> 
-    as.numeric()
+  scrape_checkpoints_pre <- function(page) {
+    page |> 
+      rvest::html_elements(".css-b1azl9-InfoCard-styles-InfoCardTitle.e1x13lbf4") |> 
+      rvest::html_text()
+  }
+  
+  scrape_times_pre <- function(page) {
+    page |> 
+      rvest::html_elements(".css-hegrzh-InfoCard-styles-InfoCardRemark.e1x13lbf8") |> 
+      rvest::html_text() |> 
+      word(1) |> 
+      readr::parse_number()
+      # as.numeric() #--Comment out to replace with readr function
+  }
 
-  pre_tbl <- tibble(checkpoints_pre, times_pre)
+  #Initial Scrape for precheck checkpoints
+  checkpoints_pre <- scrape_checkpoints_pre(page)
+  times_pre <- scrape_times_pre(page)
   
+  # Original scrape code for pulling the vectors into a tibble
+  # pre_tbl <- tibble(checkpoints_pre, times_pre)
+  
+  #Check Validity of vectors
+  if (length(checkpoints_pre) != length(times_pre) || 
+      length(checkpoints_pre) == 0 || length(times_pre) == 0) {
+    
+    message("Warning: Mismatch or empty data detected. Retrying scrape...")
+    
+    Sys.sleep(0.2) #brief pause to avoid hammering the server
+    chromote::default_chromote_object()$close()
+    page <- read_html_live(url)
+    Sys.sleep(0.3)
+    
+    #Navigate to precheck checkpoint wait times
+    page$click(".css-171js4o-TagButton-StyledTagButton.e2v3h8e0")
+    Sys.sleep(0.3)
+    
+    checkpoints_pre <- scrape_checkpoints_pre(page)
+    times_pre <- scrape_times_pre(page)
+  }
+  
+  # Only create tibble if valid
+  if (length(checkpoints_pre) == length(times_pre) && length(checkpoints_pre) > 0) {
+    pre_tbl <- tibble(checkpoints_pre, times_pre)
+  } else {
+    stop("Scraping failed after retry: lengths still mismatched or empty.")
+  }
+  
+  # Grab Last Updated Timestamp
   last_updtd <- page |> 
     rvest::html_element(".css-kv0fdb-RefreshData-RefreshDataWrap.eabli8d0 div") |> 
     rvest::html_text()
   
+  # Combine standard and precheck checkpoint data
   data_tbl <- std_tbl |> 
     left_join(pre_tbl, by = join_by(checkpoints_std == checkpoints_pre))
   
 
+  # Create primary tibble to pipe data into
   if(!exists("IAH_data", envir = .GlobalEnv)) {
     IAH_data <- tibble(airport = character(),
                        checkpoint = character(),
@@ -127,7 +200,7 @@ scrape_tsa_data_iah <- function() {
   rm(data_tbl)
   page$session$close()
   rm(page)
-  rm(session)
+  # rm(session)
   rm(IAH_data, envir = .GlobalEnv)
   
 }
