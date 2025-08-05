@@ -39,7 +39,7 @@
 
 
 # Create Airports Table
-dbExecute(sqlite_db, "CREATE TABLE airports(
+dbExecute(con_write, "CREATE TABLE airports(
   Airport_ID INTEGER,
   Airport_Name  VARCHAR,
   Airport_City  VARCHAR,
@@ -58,20 +58,20 @@ dbExecute(sqlite_db, "CREATE TABLE airports(
 
 
 # Insert Parquet file into Airports Table - DuckDB
-# dbExecute(sqlite_db, 
+# dbExecute(con_write, 
 #           "INSERT INTO airports SELECT * FROM read_parquet('01_Data/airports.parquet');")
 
 # Insert Parquet file into Airports Table - SQLite
 # temp_airports <- nanoparquet::read_parquet(here::here('01_Data', 'airports.parquet'))
 
-# dbWriteTable(conn = sqlite_db, name = "airports", value = temp_airports, 
+# dbWriteTable(conn = con_write, name = "airports", value = temp_airports, 
 #              overwrite = TRUE)
 # 
 # rm(temp_airports)
 
 # Create TSA Wait Times Table
 # FOREIGN KEY (airport) REFERENCES airports (IATA_Code)7
-dbExecute(sqlite_db, "CREATE TABLE tsa_wait_times(
+dbExecute(con_write, "CREATE TABLE tsa_wait_times(
           airport VARCHAR,
           checkpoint VARCHAR,
           datetime DATETIME,
@@ -87,14 +87,14 @@ dbExecute(sqlite_db, "CREATE TABLE tsa_wait_times(
 
 
 # Create Airport Website Table
-dbExecute(sqlite_db, "CREATE TABLE airport_sites(
+dbExecute(con_write, "CREATE TABLE airport_sites(
           airport VARCHAR,
           website VARCHAR
 );")
 
 
 # Create Airport CheckPoint Hours of Operation
-dbExecute(sqlite_db, "CREATE TABLE airport_checkpoint_hours(
+dbExecute(con_write, "CREATE TABLE airport_checkpoint_hours(
           airport VARCHAR,
           timezone VARCHAR,
           checkpoint VARCHAR,
@@ -106,13 +106,13 @@ dbExecute(sqlite_db, "CREATE TABLE airport_checkpoint_hours(
 
 
 ## View tables ----
-dbGetQuery(sqlite_db, "SHOW TABLES;")
-dbListTables(sqlite_db)
+dbGetQuery(con_write, "SHOW TABLES;")
+dbListTables(con_write)
 
 
 ## Testing Queries ----
 # Query for observation count by airport
-# dbGetQuery(sqlite_db, "SELECT airport, count(airport) as obs_count FROM tsa_wait_times GROUP BY airport;") 
+# dbGetQuery(con_write, "SELECT airport, count(airport) as obs_count FROM tsa_wait_times GROUP BY airport;") 
 
 
 # Query for most recent observations from most recent run
@@ -125,7 +125,7 @@ dbListTables(sqlite_db)
 # ORDER BY a.airport;")
 
 # DuckDb Implementation of Same Query
-# dbGetQuery(con_read,
+# dbGetQuery(con_write,
 #            "SELECT airport, date, count (*) as obs FROM tsa_wait_times
 #             WHERE date >= ((SELECT MAX(date) FROM tsa_wait_times)-1)
 #             GROUP BY airport, date ORDER BY airport;")
@@ -136,7 +136,7 @@ dbListTables(sqlite_db)
 # The end range for the hour requested is BETWEEN 9 AND 9 because EXTRACT HOUR only
 # gives whole hour values, not minutes or seconds, so XX:59:59 is still the same hour
 # as XX:00:00
-# dbGetQuery(con_read,
+# dbGetQuery(con_write,
 #           "SELECT airport, checkpoint, date, EXTRACT(HOUR FROM time) as hour,
 #            FLOOR(EXTRACT(MINUTE FROM time) / 15) *15 as minute_interval, 
 #            CEIL(AVG(wait_time)) as avg_wait_time
@@ -148,7 +148,7 @@ dbListTables(sqlite_db)
 
 # Query for looking at a specific airport, specific terminal, specific day, max time
 # DuckDB Implementation
-# dbGetQuery(con_read,
+# dbGetQuery(con_write,
 #            "SELECT airport, checkpoint, date, EXTRACT(HOUR FROM time) as hour,
 #            FLOOR(EXTRACT(MINUTE FROM time) / 15) *15 as minute_interval, 
 #            CEIL(MAX(wait_time)) as max_wait_time
@@ -158,7 +158,7 @@ dbListTables(sqlite_db)
 #            ORDER BY airport, checkpoint, date, minute_interval;")
 
 ## Edit Queries ----
-# dbSendQuery(sqlite_db, "INSERT INTO airport_sites (airport, website) VALUES 
+# dbSendQuery(con_write, "INSERT INTO airport_sites (airport, website) VALUES 
 #             ('ATL', 'https://www.atl.com/times/'),
 #             ('CLT', 'https://api.cltairport.mobi/checkpoint-queues/current'),
 #             ('DCA', 'https://www.flyreagan.com/travel-information/security-information'),
@@ -169,11 +169,11 @@ dbListTables(sqlite_db)
 #             ('MCO', 'https://flymco.com/security/'),
 #             ('MIA', 'https://www.miami-airport.com/tsa-waittimes.asp'),
 #             ('MSP', 'https://www.mspairport.com/airport/security-screening/security-wait-times');")
-# dbSendQuery(sqlite_db, "DELETE FROM tsa_wait_times WHERE airport = 'LGA';")
+# dbSendQuery(con_write, "DELETE FROM tsa_wait_times WHERE airport = 'LGA';")
 
 
 ## Disconnect from Database ----
-DBI::dbDisconnect(sqlite_db, shutdown = TRUE)
-rm(conn_write)
-rm(conn_read)
-rm(sqlite_db)
+DBI::dbDisconnect(con_write, shutdown = TRUE)
+rm(con_write)
+# rm(conn_read)
+# rm(sqlite_db)
