@@ -112,6 +112,7 @@ if(!exists("MSP_data", envir = .GlobalEnv)) {
 
   # print(glue("session has run successfully ", format(Sys.time(), "%a %b %d %X %Y")))
   print(glue("{nrow(MSP_data)} appended to tsa_wait_times at ", format(Sys.time(), "%a %b %d %X %Y")))
+  
   rm(url)
   rm(checkpoints)
   rm(chkpnt_type)
