@@ -142,6 +142,7 @@ ggsave("tsa_wait_time_JFK_req.svg", plot = chart, path = here::here(),
   # Remove database object
   rm(tsa_app_test)
   rm(list = ls())
+
   # Garbage Collection
   gc()
   
