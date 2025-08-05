@@ -92,7 +92,7 @@ clean_log <- function(msg) {
 ## Create Function to run all scripts
 run_all_functions <- function() {
   
-  print(glue("******-- Start Run ", format(Sys.time()), " --******"))
+  base::cat(glue("******-- Start Run ", format(Sys.time()), " --******"))
   
   
   ## Randomly assign list of functions so for mixing up timing when scraping
@@ -109,15 +109,15 @@ run_all_functions <- function() {
       },
       error = function(e) {
         # Get the call stack and extract line number if available
-        # calls <- sys.calls()
+        calls <- sys.calls()
         call_info <- capture.output(traceback(max.lines = 1))
-        error_msg <- clean_log(conditionMessage(e))
+        error_msg <- clean_log(conditionMessage(e)) 
         cat(glue("[{format(Sys.time())}] ERROR in {f}: {error_msg}", "Trace: {paste(call_info, collapse = ' '"))
       }
     )
   })
   
-  print(glue("******-- Completed Run ", format(Sys.time()), " --******"))
+  base::cat(glue("******-- Completed Run ", format(Sys.time()), " --******"))
   
 }
 
