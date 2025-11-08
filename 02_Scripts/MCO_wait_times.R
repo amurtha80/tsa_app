@@ -73,24 +73,28 @@ scrape_tsa_data_mco <- function() {
 
     gates <- h |> 
       # h5.css-1osfado-headings-H5-WidgetContainer-WidgetTitle-SecurityWaitTimesCard-SWTCardTitle.e1v0x5ca2
-      html_elements("h5.css-1osfado-headings-H5-WidgetContainer-WidgetTitle-SecurityWaitTimesCard-SWTCardTitle.e1v0x5ca2") |>
+      html_elements("h5.css-1osfado-headings-H5-WidgetContainer-WidgetTitle-SecurityWaitTimesCard-SWTCardTitle.e1v0x5ca3") |>
       html_text2() |> 
         magrittr::extract(c(1:3))
 
 
-    wait_time <- h |> 
-      html_elements('p.css-1jbuqz4-SecurityWaitTimeInfo-TimeRange.ebqyvgq1') |> 
-      html_text2() |> 
+      wait_time <- h |> 
+        html_elements('p.css-jb2r0q-SecurityWaitTimeLaneInfo-TimeRange.er9e6cy2') |> 
+        html_text2() |> 
       word(start = 3, end = 3) |> 
       as.numeric()
 
 
-    wait_time_pre_check <- rep(NA, length(wait_time))
+    wait_time_general <- wait_time[seq(1, length(wait_time), 2)]
+    wait_time_pre_check <- wait_time[seq(2, length(wait_time), 2)]
+    # wait_time_pre_check <- rep(NA, length(wait_time))
 
+  
     # Comment Out Checks from Testing
     # print(glue("wait time length ", {length(wait_time)}))
     # print(glue("gates length ", {length(gates)}))
 
+  
     # Comment Out Checks from Testing
     # Check to make Sure that TSA CheckPoint and Time have the same length
     # if(length(wait_time) != length(gates)){
@@ -131,7 +135,7 @@ scrape_tsa_data_mco <- function() {
       # format("%H:%M:%S"),
       # hms::new_hms(),
       timezone = "America/New_York",
-      wait_time = wait_time,  # Assume this is a list of wait times for each checkpoint
+      wait_time = wait_time_general,  # Assume this is a list of wait times for each checkpoint
       wait_time_priority = NA,
       wait_time_pre_check = wait_time_pre_check,
       wait_time_clear = NA
@@ -144,6 +148,7 @@ scrape_tsa_data_mco <- function() {
     # print(glue("session has run successfully ", format(Sys.time(), "%a %b %d %X %Y")))
     print(glue("{nrow(MCO_data)} rows appended to tsa_wait_times at ", format(Sys.time(), "%a %b %d %X %Y")))
     
+    rm(wait_time_general)
     rm(wait_time_pre_check)
     rm(url)
     rm(h)
