@@ -26,11 +26,12 @@
     
     # Define URL and initiate polite session
     url <- "https://www.atl.com/times/"  # Update with the actual URL
-    session <- polite::bow(url)
+    session <- polite::bow(url, user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.75 Safari/537.36")
+    options(chromote.headless = "new")
     
   # Scrape and parse data
   # page <- polite::scrape(session)
-  page <- rvest::read_html(url)
+  page <- rvest::read_html_live(url)
   tsa_terminal <- page |> 
     rvest::html_elements("div h1") |> 
     rvest::html_text() |> 
@@ -112,6 +113,7 @@
     rm(tsa_time)
     rm(url)
     rm(tsa_terminal_checkpoint)
+    page$session$close()
     rm(page)
     rm(session)
     rm(ATL_data, envir = .GlobalEnv)
