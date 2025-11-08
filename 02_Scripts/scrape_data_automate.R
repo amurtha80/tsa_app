@@ -9,7 +9,8 @@ foo <- function(x) {
     # require returns TRUE invisibly if it was able to load package
     if(! require(i, character.only = TRUE, warn.conflicts = FALSE, quietly = TRUE)) {
       # if package was not able to be loaded then re-install
-      install.packages(i, dependencies = TRUE, verbose = FALSE, quiet = TRUE)
+      install.packages(i, dependencies = TRUE, verbose = FALSE, quiet = TRUE,
+                       repos = "https://cloud.r-project.org/")
       # load package after installing
       require(i, character.only = TRUE, verbose = FALSE, warn.conflicts = FALSE, quietly = TRUE)
     }
