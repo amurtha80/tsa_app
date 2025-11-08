@@ -32,7 +32,7 @@ scrape_tsa_data_iah <- function() {
   # Scrape and parse data
   # page <- polite::scrape(session)
   page <- read_html_live(url)
-  s.sleep(0.4)
+  Sys.sleep(0.4)
 
 
   # page$click(".css-19957wq-TagButton-StyledTagButton.e2v3h8e0")
@@ -126,11 +126,11 @@ scrape_tsa_data_iah <- function() {
   # print(glue("session has run successfully ", format(Sys.time(), "%a %b %d %X %Y")))
   print(glue("{nrow(IAH_data)} appended to tsa_wait_times at ", format(Sys.time(), "%a %b %d %X %Y")))
   rm(url)
-  rm(scrape_checkpoints_std)
-  rm(scrape_times_std)
+  # rm(scrape_checkpoints_std)
+  # rm(scrape_times_std)
   rm(checkpoints_std)
-  rm(scrape_checkpoints_pre)
-  rm(scrape_times_pre)
+  # rm(scrape_checkpoints_pre)
+  # rm(scrape_times_pre)
   rm(checkpoints_pre)
   rm(times_std)
   rm(times_pre)
@@ -145,7 +145,7 @@ scrape_tsa_data_iah <- function() {
   
 }
 
-scrape_tsa_data_iah()
+# scrape_tsa_data_iah()
 
 # Loop Funtion For Test ----
 
