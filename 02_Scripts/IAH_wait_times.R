@@ -32,11 +32,7 @@ scrape_tsa_data_iah <- function() {
   # Scrape and parse data
   # page <- polite::scrape(session)
   page <- read_html_live(url)
-<<<<<<< HEAD
-  Sys.sleep(0.4)
-=======
   Sys.sleep(0.5)
->>>>>>> f3f325016926116f5bf418a5a9989209c19e0530
 
 
   # page$click(".css-19957wq-TagButton-StyledTagButton.e2v3h8e0")
