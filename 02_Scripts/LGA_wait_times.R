@@ -19,6 +19,46 @@
 # con_write <- dbConnect(duckdb::duckdb(), dbdir = "01_Data/tsa_app.duckdb", read_only = FALSE)
 
 
+# Helper function to safely read html page
+safe_read_html_live <- function(url, wait = 2, exit_on_fail = TRUE) {
+  # Try first attempt
+  page <- tryCatch(
+    read_html_live(url),
+    error = function(e) {
+      message("First attempt failed: ", e$message)
+      return(NULL)
+    }
+  )
+  
+  # Retry once if first failed
+  if (is.null(page)) {
+    message("Retrying once more after ", wait, " seconds...")
+    Sys.sleep(wait)
+    
+    page <- tryCatch(
+      read_html_live(url),
+      error = function(e) {
+        message("Second attempt failed: ", e$message)
+        return(NULL)
+      }
+    )
+  }
+  
+  # If both attempts failed, handle according to user preference
+  if (is.null(page)) {
+    message("Unable to read page after two attempts.")
+    if (exit_on_fail) {
+      message("Exiting script safely.")
+      quit(save = "no", status = 0)
+    }
+  }
+  
+  return(page)
+}
+
+####  --------------------------------------------------------------------- ####
+
+
 # Function to scrape and store TSA checkpoint wait times
 scrape_tsa_data_lga <- function() {
   
@@ -31,7 +71,10 @@ scrape_tsa_data_lga <- function() {
   options(chromote.headless = "new")
   
   
-  page <- read_html_live(url)
+  
+  
+  # page <- read_html_live(url)
+  page <- safe_read_html_live(url)
   Sys.sleep(0.3)
   
   # Read TSA Checkpoint Wait Time Data from Website Table
@@ -105,6 +148,7 @@ scrape_tsa_data_lga <- function() {
   rm(session)
   rm(url)
   rm(LGA_data, envir = .GlobalEnv)
+  rm(safe_read_html_live)
   # gc()
   
 }
