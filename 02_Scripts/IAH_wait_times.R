@@ -31,7 +31,7 @@ scrape_tsa_data_iah <- function() {
   
   # Scrape and parse data
   # page <- polite::scrape(session)
-  page <- read_html_live(url)
+  page <- safe_read_html_live(url)
   Sys.sleep(0.5)
 
 
@@ -49,7 +49,7 @@ scrape_tsa_data_iah <- function() {
     rvest::html_text() |> 
     word(1) |> 
     #as.numeric() # -- Comment out to replace with readr function
-    readr::parse_number()
+    readr::parse_number(na = c("Closed", "N/A", "NA"))
   
   std_tbl <- tibble(checkpoints_std, times_std)
   
@@ -69,7 +69,7 @@ scrape_tsa_data_iah <- function() {
     rvest::html_text() |> 
     word(1) |> 
     #as.numeric() # -- Comment out to replace with readr function
-    readr::parse_number()
+    readr::parse_number(na = c("Closed", "N/A", "NA"))
 
   pre_tbl <- tibble(checkpoints_pre, times_pre)
   
