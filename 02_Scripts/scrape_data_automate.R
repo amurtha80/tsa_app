@@ -69,6 +69,50 @@ functions <- as.vector(lsf.str())
 # rm(global_env)
 
 
+####  --------------------------------------------------------------------- ####
+
+
+# Helper function to safely read html page
+safe_read_html_live <- function(url, wait = 2, exit_on_fail = TRUE) {
+  # Try first attempt
+  page <- tryCatch(
+    read_html_live(url),
+    error = function(e) {
+      message("First attempt failed: ", e$message)
+      return(NULL)
+    }
+  )
+  
+  # Retry once if first failed
+  if (is.null(page)) {
+    message("Retrying once more after ", wait, " seconds...")
+    Sys.sleep(wait)
+    
+    page <- tryCatch(
+      read_html_live(url),
+      error = function(e) {
+        message("Second attempt failed: ", e$message)
+        return(NULL)
+      }
+    )
+  }
+  
+  # If both attempts failed, handle according to user preference
+  if (is.null(page)) {
+    message("Unable to read page after two attempts.")
+    if (exit_on_fail) {
+      message("Exiting script safely.")
+      quit(save = "no", status = 0)
+    }
+  }
+  
+  return(page)
+}
+
+
+####  --------------------------------------------------------------------- ####
+
+
 # Test Run Scripts ----
 
 
@@ -106,15 +150,16 @@ run_all_functions <- function() {
 run_all_functions()
 
 
-# Cleanup ----
-
-rm(functions)
-rm(run_all_functions)
-
-
 ## Shutdown Database
 dbDisconnect(con_write, shutdown = TRUE)
 rm(con_write)
+
+
+# Cleanup ----
+rm(functions)
+rm(run_all_functions)
+rm(list = ls())
+
 
 sink()
 gc()
