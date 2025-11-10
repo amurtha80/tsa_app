@@ -19,43 +19,6 @@
 # con_write <- dbConnect(duckdb::duckdb(), dbdir = "01_Data/tsa_app.duckdb", read_only = FALSE)
 
 
-# Helper function to safely read html page
-safe_read_html_live <- function(url, wait = 2, exit_on_fail = TRUE) {
-  # Try first attempt
-  page <- tryCatch(
-    read_html_live(url),
-    error = function(e) {
-      message("First attempt failed: ", e$message)
-      return(NULL)
-    }
-  )
-  
-  # Retry once if first failed
-  if (is.null(page)) {
-    message("Retrying once more after ", wait, " seconds...")
-    Sys.sleep(wait)
-    
-    page <- tryCatch(
-      read_html_live(url),
-      error = function(e) {
-        message("Second attempt failed: ", e$message)
-        return(NULL)
-      }
-    )
-  }
-  
-  # If both attempts failed, handle according to user preference
-  if (is.null(page)) {
-    message("Unable to read page after two attempts.")
-    if (exit_on_fail) {
-      message("Exiting script safely.")
-      quit(save = "no", status = 0)
-    }
-  }
-  
-  return(page)
-}
-
 ####  --------------------------------------------------------------------- ####
 
 
