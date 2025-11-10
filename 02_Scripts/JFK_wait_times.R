@@ -28,7 +28,7 @@ scrape_tsa_data_jfk <- function() {
   Sys.sleep(2)
   options(chromote.headless = "new")
 
-  page <- read_html_live(url)
+  page <- safe_read_html_live(url)
   Sys.sleep(0.3)
   
   results <- page |> 
