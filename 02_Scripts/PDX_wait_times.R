@@ -117,7 +117,7 @@ scrape_tsa_data_pdx <- function() {
   assign("PDX_data", PDX_data, envir = .GlobalEnv)  
   
   
-  dbAppendTable(con_write, name = "tsa_wait_times", value = DEN_data)
+  dbAppendTable(con_write, name = "tsa_wait_times", value = PDX_data)
   
   
   # print(glue("session has run successfully ", format(Sys.time(), "%a %b %d %X %Y")))
@@ -145,7 +145,7 @@ scrape_tsa_data_pdx <- function() {
 # for (i in 1:5) {
 #   p1 <- lubridate::ceiling_date(Sys.time(), unit = "minute")
 #   print(glue(i, "  ", format(Sys.time())))
-#   scrape_tsa_data_den()
+#   scrape_tsa_data_pdx()
 #   theDelay <- as.numeric(difftime(p1,Sys.time(),unit="secs"))
 #   Sys.sleep(max(0, theDelay))
 #   
@@ -158,4 +158,4 @@ scrape_tsa_data_pdx <- function() {
 # rm(theDelay)
 # dbDisconnect(con)
 # rm(con)
-# rm(scrape_tsa_data_den)
+# rm(scrape_tsa_data_pdx)
