@@ -78,9 +78,9 @@ scrape_tsa_data_pdx <- function() {
   if(!exists("PDX_data", envir = .GlobalEnv)) {
     PDX_data <- tibble(airport = character(),
                        checkpoint = character(),
-                       datetime = lubridate::ymd_hms(tz = 'PST'),
+                       datetime = lubridate::ymd_hms(tz = 'America/Los_Angeles'),
                        date = lubridate::ymd(),
-                       time = lubridate::POSIXct(tz = 'PST'),
+                       time = lubridate::POSIXct(tz = 'America/Los_Angeles'),
                        timezone = character(),
                        wait_time = numeric(),
                        wait_time_priority = numeric(),
@@ -96,7 +96,7 @@ scrape_tsa_data_pdx <- function() {
   PDX_data <- rows_append(PDX_data, tibble(
     airport = "PDX",
     checkpoint = gates,
-    datetime = lubridate::now(tzone = 'PST'),
+    datetime = lubridate::now(tzone = 'America/Los_Angeles'),
     date = lubridate::today(),
     time = Sys.time() |> 
       with_tz(tzone = "America/Los_Angeles") |> 
