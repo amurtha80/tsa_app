@@ -25,7 +25,7 @@
 # Function to scrape and store TSA checkpoint wait times
 scrape_tsa_data_pdx <- function() {
   
-  print(glue("kickoff DEN scrape ", format(Sys.time(), "%a %b %d %X %Y")))
+  print(glue("kickoff PDX scrape ", format(Sys.time(), "%a %b %d %X %Y")))
   
   
   # Define URL and initiate polite session
@@ -42,7 +42,26 @@ scrape_tsa_data_pdx <- function() {
   
 ####  --------------------------------------------------------------------- ####
 
-# Insert new Code here  
+  gates <- page |> 
+    html_elements('.checkpoint-name') |> 
+    html_text2()
+  
+  
+  wait_time <- page |> 
+    html_elements('.general-boarding .wait-time') |> 
+    html_text2() |> 
+    gsub(pattern = ' ', replacement = 'NA') |> 
+    as.numeric() |> 
+    suppressWarnings() 
+
+  
+  wait_time_pre_check <- page |> 
+    html_elements('.tsa-precheck .wait-time') |> 
+    html_text2() |> 
+    gsub(pattern = ' ', replacement = 'NA') |> 
+    as.numeric() |> 
+    suppressWarnings()
+  
   
 ####  --------------------------------------------------------------------- ####  
   
@@ -75,28 +94,31 @@ scrape_tsa_data_pdx <- function() {
   # Insert data into tibble
   # Prepare data with airport code, date, time, timezone, and wait times
   PDX_data <- rows_append(PDX_data, tibble(
-    airport = "PDX"
+    airport = "PDX",
     checkpoint = gates,
     datetime = lubridate::now(tzone = 'PST'),
     date = lubridate::today(),
     time = Sys.time() |> 
-      with_tz(tzone = "America/Los Angeles") |> 
+      with_tz(tzone = "America/Los_Angeles") |> 
       floor_date(unit = "minute"),
     # time = lubridate::now(tzone = 'EST') |>
     # floor_date(unit = "minute") |>
     # with_tz('EST'),
     # format("%H:%M:%S"),
     # hms::new_hms(),
-    timezone = "America/Los Angeles",
+    timezone = "America/Los_Angeles",
     wait_time = wait_time,  # Assume this is a list of wait times for each checkpoint
     wait_time_priority = NA,
     wait_time_pre_check = wait_time_pre_check,
     wait_time_clear = NA
   ))
   
+  
   assign("PDX_data", PDX_data, envir = .GlobalEnv)  
   
+  
   dbAppendTable(con_write, name = "tsa_wait_times", value = DEN_data)
+  
   
   # print(glue("session has run successfully ", format(Sys.time(), "%a %b %d %X %Y")))
   print(glue("{nrow(PDX_data)} appended to tsa_wait_times at ", format(Sys.time(), "%a %b %d %X %Y")))
