@@ -168,7 +168,8 @@ dbListTables(con_write)
 #             ('LGA', 'https://www.laguardiaairport.com'),
 #             ('MCO', 'https://flymco.com/security/'),
 #             ('MIA', 'https://www.miami-airport.com/tsa-waittimes.asp'),
-#             ('MSP', 'https://www.mspairport.com/airport/security-screening/security-wait-times');")
+#             ('MSP', 'https://www.mspairport.com/airport/security-screening/security-wait-times'),
+#             ('PDX', 'https://https://www.flypdx.com');")
 # dbSendQuery(con_write, "DELETE FROM tsa_wait_times WHERE airport = 'LGA';")
 
 
