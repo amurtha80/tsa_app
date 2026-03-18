@@ -111,7 +111,7 @@ scrape_tsa_data_lga <- function() {
   rm(session)
   rm(url)
   rm(LGA_data, envir = .GlobalEnv)
-  rm(safe_read_html_live)
+  #rm(safe_read_html_live)
   # gc()
   
 }
