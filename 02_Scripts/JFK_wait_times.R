@@ -19,7 +19,7 @@
 # con_write <- dbConnect(duckdb::duckdb(), dbdir = "01_Data/tsa_app.duckdb", read_only = FALSE)
 
 scrape_tsa_data_jfk <- function() {
-  
+
   print(glue("kickoff JFK scrape ", format(Sys.time(), "%a %b %d %X %Y")))
   
   url <- "https://www.jfkairport.com"
@@ -27,37 +27,44 @@ scrape_tsa_data_jfk <- function() {
   session <- session(url)
   Sys.sleep(2)
   options(chromote.headless = "new")
-
+  
   page <- safe_read_html_live(url)
   Sys.sleep(0.3)
   
   results <- page |> 
-    html_elements('.av-responsive-table') |> 
+    html_elements('.chakra-table__root.Table_tableContainer__Hwsqp') |>
+    # html_elements('.chakra-table__body.css-0') |>
+    # html_elements('.av-responsive-table') |> 
     html_table(fill = TRUE) |> 
     dplyr::bind_rows() |> 
+    head(-1) |> 
     suppressMessages()
   
   
   # Tranform Data
   JFK_data <- results |> 
     mutate(airport = 'JFK',
+           #Terminal
+           Terminal = results$Terminal,
            # General Wait Time
-           wait_time = results$`General Line` |> 
-             str_remove_all("                                ") |> 
-             str_remove("                             ") |> 
-             str_remove_all('\n') |> str_sub(13) |> 
-             str_remove("min") |> 
-             as.numeric() |> 
+           wait_time = results$`General` |> 
+             # str_remove_all("                                ") |> 
+             # str_remove("                             ") |> 
+             # str_remove_all('\n') |> str_sub(13) |> 
+             # str_remove("min") |> 
+             # as.numeric() |> 
+             readr::parse_number(na = c("-")) |> 
              suppressWarnings(),
            # TSA Pre check Wait Time
-           wait_time_pre_check = results$`TSA Pre✓ Line` |> 
-             str_remove_all("          ") |> 
-             str_remove("         ") |> 
-             str_remove_all("  ") |> 
-             str_remove_all('\n') |> 
-             str_sub(14) |> 
-             str_remove('min') |> 
-             as.numeric() |> 
+           wait_time_pre_check = results$`TSA Pre✓` |> 
+             # str_remove_all("          ") |> 
+             # str_remove("         ") |> 
+             # str_remove_all("  ") |> 
+             # str_remove_all('\n') |> 
+             # str_sub(14) |> 
+             # str_remove('min') |> 
+             # as.numeric() |> 
+               readr::parse_number(na = c("-")) |> 
              suppressWarnings(),
            # DateTime
            datetime = lubridate::now(tzone = 'EST'),
@@ -71,11 +78,11 @@ scrape_tsa_data_jfk <- function() {
            wait_time_priority = NA,
            wait_time_clear = NA) |>
     # Rename CheckPoint column
-    rename(checkpoint = `Terminal...1`) |>
+    # rename(checkpoint = `Terminal`) |>
     # Remove unnecessary columns
-    select(-(2:5)) |> 
+    select(-(2:3)) |> 
     # Reorder remaining columns
-    select(airport, checkpoint, datetime, date, time, timezone, wait_time,
+    select(airport, Terminal, datetime, date, time, timezone, wait_time,
            wait_time_priority, wait_time_pre_check, wait_time_clear)
   
   
@@ -91,7 +98,7 @@ scrape_tsa_data_jfk <- function() {
   # print(glue("session has run successfully ", format(Sys.time(), "%a %b %d %X %Y")))
   print(glue("{nrow(JFK_data)} row(s) appended to tsa_wait_times at ", format(Sys.time(), "%a %b %d %X %Y")))
   
- 
+  
   # rm(checkpoints)
   # rm(notes)
   # rm(data)
