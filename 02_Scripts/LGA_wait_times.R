@@ -106,7 +106,10 @@ scrape_tsa_data_lga <- function() {
   
   
   rm(results)
-  page$session$close()
+  
+  #page$session$close() - Quit using April 2026, only closes tab not entire session
+  page$parent$close()
+  
   rm(page)
   rm(session)
   rm(url)

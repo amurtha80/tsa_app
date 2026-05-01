@@ -120,6 +120,7 @@ scrape_tsa_data_dca <- function() {
   rm(wait_times)
   rm(DCA_data, envir = .GlobalEnv)
   
+  # page$session$close() - Quit using April 2026, only closes tab not entire session
   page$session$close()
   rm(page)
   

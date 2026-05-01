@@ -138,7 +138,10 @@ scrape_tsa_data_iah <- function() {
   rm(std_tbl)
   rm(pre_tbl)
   rm(data_tbl)
-  page$session$close()
+  
+  # page$session$close() - Quit using April 2026, only closes tab not entire session
+  page$parent$close()
+  
   rm(page)
   # rm(session) # -- no longer needed with current implementation of script
   rm(IAH_data, envir = .GlobalEnv)

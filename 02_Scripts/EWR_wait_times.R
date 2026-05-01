@@ -100,7 +100,9 @@ scrape_tsa_data_ewr <- function() {
   
   rm(results)
   rm(EWR_data, envir = .GlobalEnv)
-  page$session$close()
+  
+  # page$session$close() - Quit using April 2026, only closes tab not entire session
+  page$parent$close()
   rm(page)
   rm(session)
   rm(url)

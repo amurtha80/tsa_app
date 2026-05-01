@@ -129,7 +129,8 @@ scrape_tsa_data_pdx <- function() {
   rm(wait_time_pre_check)
   rm(PDX_data, envir = .GlobalEnv)
   
-  page$session$close()
+  # page$session$close() - Quit using April 2026, only closes tab not entire session
+  page$parent$close()
   rm(page)
   
   rm(session)

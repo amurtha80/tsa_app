@@ -113,7 +113,8 @@
     rm(tsa_time)
     rm(url)
     rm(tsa_terminal_checkpoint)
-    page$session$close()
+    # page$session$close - Quit using April 2026, only closes tab not entire session
+    page$parent$close()
     rm(page)
     rm(session)
     rm(ATL_data, envir = .GlobalEnv)
