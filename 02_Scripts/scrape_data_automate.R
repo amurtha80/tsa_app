@@ -14,19 +14,23 @@ foo <- function(x) {
       # load package after installing
       require(i, character.only = TRUE, verbose = FALSE, warn.conflicts = FALSE, quietly = TRUE)
     }
-    ))  
-  }
+    ))
+    }
 }
 
 ## Then install/load packages...
-foo(c('polite', 'rvest', 'httr', 'RSelenium', 'jsonlite', 'duckdb', 'glue', 'DBI', 'tidyverse', 
-      'netstat', 'here', 'fs', 'chromote'))
+foo(c('rvest', 'httr', 'RSelenium', 'jsonlite', 'duckdb', 'glue', 'DBI', 'netstat',
+      'fs', 'chromote', 'here', 'polite', 'tidyverse'))
 
+# Sys.time()
+# require('polite')
+# require('tidyverse')
 
-Sys.sleep(0.2)
+Sys.sleep(0.25)
 
 
 rm(foo)
+print("packages loaded")
 
 # Source Scripts ----
 
@@ -39,14 +43,23 @@ files <- list.files(path = "C:/Users/james/Documents/R/tsa_app/02_Scripts") |>
 print("files object works")
 
 
-Sys.sleep(0.2)
-funcs <- as.vector(map(here::here("C:/Users/james/Documents/R/tsa_app/02_Scripts", files), source))
+Sys.sleep(0.25)
+funcs <- tryCatch({
+  as.vector(purrr::map(here::here("C:/Users/james/Documents/R/tsa_app/02_Scripts", files), source))
+}, error = function(e) {
+  writeLines(paste("ERROR in funcs creation:", conditionMessage(e)), log_file, append = TRUE)
+  writeLines(paste("Error occurred at:", Sys.time()), log_file, append = TRUE)
+  stop(e)  # Re-throw the error to stop execution
+})
+
+# funcs <- as.vector(map(file.path("C:/Users/james/Documents/R/tsa_app/02_Scripts", files), source))
+# funcs <- as.vector(purrr::map(here::here("C:/Users/james/Documents/R/tsa_app/02_Scripts", files), source))
 # funcs <- as.vector(map(.x = glue("02_Scripts/{files}"), .f = source))
 # funcs <- as.vector(source(here::here("02_Scripts/", "ATL_wait_times.R")))
 print("funcs object works")
 
 
-Sys.sleep(0.2)
+Sys.sleep(0.3)
 rm(files)
 rm(funcs)
 
