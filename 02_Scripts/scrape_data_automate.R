@@ -158,7 +158,10 @@ run_all_functions <- function() {
     tryCatch(
       do.call(f, list()),
       error = function(e) {
-        print(glue("ERROR in {f}: {conditionMessage(e)} at ", format(Sys.time(), "%a %b %d %X %Y")))
+        print(glue("ERROR in {f}: {conditionMessage(e)} at ", 
+                   format(Sys.time(),"%a %b %d %X %Y")))
+        # <<- assigns upward into the enclosing scope so the retry pass can see 
+        # it. A plain <- there would silently discard the value.
         failed_functions <<- c(failed_functions, f)
       }
     )
@@ -167,13 +170,15 @@ run_all_functions <- function() {
   ## Retry pass -- attempt each failed function one more time
   if (length(failed_functions) > 0) {
     
-    print(glue("******-- Retry Pass Starting ({length(failed_functions)} failed) ", format(Sys.time()), " --******"))
+    print(glue("******-- Retry Pass Starting ({length(failed_functions)} failed) ", 
+               format(Sys.time()), " --******"))
     
     lapply(failed_functions, function(f) {
       tryCatch(
         do.call(f, list()),
         error = function(e) {
-          print(glue("RETRY FAILED for {f}: {conditionMessage(e)} at ", format(Sys.time(), "%a %b %d %X %Y")))
+          print(glue("RETRY FAILED for {f}: {conditionMessage(e)} at ", 
+                     format(Sys.time(), "%a %b %d %X %Y")))
         }
       )
     })
