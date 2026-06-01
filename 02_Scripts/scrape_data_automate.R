@@ -149,10 +149,38 @@ run_all_functions <- function() {
   ## Strategy so that the random timing makes scraping appear human
   functions <- sample(functions)
   
+  ## Track any functions that error out during the main pass
+  failed_functions <- character(0)
   
-  ## Run each function
-  lapply(functions, function(f) do.call(f, list()))
   
+  ## Run each function -- continue to next airport if one errors out
+  lapply(functions, function(f) {
+    tryCatch(
+      do.call(f, list()),
+      error = function(e) {
+        print(glue("ERROR in {f}: {conditionMessage(e)} at ", format(Sys.time(), "%a %b %d %X %Y")))
+        failed_functions <<- c(failed_functions, f)
+      }
+    )
+  })
+  
+  ## Retry pass -- attempt each failed function one more time
+  if (length(failed_functions) > 0) {
+    
+    print(glue("******-- Retry Pass Starting ({length(failed_functions)} failed) ", format(Sys.time()), " --******"))
+    
+    lapply(failed_functions, function(f) {
+      tryCatch(
+        do.call(f, list()),
+        error = function(e) {
+          print(glue("RETRY FAILED for {f}: {conditionMessage(e)} at ", format(Sys.time(), "%a %b %d %X %Y")))
+        }
+      )
+    })
+    
+    print(glue("******-- Retry Pass Completed ", format(Sys.time()), " --******"))
+    
+  }
   
   print(glue("******-- Completed Run ", format(Sys.time()), " --******"))
   
