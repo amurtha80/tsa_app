@@ -130,15 +130,28 @@ scrape_tsa_data_pdx <- function() {
   rm(PDX_data, envir = .GlobalEnv)
   
   # page$session$close() - Quit using April 2026, only closes tab not entire session
-  page$parent$close()
-  rm(page)
-  
-  rm(session)
-  rm(url)
-  # gc()
-  
-}
+  # page$session$close()
+  # page$parent$close()
 
+  # June 2026 - New Tear-down Methodology to avoid Headless Chrome Temp files
+  # in Windows environment. This is due to changes in chromote between 2025 and
+  # 2026
+  tryCatch({
+    page$session$close()
+    page$session$parent$close(wait = 2)
+    if (chromote::has_default_chromote_object()) {
+      chromote::set_default_chromote_object(NULL)
+    }
+  }, error = function(e) {
+    message(Sys.time(), " | PDX teardown warning (non-fatal): ", e$message)
+  }, finally = {
+    rm(page)
+    rm(session)
+    rm(url)
+    # gc()
+  })
+
+}
 
 # Test Loop ----
 # i <- 1
