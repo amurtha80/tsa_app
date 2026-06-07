@@ -33,8 +33,9 @@ scrape_tsa_data_lga <- function() {
   Sys.sleep(2)
   options(chromote.headless = "new")
   
-  
-  
+  # Initialize a new Chrome session with the latest stable version of Chrome 
+  # and specify the binary for chrome-headless-shell
+  chromote::local_chrome_version(version = "latest-stable", binary = "chrome-headless-shell")
   
   # page <- read_html_live(url)
   page <- safe_read_html_live(url)
@@ -106,19 +107,30 @@ scrape_tsa_data_lga <- function() {
   
   
   rm(results)
+  rm(LGA_data, envir = .GlobalEnv)
   
   #page$session$close() - Quit using April 2026, only closes tab not entire session
-  page$parent$close()
+  # page$parent$close()
   
-  rm(page)
-  rm(session)
-  rm(url)
-  rm(LGA_data, envir = .GlobalEnv)
-  #rm(safe_read_html_live)
-  gc()
+  tryCatch({
+    page$session$close()
+    page$session$parent$close(wait = 2)
+    if (chromote::has_default_chromote_object()) {
+      chromote::set_default_chromote_object(NULL)
+    }
+  }, error = function(e) {
+    message(Sys.time(), " | LGA teardown warning (non-fatal): ", e$message)
+  }, finally = {
+    rm(page)
+    rm(session)
+    rm(url)
+  })
+  
+  # gc()
   
 }
 
+####  --------------------------------------------------------------------- ####
 
 # Test Run one time
 # scrape_tsa_data_lga()
