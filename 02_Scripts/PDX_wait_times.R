@@ -35,12 +35,17 @@ scrape_tsa_data_pdx <- function() {
   session <- polite::bow(url)
   options(chromote.headless = "new")
   
+  # Setup chromote to use the latest stable version of Chrome and specify the
+  # binary for headless shell
+  chromote::local_chrome_version(version = "latest-stable", 
+                                 binary = "chrome-headless-shell")
+  
   # Scrape and parse data
   # page <- polite::scrape(session)
   page <- safe_read_html_live(url)
   
   
-  ####  --------------------------------------------------------------------- ####
+####  --------------------------------------------------------------------- ####
   
   gates <- page |> 
     html_elements('.checkpoint-name') |> 
@@ -63,7 +68,7 @@ scrape_tsa_data_pdx <- function() {
     suppressWarnings()
   
   
-  ####  --------------------------------------------------------------------- ####  
+####  --------------------------------------------------------------------- ####
   
   
   # Check to make Sure that TSA CheckPoint and Time have the same length
@@ -121,7 +126,8 @@ scrape_tsa_data_pdx <- function() {
   
   
   # print(glue("session has run successfully ", format(Sys.time(), "%a %b %d %X %Y")))
-  print(glue("{nrow(PDX_data)} appended to tsa_wait_times at ", format(Sys.time(), "%a %b %d %X %Y")))
+  print(glue("{nrow(PDX_data)} appended to tsa_wait_times at ", 
+             format(Sys.time(), "%a %b %d %X %Y")))
   
   
   rm(gates)
@@ -138,7 +144,7 @@ scrape_tsa_data_pdx <- function() {
   # 2026
   tryCatch({
     page$session$close()
-    page$session$parent$close(wait = 2)
+    page$session$parent$close(wait = 3)
     if (chromote::has_default_chromote_object()) {
       chromote::set_default_chromote_object(NULL)
     }
@@ -148,10 +154,14 @@ scrape_tsa_data_pdx <- function() {
     rm(page)
     rm(session)
     rm(url)
-    # gc()
   })
-
+  
+  # gc()
 }
+
+####  --------------------------------------------------------------------- ####
+
+# Test Iteration ----
 
 # Test Loop ----
 # i <- 1
