@@ -20,15 +20,17 @@
   # Script Function ----
   
   # Function to scrape and store TSA checkpoint wait times
-  scrape_tsa_data_atl <- function() {
+scrape_tsa_data_atl <- function() {
     
-    print(glue("kickoff ATL scrape ", format(Sys.time(), "%a %b %d %X %Y")))
-    
-    # Define URL and initiate polite session
-    url <- "https://www.atl.com/times/"  # Update with the actual URL
-    session <- polite::bow(url, user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.75 Safari/537.36")
-    options(chromote.headless = "new")
-    
+  print(glue("kickoff ATL scrape ", format(Sys.time(), "%a %b %d %X %Y")))
+  
+  # Define URL and initiate polite session
+  url <- "https://www.atl.com/times/"  # Update with the actual URL
+  session <- polite::bow(url, user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.75 Safari/537.36")
+  options(chromote.headless = "new")
+  
+  chromote::local_chrome_version(version = "latest-stable", binary = "chrome-headless-shell")
+  
   # Scrape and parse data
   # page <- polite::scrape(session)
   page <- rvest::read_html_live(url)
@@ -111,16 +113,30 @@
     # print(glue("session has run successfully ", format(Sys.time(), "%a %b %d %X %Y")))
     print(glue("{nrow(ATL_data)} appended to tsa_wait_times at ", format(Sys.time(), "%a %b %d %X %Y")))
     rm(tsa_time)
-    rm(url)
     rm(tsa_terminal_checkpoint)
     # page$session$close - Quit using April 2026, only closes tab not entire session
-    page$parent$close()
-    rm(page)
-    rm(session)
+    # page$parent$close()
     rm(ATL_data, envir = .GlobalEnv)
+   
+    tryCatch({
+      page$session$close()
+      page$session$parent$close(wait = 2)
+      if (chromote::has_default_chromote_object()) {
+        chromote::set_default_chromote_object(NULL)
+      }
+    }, error = function(e) {
+      message(Sys.time(), " | JFK teardown warning (non-fatal): ", e$message)
+    }, finally = {
+      rm(page)
+      rm(session)
+      rm(url)
+    })
+     
+  #gc()
 }
   
-
+####  --------------------------------------------------------------------- ####
+  
   # Loop Funtion For Test ----
   
 # i <- 1
