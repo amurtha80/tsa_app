@@ -35,10 +35,15 @@ scrape_tsa_data_den <- function() {
   session <- polite::bow(url)
   options(chromote.headless = "new")
   
+  # Setup chromote to use the latest stable version of Chrome and specify the
+  # binary for headless shell
+  chromote::local_chrome_version(version = "latest-stable", binary = "chrome-headless-shell")
+  
   # Scrape and parse data
   # page <- polite::scrape(session)
-  page <- read_html_live(url)
-  
+  page <- safe_read_html_live(url)
+
+####  --------------------------------------------------------------------- ####
   
   gates <- page |> 
     html_elements('.name') |> 
@@ -64,6 +69,7 @@ scrape_tsa_data_den <- function() {
     magrittr::extract(c(2,4)) ## |> 
   ##{\(.) append(NA, .)}()
   
+####  --------------------------------------------------------------------- ####
   
   # Check to make Sure that TSA CheckPoint and Time have the same length
   if(length(wait_time) != length(gates)){
@@ -126,15 +132,33 @@ scrape_tsa_data_den <- function() {
   rm(DEN_data, envir = .GlobalEnv)
   
   # page$session$close() - Quit using April 2026, only closes tab not entire session
-  page$parent$close()
-  rm(page)
+  #page$parent$close()
+  # page$session$close() - Quit using April 2026, only closes tab not entire session
+  # page$session$close()
+  # page$parent$close()
   
-  rm(session)
-  rm(url)
+  # June 2026 - New Tear-down Methodology to avoid Headless Chrome Temp files
+  # in Windows environment. This is due to changes in chromote between 2025 and
+  # 2026
+  tryCatch({
+    page$session$close()
+    page$session$parent$close(wait = 3)
+    if (chromote::has_default_chromote_object()) {
+      chromote::set_default_chromote_object(NULL)
+    }
+  }, error = function(e) {
+    message(Sys.time(), " | PDX teardown warning (non-fatal): ", e$message)
+  }, finally = {
+    rm(page)
+    rm(session)
+    rm(url)
+  })
+  
   # gc()
   
 }
 
+####  --------------------------------------------------------------------- ####
 
 # Test Loop ----
 # i <- 1
