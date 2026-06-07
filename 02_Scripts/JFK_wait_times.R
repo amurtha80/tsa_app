@@ -25,11 +25,17 @@ scrape_tsa_data_jfk <- function() {
   url <- "https://www.jfkairport.com"
   
   session <- session(url)
-  Sys.sleep(2)
+  Sys.sleep(1.5)
   options(chromote.headless = "new")
+  
+  # Initialize a new Chrome session with the latest stable version of Chrome 
+  # and specify the binary for chrome-headless-shell
+  chromote::local_chrome_version(version = "latest-stable", binary = "chrome-headless-shell")
   
   page <- safe_read_html_live(url)
   Sys.sleep(0.3)
+
+####  --------------------------------------------------------------------- ####
   
   results <- page |> 
     html_elements('.chakra-table__root.Table_tableContainer__Hwsqp') |>
@@ -104,17 +110,30 @@ scrape_tsa_data_jfk <- function() {
   # rm(data)
   
   rm(results)
+  rm(JFK_data, envir = .GlobalEnv)
   
   # page$session$close() - Quit using April 2026, only closes tab not entire session
-  page$parent$close()
+  # page$parent$close()
   
-  rm(page)
-  rm(session)
-  rm(url)
-  rm(JFK_data, envir = .GlobalEnv)
+  tryCatch({
+    page$session$close()
+    page$session$parent$close(wait = 2)
+    if (chromote::has_default_chromote_object()) {
+      chromote::set_default_chromote_object(NULL)
+    }
+  }, error = function(e) {
+    message(Sys.time(), " | JFK teardown warning (non-fatal): ", e$message)
+  }, finally = {
+    rm(page)
+    rm(session)
+    rm(url)
+  })
+
   # gc()
   
 }
+
+####  --------------------------------------------------------------------- ####
 
 # Test Run one time
 # scrape_tsa_data_jfk()
