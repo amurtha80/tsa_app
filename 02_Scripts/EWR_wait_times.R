@@ -30,6 +30,10 @@ scrape_tsa_data_ewr <- function() {
   session <- polite::bow(url)
   options(chromote.headless = "new")
   
+  # Initialize a new Chrome session with the latest stable version of Chrome 
+  # and specify the binary for chrome-headless-shell
+  chromote::local_chrome_version(version = "latest-stable", binary = "chrome-headless-shell")
+  
   # Access Page
   page <- safe_read_html_live(url)
   Sys.sleep(0.3)
@@ -102,10 +106,22 @@ scrape_tsa_data_ewr <- function() {
   rm(EWR_data, envir = .GlobalEnv)
   
   # page$session$close() - Quit using April 2026, only closes tab not entire session
-  page$parent$close()
-  rm(page)
-  rm(session)
-  rm(url)
+  # page$parent$close()
+  
+  
+  tryCatch({
+    page$session$close()
+    page$session$parent$close(wait = 2)
+    if (chromote::has_default_chromote_object()) {
+      chromote::set_default_chromote_object(NULL)
+    }
+  }, error = function(e) {
+    message(Sys.time(), " | EWR teardown warning (non-fatal): ", e$message)
+  }, finally = {
+    rm(page)
+    rm(session)
+    rm(url)
+  })
   
   # gc()
   
