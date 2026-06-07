@@ -33,6 +33,10 @@ scrape_tsa_data_dca <- function() {
   session <- polite::bow(url)
   options(chromote.headless = "new")
   
+  # Initialize a new Chrome session with the latest stable version of Chrome 
+  # and specify the binary for chrome-headless-shell
+  chromote::local_chrome_version(version = "latest-stable", binary = "chrome-headless-shell")
+  
   # Scrape and parse data
   # page <- polite::scrape(session)
   page <- read_html_live(url)
@@ -121,11 +125,22 @@ scrape_tsa_data_dca <- function() {
   rm(DCA_data, envir = .GlobalEnv)
   
   # page$session$close() - Quit using April 2026, only closes tab not entire session
-  page$session$close()
-  rm(page)
+  # page$session$close()
   
-  rm(session)
-  rm(url)
+  tryCatch({
+    page$session$close()
+    page$session$parent$close(wait = 2)
+    if (chromote::has_default_chromote_object()) {
+      chromote::set_default_chromote_object(NULL)
+    }
+  }, error = function(e) {
+    message(Sys.time(), " | DCA teardown warning (non-fatal): ", e$message)
+  }, finally = {
+    rm(page)
+    rm(session)
+    rm(url)
+  })
+  
   # gc()
 }
 
