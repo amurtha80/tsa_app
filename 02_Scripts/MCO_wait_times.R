@@ -1,9 +1,10 @@
-# install.packages(c("DBI", "polite", "rvest", "RSelenium", "tidyverse", "duckdb", 
+# install.packages(c("DBI", "polite", "rvest", "RSelenium", "bitops", "tidyverse", "duckdb",
 #  "lubridate", "magrittr", glue", "here"))
 
 # library(polite, verbose = FALSE, warn.conflicts = FALSE)
 # library(rvest, verbose = FALSE, warn.conflicts = FALSE)
 # library(RSelenium, verbose = FALSE, warn.conflicts = FALSE)
+# library(bitops, verbose = FALSE, warn.conflicts = FALSE)
 # library(duckdb, verbose = FALSE, warn.conflicts = FALSE)
 # library(lubridate, verbose = FALSE, warn.conflicts = FALSE)
 # library(magrittr, verbose = FALSE, warn.conflicts = FALSE)
@@ -44,7 +45,7 @@ scrape_tsa_data_mco <- function() {
     brow <- remote_driver[["client"]]
     # brow$open()
     brow$navigate(url)
-    Sys.sleep(3.2)
+    Sys.sleep(2.8)
     
     # Scrape Page
     h <- brow$getPageSource()
