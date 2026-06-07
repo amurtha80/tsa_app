@@ -4,6 +4,7 @@
 # library(polite, verbose = FALSE, warn.conflicts = FALSE)
 # library(rvest, verbose = FALSE, warn.conflicts = FALSE)
 # library(RSelenium, verbose = FALSE, warn.conflicts = FALSE)
+# library(bitops, verbose = FALSE, warn.conflicts = FALSE)
 # library(netstat, verbose = FALSE, warn.conflicts = FALSE)
 # library(duckdb, verbose = FALSE, warn.conflicts = FALSE)
 # library(glue, verbose = FALSE, warn.conflicts = FALSE)
