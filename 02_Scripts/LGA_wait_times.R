@@ -52,7 +52,7 @@ scrape_tsa_data_lga <- function() {
   
   
   # Transform Data ----
-  JFK_data <- results |>
+  LGA_data <- results |>
     mutate(
       airport = 'JFK',
       # General wait time — "No Wait" → 0, numeric string → value, else NA
