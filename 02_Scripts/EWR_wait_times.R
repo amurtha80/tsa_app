@@ -27,7 +27,7 @@ scrape_tsa_data_ewr <- function() {
   
   # Define URL and initiate polite session
   url <- "https://www.newarkairport.com/"  # Update with the actual URL
-  session <- polite::bow(url)
+  # session <- polite::bow(url)
   options(chromote.headless = "new")
   
   # Initialize a new Chrome session with the latest stable version of Chrome 
@@ -36,56 +36,43 @@ scrape_tsa_data_ewr <- function() {
   
   # Access Page
   page <- safe_read_html_live(url)
-  Sys.sleep(0.3)
+  Sys.sleep(1.2)
   
-  # Scrape Page
-  results <- page |> 
-    html_elements('.av-responsive-table') |> 
-    html_table(fill = TRUE) |> 
-    dplyr::bind_rows() |> 
-    suppressMessages()
+  
+  # Scrape wait-times table ----
+  # NOTE: The Port Authority redesigned their airport sites in 2026. The table CSS class
+  # changed from '.av-responsive-table' to '.Table_tableContainer__Hwsqp'
+  # (same Chakra UI component across all three PA airports).
+  results <- page |>
+    html_elements('table') |>
+    html_table(fill = TRUE) |>
+    dplyr::bind_rows() |>
+    suppressMessages() |>
+    head(-1)  # drops the footer row "Security wait times are calculated..."
+  
   
   # Transform Data
-  EWR_data <- results |> 
+  EWR_data <- results |>
+    rename(checkpoint = Terminal) |>
     mutate(airport = 'EWR',
-           # General Wait Time
-           wait_time = results$`General Line` |> 
-             str_remove_all(' ') |> 
-             str_remove_all('\n') |> 
-             str_remove_all('min') |>
-             str_remove_all('GeneralLine')) |> 
-    mutate(wait_time = case_when(wait_time == "NoWait" ~ "0", 
-                                 wait_time == "" ~ NA,
-                                 TRUE ~ wait_time),
-           wait_time = as.numeric(wait_time)) |> 
-    suppressWarnings() |> 
-    # TSA Pre check Wait Time
-    mutate(wait_time_pre_check = results$`TSA Pre✓ Line` |> 
-             str_remove_all(' ') |> 
-             str_remove_all('\n') |> 
-             str_remove_all('min') |> 
-             str_remove_all('TSAPre✓Line')) |> 
-    mutate(wait_time_pre_check = case_when(wait_time_pre_check == "NoWait" ~ "0",
-                                           wait_time_pre_check == "" ~ NA,
-                                           TRUE ~ wait_time_pre_check),
-           wait_time_pre_check = as.numeric(wait_time_pre_check)) |> 
-    suppressWarnings() |> 
-    # DateTime
-    mutate(datetime = lubridate::now(tzone = 'EST'),
-           # Date
+           checkpoint = case_when(
+             Gates == "All Gates" ~ checkpoint,
+             TRUE ~ paste(checkpoint, Gates)
+           ),
+           wait_time = readr::parse_number(General, na = c("-", "", "NA")) |>
+             suppressWarnings(),
+           wait_time_pre_check = readr::parse_number(
+             results[["TSA Pre\u2713"]], na = c("-", "", "NA")
+           ) |>
+             suppressWarnings(),
+           datetime = lubridate::now(tzone = 'EST'),
            date = lubridate::today(),
-           # Time Rounded to Minute
-           time = Sys.time() |> 
-             with_tz(tzone = "America/New_York") |> 
+           time = Sys.time() |>
+             with_tz(tzone = "America/New_York") |>
              floor_date(unit = "minute"),
            timezone = "America/New_York",
            wait_time_priority = NA,
            wait_time_clear = NA) |>
-    # Rename CheckPoint column
-    rename(checkpoint = `Terminal...1`) |>
-    # Remove unnecessary columns
-    select(-(2:5)) |> 
-    # Reorder remaining columns
     select(airport, checkpoint, datetime, date, time, timezone, wait_time,
            wait_time_priority, wait_time_pre_check, wait_time_clear)
   
@@ -105,10 +92,9 @@ scrape_tsa_data_ewr <- function() {
   rm(results)
   rm(EWR_data, envir = .GlobalEnv)
   
-  # page$session$close() - Quit using April 2026, only closes tab not entire session
-  # page$parent$close()
-  
-  
+  # June 2026 - New Tear-down Methodology to avoid Headless Chrome Temp files
+  # in Windows environment. This is due to changes in chromote between 2025 and
+  # 2026
   tryCatch({
     page$session$close()
     page$session$parent$close(wait = 2)
@@ -119,7 +105,7 @@ scrape_tsa_data_ewr <- function() {
     message(Sys.time(), " | EWR teardown warning (non-fatal): ", e$message)
   }, finally = {
     rm(page)
-    rm(session)
+    # rm(session)
     rm(url)
   })
   
