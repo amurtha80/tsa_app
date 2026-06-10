@@ -51,12 +51,20 @@ scrape_tsa_data_jfk <- function() {
   JFK_data <- results |>
     mutate(
       airport = 'JFK',
-      wait_time = results$`General` |>
-        readr::parse_number(na = c("-", "")) |>
-        suppressWarnings(),
-      wait_time_pre_check = results[["TSA Pre\u2713"]] |>
-        readr::parse_number(na = c("-", "")) |>
-        suppressWarnings(),
+      # General wait time — "No Wait" → 0, numeric string → value, else NA
+      wait_time = case_when(
+        str_trim(results$`General`) == "No Wait" ~ 0,
+        !is.na(readr::parse_number(results$`General`, na = c("-", ""))) ~
+          readr::parse_number(results$`General`, na = c("-", "")),
+        TRUE ~ NA_real_
+      ),
+      # TSA PreCheck wait time — same logic
+      wait_time_pre_check = case_when(
+        str_trim(results[["TSA Pre\u2713"]]) == "No Wait" ~ 0,
+        !is.na(readr::parse_number(results[["TSA Pre\u2713"]], na = c("-", ""))) ~
+          readr::parse_number(results[["TSA Pre\u2713"]], na = c("-", "")),
+        TRUE ~ NA_real_
+      ),
       datetime           = lubridate::now(tzone = 'EST'),
       date               = lubridate::today(),
       time               = Sys.time() |>
