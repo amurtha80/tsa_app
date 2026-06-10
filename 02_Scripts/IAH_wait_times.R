@@ -159,7 +159,6 @@ scrape_tsa_data_iah <- function() {
     message(Sys.time(), " | PDX teardown warning (non-fatal): ", e$message)
   }, finally = {
     rm(page)
-    rm(session)
     rm(url)
   })
 
