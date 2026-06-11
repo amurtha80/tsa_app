@@ -1,17 +1,14 @@
-# install.packages(c("DBI", "polite", "rvest", "tidyverse", "duckdb", 
-#  "lubridate", "magrittr", glue", "here", "chromote"))
+# install.packages(c("DBI", "httr", "jsonlite", "tidyverse", "duckdb",
+#  "lubridate", "glue", "here"))
 
-# library(polite, verbose = FALSE, warn.conflicts = FALSE)
-# library(rvest, verbose = FALSE, warn.conflicts = FALSE)
+# library(httr, verbose = FALSE, warn.conflicts = FALSE)
+# library(jsonlite, verbose = FALSE, warn.conflicts = FALSE)
 # library(duckdb, verbose = FALSE, warn.conflicts = FALSE)
 # library(lubridate, verbose = FALSE, warn.conflicts = FALSE)
-# library(magrittr, verbose = FALSE, warn.conflicts = FALSE)
 # library(glue, verbose = FALSE, warn.conflicts = FALSE)
 # library(DBI, verbose = FALSE, warn.conflicts = FALSE)
 # library(tidyverse, verbose = FALSE, warn.conflicts = FALSE)
 # library(here, verbose = FALSE, warn.conflicts = FALSE)
-# library(chromote, verbose = FALSE, warn.conflicts = FALSE)
-
 
 # here::here()
 
@@ -27,149 +24,103 @@ scrape_tsa_data_den <- function() {
   
   print(glue("kickoff DEN scrape ", format(Sys.time(), "%a %b %d %X %Y")))
   
+  # API endpoint ----
+  api_url <- "https://app.flyfruition.com/api/public/tsa"
+  ua      <- "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"
+  api_key <- "vqw8ruvwqpv02pqu938bh5p028"
   
-  # Define URL and initiate polite session
-  url <- "https://www.flydenver.com/security/"  # Update with the actual URL
+  response <- GET(
+    api_url,
+    add_headers(
+      `User-Agent`  = ua,
+      `Referer`     = "https://www.flydenver.com/security/",
+      `Origin`      = "https://www.flydenver.com",
+      `x-api-key`   = api_key
+    )
+  )
   
-  
-  session <- polite::bow(url)
-  options(chromote.headless = "new")
-  
-  # Setup chromote to use the latest stable version of Chrome and specify the
-  # binary for headless shell
-  chromote::local_chrome_version(version = "latest-stable", binary = "chrome-headless-shell")
-  
-  # Scrape and parse data
-  # page <- polite::scrape(session)
-  page <- safe_read_html_live(url)
-
-####  --------------------------------------------------------------------- ####
-  
-  gates <- page |> 
-    html_elements('.name') |> 
-    html_text2() |> 
-    magrittr::extract(c(1,3)) 
+  raw <- fromJSON(content(response, "text", encoding = "UTF-8"), flatten = FALSE)
   
   
-  wait_time <- page |> 
-    html_elements('.wait-num') |> 
-    html_text2() |> 
-    gsub(pattern = ' ', replacement = 'NA') |> 
-    as.numeric() |> 
-    suppressWarnings() |> 
-    magrittr::extract(c(1,3))
+  # Parse checkpoints ----
   
-  
-  wait_time_pre_check <- page |> 
-    html_elements('.wait-num') |> 
-    html_text2() |> 
-    gsub(pattern = ' ', replacement = 'NA') |> 
-    as.numeric() |> 
-    suppressWarnings() |> 
-    magrittr::extract(c(2,4)) ## |> 
-  ##{\(.) append(NA, .)}()
-  
-####  --------------------------------------------------------------------- ####
-  
-  # Check to make Sure that TSA CheckPoint and Time have the same length
-  if(length(wait_time) != length(gates)){
-    stop("The length of tsa_time and tsa_terminal_checkpoint do not match.")
-  }  
-  if(length(wait_time_pre_check) != length(gates)){
-    stop("The length of tsa_time_pre_check and gates do not match.")
+  # Helper: extract upper bound of range string (e.g. "9-13" -> 13)
+  # Returns NA if lane is closed or value cannot be parsed
+  upper_bound <- function(wait_str, closed) {
+    dplyr::if_else(
+      isTRUE(closed),
+      NA_real_,
+      readr::parse_number(
+        purrr::map_chr(stringr::str_split(wait_str, "-"), dplyr::last),
+        na = c("Closed", "N/A", "NA", "")
+      )
+    )
   }
   
-  # Create tibble for data insertion
-  if(!exists("DEN_data", envir = .GlobalEnv)) {
-    DEN_data <- tibble(airport = character(),
-                       checkpoint = character(),
-                       datetime = lubridate::ymd_hms(tz = 'EST'),
-                       date = lubridate::ymd(),
-                       time = lubridate::POSIXct(tz = 'EST'),
-                       timezone = character(),
-                       wait_time = numeric(),
-                       wait_time_priority = numeric(),
-                       wait_time_pre_check = numeric(),
-                       wait_time_clear = numeric())
-  } else {
-    DEN_data <- get("DEN_data", envir = .GlobalEnv)
-  }
+  DEN_data_list <- purrr::map(seq_len(nrow(raw)), \(i) {
+    
+    checkpoint_name <- raw$title[[i]]
+    
+    # Keep only visible lanes (hide_lane == FALSE)
+    lanes <- raw$lanes[[i]] |>
+      dplyr::filter(!hide_lane)
+    
+    std_row   <- lanes |> dplyr::filter(title == "Standard")
+    pre_row   <- lanes |> dplyr::filter(title == "PreCheck")
+    clear_row <- lanes |> dplyr::filter(title == "CLEAR with PreCheck")
+    
+    tibble::tibble(
+      airport              = "DEN",
+      checkpoint           = checkpoint_name,
+      datetime             = lubridate::now(tzone = "America/Denver"),
+      date                 = lubridate::today(),
+      time                 = Sys.time() |>
+        with_tz(tzone = "America/Denver") |>
+        floor_date(unit = "minute"),
+      timezone             = "America/Denver",
+      wait_time            = if (nrow(std_row)   == 0) NA_real_ else upper_bound(std_row$wait_time,   std_row$closed),
+      wait_time_priority   = NA_real_,
+      wait_time_pre_check  = if (nrow(pre_row)   == 0) NA_real_ else upper_bound(pre_row$wait_time,   pre_row$closed),
+      wait_time_clear      = if (nrow(clear_row) == 0) NA_real_ else upper_bound(clear_row$wait_time, clear_row$closed)
+    )
+  })
+  
+  DEN_data <- dplyr::bind_rows(DEN_data_list)
   
   
-  # Insert data into tibble
-  # Prepare data with airport code, date, time, timezone, and wait times
-  DEN_data <- rows_append(DEN_data, tibble(
-    airport = "DEN",
-    checkpoint = gates,
-    datetime = lubridate::now(tzone = 'MST'),
-    date = lubridate::today(),
-    time = Sys.time() |> 
-      with_tz(tzone = "America/Denver") |> 
-      floor_date(unit = "minute"),
-    # time = lubridate::now(tzone = 'EST') |>
-    # floor_date(unit = "minute") |>
-    # with_tz('EST'),
-    # format("%H:%M:%S"),
-    # hms::new_hms(),
-    timezone = "America/Denver",
-    wait_time = wait_time,  # Assume this is a list of wait times for each checkpoint
-    wait_time_priority = NA,
-    wait_time_pre_check = wait_time_pre_check,
-    wait_time_clear = NA
-  ))
+  # Write to database ----
   
-  assign("DEN_data", DEN_data, envir = .GlobalEnv)  
+  assign("DEN_data", DEN_data, envir = .GlobalEnv)
   
   dbAppendTable(con_write, name = "tsa_wait_times", value = DEN_data)
   
-  # print(glue("session has run successfully ", format(Sys.time(), "%a %b %d %X %Y")))
   print(glue("{nrow(DEN_data)} appended to tsa_wait_times at ", format(Sys.time(), "%a %b %d %X %Y")))
   
   
-  rm(gates)
-  rm(wait_time)
-  rm(wait_time_pre_check)
+  # Cleanup ----
+  rm(api_url)
+  rm(ua)
+  rm(api_key)
+  rm(response)
+  rm(raw)
+  rm(upper_bound)
+  rm(DEN_data_list)
   rm(DEN_data, envir = .GlobalEnv)
-  
-  # page$session$close() - Quit using April 2026, only closes tab not entire session
-  #page$parent$close()
-  # page$session$close() - Quit using April 2026, only closes tab not entire session
-  # page$session$close()
-  # page$parent$close()
-  
-  # June 2026 - New Tear-down Methodology to avoid Headless Chrome Temp files
-  # in Windows environment. This is due to changes in chromote between 2025 and
-  # 2026
-  tryCatch({
-    page$session$close()
-    page$session$parent$close(wait = 3)
-    if (chromote::has_default_chromote_object()) {
-      chromote::set_default_chromote_object(NULL)
-    }
-  }, error = function(e) {
-    message(Sys.time(), " | PDX teardown warning (non-fatal): ", e$message)
-  }, finally = {
-    rm(page)
-    rm(session)
-    rm(url)
-  })
-  
-  # gc()
-  
+
+  # gc()  
 }
 
-####  --------------------------------------------------------------------- ####
 
 # Test Loop ----
 # i <- 1
-# 
+#
 # for (i in 1:5) {
 #   p1 <- lubridate::ceiling_date(Sys.time(), unit = "minute")
 #   print(glue(i, "  ", format(Sys.time())))
 #   scrape_tsa_data_den()
 #   theDelay <- as.numeric(difftime(p1,Sys.time(),unit="secs"))
 #   Sys.sleep(max(0, theDelay))
-#   
+#
 #   i <- i + 1
 # }
 
@@ -180,12 +131,3 @@ scrape_tsa_data_den <- function() {
 # dbDisconnect(con)
 # rm(con)
 # rm(scrape_tsa_data_den)
-
-
-## TODO ----
-## Research error when killing Chrome processes in Windows Task Manager
-
-# kickoff DEN scrape Fri Dec 06 4:30:11 PM 2024
-# [2024-12-06 16:30:45] [error] handle_read_frame error: asio.system:10054 (An existing connection was forcibly closed by the remote host.)
-# 3 row(s) of data have been added to tsa_wait_times
-# kickoff EWR scrape Fri Dec 06 4:30:47 PM 2024
