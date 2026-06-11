@@ -1,0 +1,32 @@
+# tsa_app
+RShiny Mobile App TSA Historical Wait Times
+
+---
+
+## TODO
+
+### High Priority — MVP App
+- Connect Shiny app (`app3shinyassistant.R`) to DuckDB
+- Port chart logic from `xx_chart_times.R` into Shiny app
+- Wire reactive inputs (airport, day of week, time slot) to chart output
+- Resolve hardcoded local Windows DB path for shinyapps.io deployment
+- Configure `rsconnect` for shinyapps.io deployment
+
+### Active Script Bugs
+- **CLT** — Checkpoint names from API no longer fully align with page display names; wait times don't align between API and page (page shows ranges, API shows point values)
+- **WebSocket warning** — suppress `"got non-close frame while closing"` warning during chromote teardown across all chromote scripts
+
+### New Airports (Lower Priority — Post MVP)
+- **BOS** — `BOS_wait_times.R` drafted; needs test run to confirm Zensors API Origin allowlist check passes from R; fallback is chromote approach if 403 persists
+- **LAX** — `flylax.com/wait-times`; static HTML, no chromote needed; straightforward `read_html()` scrape
+- **SEA** — `portseattle.org/page/live-estimated-checkpoint-wait-times`; JS-rendered table, chromote approach
+- **SLC** — `slcairport.com`; JS-rendered widget, investigate for API endpoint before falling back to chromote
+- **DTW** — `metroairport.com`; Angular/Vue app, likely REST API behind it; inspect via DevTools before building script
+
+### Housekeeping
+- Update and format README for GitHub
+- Archive unused scripts (`scrape_data.R`, `scrape_data_error_test.R`, `zz_misc.R`, `zz_test.R`)
+- Move `scrape_test.R` from project root into `02_Scripts/`
+- Standardize scraping function naming convention
+- Populate `holiday_travel` column (currently unpopulated in all records)
+- Evaluate DuckDB Quack concurrent read/write protocol when it matures (expected DuckDB v2.0, fall 2026)
