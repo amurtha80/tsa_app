@@ -39,75 +39,83 @@ scrape_tsa_data_dca <- function() {
   
   # Scrape and parse data
   # page <- polite::scrape(session)
-  page <- read_html_live(url)
+  page <- safe_read_html_live(url)
   
   
-  times <- page |> 
-    rvest::html_elements(".resp-table-row") |> 
-    rvest::html_text2() |> 
-    str_remove_all(pattern = "Directions") |> 
-    str_split("\n") |> 
-    stringi::stri_list2matrix(byrow = T)
+  # Scrape ----
+  # Pull every row div, then within each row grab the 4 table-body-cell divs
+  # by position: [1] checkpoint name, [2] General time, [3] TSA Pre time, [4] Directions (ignored)
+    rows <- page |>
+    rvest::html_elements(".resp-table-row")
   
+  parse_cell <- function(row, position) {
+    row |>
+      rvest::html_elements(".table-body-cell") |>
+      magrittr::extract(position) |>
+      rvest::html_text2() |>
+      stringr::str_trim()
+  }
   
-  # Create column names for tibble
-  colnames(times) <-  c("Checkpoint", "General", "TSA_Pre", "Blank")
+  checkpoints <- purrr::map_chr(rows, \(r) parse_cell(r, 1))
   
+  raw_general <- purrr::map_chr(rows, \(r) {
+    cells <- r |> rvest::html_elements(".table-body-cell")
+    if (length(cells) < 2) return(NA_character_)
+    cells[[2]] |> rvest::html_text2() |> stringr::str_trim()
+  })
   
-  # Create wait times tibble from scraped data
-  wait_times <- as_tibble(times) |> 
-    magrittr::extract(1:3) |> 
-    mutate(General = case_when(General == "" ~ "NA",
-                               (stringr::str_sub(General, 1, 1) == "<" ~ word(General, 2, 2)),
-                               TRUE ~ word(General, 2, 2, sep = '-') |> word(1, 1)) |> 
-             as.numeric() |> 
-             suppressWarnings(),
-           TSA_Pre = case_when(TSA_Pre == "" ~ "NA",
-                               (stringr::str_sub(TSA_Pre, 1, 1) == "<" ~ word(TSA_Pre, 2, 2)),
-                               TRUE~ word(TSA_Pre, 2, 2, sep = '-') |> word(1, 1)) |> 
-             as.numeric() |> 
-             suppressWarnings()
+  raw_pre <- purrr::map_chr(rows, \(r) {
+    cells <- r |> rvest::html_elements(".table-body-cell")
+    if (length(cells) < 3) return(NA_character_)
+    cells[[3]] |> rvest::html_text2() |> stringr::str_trim()
+  })
+  
+  # Parse time values ----
+  # Values arrive as "< 5 mins", "12 mins", or empty string (no service at that checkpoint)
+  # Extract the numeric portion; "< 5" becomes 5 (ceiling of the stated bound)
+  parse_time <- function(x) {
+    dplyr::case_when(
+      is.na(x) | x == ""          ~ NA_real_,
+      stringr::str_detect(x, "^<") ~ readr::parse_number(x, na = c("", "N/A")),
+      TRUE                          ~ readr::parse_number(x, na = c("", "N/A"))
     )
+  }
+  
+  wait_time           <- parse_time(raw_general)
+  wait_time_pre_check <- parse_time(raw_pre)
   
   
-  # Create tibble for data insertion
-  if(!exists("DCA_data", envir = .GlobalEnv)) {
-    DCA_data <- tibble(airport = character(),
-                       checkpoint = character(),
-                       datetime = lubridate::ymd_hms(tz = 'EST'),
-                       date = lubridate::ymd(),
-                       time = lubridate::POSIXct(tz = 'EST'),
-                       timezone = character(),
-                       wait_time = numeric(),
-                       wait_time_priority = numeric(),
-                       wait_time_pre_check = numeric(),
-                       wait_time_clear = numeric()
+  # Build output tibble ----
+  if (!exists("DCA_data", envir = .GlobalEnv)) {
+    DCA_data <- tibble(
+      airport             = character(),
+      checkpoint          = character(),
+      datetime            = lubridate::ymd_hms(character(), tz = "America/New_York"),
+      date                = lubridate::ymd(character()),
+      time                = lubridate::POSIXct(numeric(), tz = "America/New_York"),
+      timezone            = character(),
+      wait_time           = numeric(),
+      wait_time_priority  = numeric(),
+      wait_time_pre_check = numeric(),
+      wait_time_clear     = numeric()
     )
   } else {
     DCA_data <- get("DCA_data", envir = .GlobalEnv)
   }
   
-  
-  # Insert data into tibble
-  # Prepare data with airport code, date, time, timezone, and wait times
   DCA_data <- rows_append(DCA_data, tibble(
-    airport = "DCA",
-    checkpoint = wait_times$Checkpoint,
-    datetime = lubridate::now(tzone = 'EST'),
-    date = lubridate::today(),
-    time = Sys.time() |> 
-      with_tz(tzone = "America/New_York") |> 
+    airport             = "DCA",
+    checkpoint          = checkpoints,
+    datetime            = lubridate::now(tzone = "America/New_York"),
+    date                = lubridate::today(),
+    time                = Sys.time() |>
+      with_tz(tzone = "America/New_York") |>
       floor_date(unit = "minute"),
-    # time = lubridate::now(tzone = 'EST') |>
-    # floor_date(unit = "minute") |>
-    # with_tz('EST'),
-    # format("%H:%M:%S"),
-    # hms::new_hms(),
-    timezone = "America/New_York",
-    wait_time = wait_times$General,  # Assume this is a list of wait times for each checkpoint
-    wait_time_priority = NA,
-    wait_time_pre_check = wait_times$TSA_Pre,
-    wait_time_clear = NA
+    timezone            = "America/New_York",
+    wait_time           = wait_time,
+    wait_time_priority  = NA_real_,
+    wait_time_pre_check = wait_time_pre_check,
+    wait_time_clear     = NA_real_
   ))
   
   
@@ -119,13 +127,10 @@ scrape_tsa_data_dca <- function() {
   print(glue("{nrow(DCA_data)} appended to tsa_wait_times at ", format(Sys.time(), "%a %b %d %X %Y")))
   
   
-  # rm(gates)
-  rm(times)
-  rm(wait_times)
+  # Cleanup ----
+  rm(rows, checkpoints, raw_general, raw_pre, wait_time, wait_time_pre_check, parse_cell, parse_time)
   rm(DCA_data, envir = .GlobalEnv)
   
-  # page$session$close() - Quit using April 2026, only closes tab not entire session
-  # page$session$close()
   
   tryCatch({
     page$session$close()
