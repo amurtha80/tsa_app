@@ -44,7 +44,7 @@ scrape_tsa_data_lga <- function() {
   
   # Read TSA Checkpoint Wait Time Data from Website Table
   results <- page |> 
-    html_elements('.chakra-table__root.Table_tableContainer__Hwsqp') |> 
+    html_elements('table') |> 
     html_table(fill = TRUE) |> 
     dplyr::bind_rows() |>
     head(-1) |>
