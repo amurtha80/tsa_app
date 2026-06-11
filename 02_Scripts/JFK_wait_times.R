@@ -38,7 +38,7 @@ scrape_tsa_data_jfk <- function() {
 ####  --------------------------------------------------------------------- ####
   
   results <- page |> 
-    html_elements('.chakra-table__root.Table_tableContainer__Hwsqp') |>
+    html_elements('table') |>
     # html_elements('.chakra-table__body.css-0') |>
     # html_elements('.av-responsive-table') |> 
     html_table(fill = TRUE) |> 
