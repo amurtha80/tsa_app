@@ -44,37 +44,44 @@ scrape_tsa_data_ewr <- function() {
   # changed from '.av-responsive-table' to '.Table_tableContainer__Hwsqp'
   # (same Chakra UI component across all three PA airports).
   results <- page |>
-    html_elements('table') |>
+    html_elements('.chakra-table__root.Table_tableContainer__Hwsqp') |>
     html_table(fill = TRUE) |>
     dplyr::bind_rows() |>
     suppressMessages() |>
     head(-1)  # drops the footer row "Security wait times are calculated..."
   
   
-  # Transform Data
+  # Transform Data ----
   EWR_data <- results |>
+    mutate(
+      airport = 'EWR',
+      # General wait time — "No Wait" → 0, numeric string → value, else NA
+      wait_time = case_when(
+        str_trim(results$`General`) == "No Wait" ~ 0,
+        !is.na(readr::parse_number(results$`General`, na = c("-", ""))) ~
+          readr::parse_number(results$`General`, na = c("-", "")),
+        TRUE ~ NA_real_
+      ),
+      # TSA PreCheck wait time — same logic
+      wait_time_pre_check = case_when(
+        str_trim(results[["TSA Pre\u2713"]]) == "No Wait" ~ 0,
+        !is.na(readr::parse_number(results[["TSA Pre\u2713"]], na = c("-", ""))) ~
+          readr::parse_number(results[["TSA Pre\u2713"]], na = c("-", "")),
+        TRUE ~ NA_real_
+      ),
+      # DateTime fields
+      datetime           = lubridate::now(tzone = 'EST'),
+      date               = lubridate::today(),
+      time               = Sys.time() |>
+        with_tz(tzone = "America/New_York") |>
+        floor_date(unit = "minute"),
+      timezone           = "America/New_York",
+      wait_time_priority = NA_real_,
+      wait_time_clear    = NA_real_
+    ) |>
     rename(checkpoint = Terminal) |>
-    mutate(airport = 'EWR',
-           checkpoint = case_when(
-             Gates == "All Gates" ~ checkpoint,
-             TRUE ~ paste(checkpoint, Gates)
-           ),
-           wait_time = readr::parse_number(General, na = c("-", "", "NA")) |>
-             suppressWarnings(),
-           wait_time_pre_check = readr::parse_number(
-             results[["TSA Pre\u2713"]], na = c("-", "", "NA")
-           ) |>
-             suppressWarnings(),
-           datetime = lubridate::now(tzone = 'EST'),
-           date = lubridate::today(),
-           time = Sys.time() |>
-             with_tz(tzone = "America/New_York") |>
-             floor_date(unit = "minute"),
-           timezone = "America/New_York",
-           wait_time_priority = NA,
-           wait_time_clear = NA) |>
-    select(airport, checkpoint, datetime, date, time, timezone, wait_time,
-           wait_time_priority, wait_time_pre_check, wait_time_clear)
+    select(airport, checkpoint, datetime, date, time, timezone,
+           wait_time, wait_time_priority, wait_time_pre_check, wait_time_clear) 
   
   
   # Assign to Global Environment

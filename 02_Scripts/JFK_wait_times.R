@@ -47,49 +47,36 @@ scrape_tsa_data_jfk <- function() {
     suppressMessages()
   
   
-  # Tranform Data
-  JFK_data <- results |> 
-    mutate(airport = 'JFK',
-           #Terminal
-           Terminal = results$Terminal,
-           # General Wait Time
-           wait_time = results$`General` |> 
-             # str_remove_all("                                ") |> 
-             # str_remove("                             ") |> 
-             # str_remove_all('\n') |> str_sub(13) |> 
-             # str_remove("min") |> 
-             # as.numeric() |> 
-             readr::parse_number(na = c("-")) |> 
-             suppressWarnings(),
-           # TSA Pre check Wait Time
-           wait_time_pre_check = results$`TSA Pre✓` |> 
-             # str_remove_all("          ") |> 
-             # str_remove("         ") |> 
-             # str_remove_all("  ") |> 
-             # str_remove_all('\n') |> 
-             # str_sub(14) |> 
-             # str_remove('min') |> 
-             # as.numeric() |> 
-               readr::parse_number(na = c("-")) |> 
-             suppressWarnings(),
-           # DateTime
-           datetime = lubridate::now(tzone = 'EST'),
-           # Date
-           date = lubridate::today(),
-           # Time Rounded to Minute
-           time = Sys.time() |> 
-             with_tz(tzone = "America/New_York") |> 
-             floor_date(unit = "minute"),
-           timezone = "America/New_York",
-           wait_time_priority = NA,
-           wait_time_clear = NA) |>
-    # Rename CheckPoint column
-    # rename(checkpoint = `Terminal`) |>
-    # Remove unnecessary columns
-    select(-(2:3)) |> 
-    # Reorder remaining columns
-    select(airport, Terminal, datetime, date, time, timezone, wait_time,
-           wait_time_priority, wait_time_pre_check, wait_time_clear)
+  # Transform Data ----
+  JFK_data <- results |>
+    mutate(
+      airport = 'JFK',
+      # General wait time — "No Wait" → 0, numeric string → value, else NA
+      wait_time = case_when(
+        str_trim(results$`General`) == "No Wait" ~ 0,
+        !is.na(readr::parse_number(results$`General`, na = c("-", ""))) ~
+          readr::parse_number(results$`General`, na = c("-", "")),
+        TRUE ~ NA_real_
+      ),
+      # TSA PreCheck wait time — same logic
+      wait_time_pre_check = case_when(
+        str_trim(results[["TSA Pre\u2713"]]) == "No Wait" ~ 0,
+        !is.na(readr::parse_number(results[["TSA Pre\u2713"]], na = c("-", ""))) ~
+          readr::parse_number(results[["TSA Pre\u2713"]], na = c("-", "")),
+        TRUE ~ NA_real_
+      ),
+      datetime           = lubridate::now(tzone = 'EST'),
+      date               = lubridate::today(),
+      time               = Sys.time() |>
+        with_tz(tzone = "America/New_York") |>
+        floor_date(unit = "minute"),
+      timezone           = "America/New_York",
+      wait_time_priority = NA_real_,
+      wait_time_clear    = NA_real_
+    ) |>
+    rename(checkpoint = Terminal) |>
+    select(airport, checkpoint, datetime, date, time, timezone,
+           wait_time, wait_time_priority, wait_time_pre_check, wait_time_clear)
   
   
   # Assign to Global Environment
