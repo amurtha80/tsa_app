@@ -6,7 +6,7 @@ RShiny Mobile App TSA Historical Wait Times
 ## TODO
 
 ### High Priority — MVP App
-- Connect Shiny app (`app3shinyassistant.R`) to DuckDB
+- Connect Shiny app (`app3shinyassistant.R`) to `tsa_app_summ.duckdb` (read-only)
 - Port chart logic from `xx_chart_times.R` into Shiny app
 - Wire reactive inputs (airport, day of week, time slot) to chart output
 - Resolve hardcoded local Windows DB path for shinyapps.io deployment
@@ -26,7 +26,7 @@ RShiny Mobile App TSA Historical Wait Times
 ### Housekeeping
 - Update and format README for GitHub
 - Archive unused scripts (`scrape_data.R`, `scrape_data_error_test.R`, `zz_misc.R`, `zz_test.R`)
-- Move `scrape_test.R` from project root into `02_Scripts/`
 - Standardize scraping function naming convention
 - Populate `holiday_travel` column (currently unpopulated in all records)
+- Schedule `xx_build_summary_db.R` in Task Scheduler (daily 2:00 AM) — script built, needs scheduling
 - Evaluate DuckDB Quack concurrent read/write protocol when it matures (expected DuckDB v2.0, fall 2026)
