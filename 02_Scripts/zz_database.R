@@ -86,6 +86,26 @@ dbExecute(con_write, "CREATE TABLE tsa_wait_times(
 );")
 
 
+# Create TSA Wait Time Summary Table
+# Lives in 01_Data/tsa_app_summ.duckdb (separate DB from tsa_app.duckdb)
+# Written nightly by xx_build_summary_db.R via dbWriteTable(..., overwrite = TRUE)
+# One row per airport / checkpoint / weekday / bucket_time (15-min intervals)
+# Read-only source for the Shiny app (app.R)
+# NOTE: this block is documentation only — do not run against tsa_app.duckdb
+# dbExecute(con_summ, "CREATE TABLE tsa_wait_time_summ(
+#           airport VARCHAR,
+#           checkpoint VARCHAR,
+#           weekday VARCHAR,
+#           bucket_time TIME,
+#           avg_time_std DOUBLE,
+#           max_time_std DOUBLE,
+#           avg_time_tsa_precheck DOUBLE,
+#           max_time_tsa_precheck DOUBLE,
+#           avg_time_clear DOUBLE,
+#           max_time_clear DOUBLE
+# );")
+
+
 # Create Airport Website Table
 dbExecute(con_write, "CREATE TABLE airport_sites(
           airport VARCHAR,
