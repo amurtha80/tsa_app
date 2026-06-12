@@ -72,7 +72,10 @@ tsa_wait_time_summ <- tbl(con_source, "tsa_wait_times") |>
       avg_time_tsa_precheck, max_time_tsa_precheck,
       avg_time_clear, max_time_clear),
     \(x) if_else(is.infinite(x) | is.nan(x), NA_real_, as.double(x))
-  ))
+  )) |>
+  # Store bucket_time as "HH:MM:SS" character — hms writes as raw seconds in
+  # DuckDB which breaks comparisons on read. Parsed back to hms in app.R.
+  mutate(bucket_time = as.character(bucket_time))
 
 print(glue("{nrow(tsa_wait_time_summ)} rows aggregated"))
 
