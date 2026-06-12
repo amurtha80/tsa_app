@@ -37,8 +37,7 @@ scrape_tsa_data_pdx <- function() {
   
   # Setup chromote to use the latest stable version of Chrome and specify the
   # binary for headless shell
-  chromote::local_chrome_version(version = "latest-stable", 
-                                 binary = "chrome-headless-shell")
+  chromote::local_chrome_version(version = "latest-stable", binary = "chrome-headless-shell")
   
   # Scrape and parse data
   # page <- polite::scrape(session)

@@ -26,11 +26,11 @@ scrape_tsa_data_jfk <- function() {
   
   session <- polite::bow(url)
   Sys.sleep(0.3)
-  # options(chromote.headless = "new")
+  options(chromote.headless = "new")
   
   # Initialize a new Chrome session with the latest stable version of Chrome 
   # and specify the binary for chrome-headless-shell
-  # chromote::local_chrome_version(version = "latest-stable", binary = "chrome-headless-shell")
+  chromote::local_chrome_version(version = "latest-stable", binary = "chrome-headless-shell")
   
   page <- safe_read_html_live(url)
   Sys.sleep(1.5)

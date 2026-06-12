@@ -27,10 +27,10 @@ scrape_tsa_data_iah <- function() {
   # Define URL and initiate polite session
   url <- "https://www.fly2houston.com/iah/security/"  # Update with the actual URL
 
-  
+  options(chromote.headless = "new")
   # Use headless shell binary to avoid persistent Chrome temp profile accumulation
   # (Chrome v132+ default headless mode writes HeadlessChrome* dirs to %TEMP%)
-  chromote::local_chrome_version(version = "latest-stable", binary = "chrome-headless-shell")  
+  chromote::local_chrome_version(version = "latest-stable", binary = "chrome-headless-shell")
   
   
   # Access JavaScript-rendered page

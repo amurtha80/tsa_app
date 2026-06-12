@@ -28,11 +28,11 @@ scrape_tsa_data_ewr <- function() {
   # Define URL and initiate polite session
   url <- "https://www.newarkairport.com/"  # Update with the actual URL
   session <- polite::bow(url)
-  # options(chromote.headless = "new")
+  options(chromote.headless = "new")
   
   # Initialize a new Chrome session with the latest stable version of Chrome 
   # and specify the binary for chrome-headless-shell
-  # chromote::local_chrome_version(version = "latest-stable", binary = "chrome-headless-shell")
+  chromote::local_chrome_version(version = "latest-stable", binary = "chrome-headless-shell")
   
   # Access Page
   page <- safe_read_html_live(url)
