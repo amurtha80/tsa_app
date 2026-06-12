@@ -37,7 +37,7 @@ scrape_tsa_data_iah <- function() {
   # All 9 checkpoint cards (Standard, PreCheck, Premier) load simultaneously —
   # no tab-click navigation needed. The page renders one flat list.
   page <- safe_read_html_live(url)
-  Sys.sleep(1)
+  Sys.sleep(1.5)  # Ensure page fully loads before scraping
 
   
   # Scrape checkpoint names and wait times ----
