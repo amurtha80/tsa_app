@@ -30,17 +30,17 @@ scrape_tsa_data_lga <- function() {
   # Define URL and initiate polite session
   url <- "https://www.laguardiaairport.com" # Update with the actual URL
   
-  session <- session(url)
-  Sys.sleep(2)
-  options(chromote.headless = "new")
+  session <- polite::bow(url)
+  Sys.sleep(0.3)
+  # options(chromote.headless = "new")
   
   # Initialize a new Chrome session with the latest stable version of Chrome 
   # and specify the binary for chrome-headless-shell
-  chromote::local_chrome_version(version = "latest-stable", binary = "chrome-headless-shell")
+  # chromote::local_chrome_version(version = "latest-stable", binary = "chrome-headless-shell")
   
   # page <- read_html_live(url)
   page <- safe_read_html_live(url)
-  Sys.sleep(0.3)
+  Sys.sleep(1.5)
   
   # Read TSA Checkpoint Wait Time Data from Website Table
   results <- page |> 
@@ -57,10 +57,8 @@ scrape_tsa_data_lga <- function() {
       airport = 'JFK',
       # General wait time — "No Wait" → 0, numeric string → value, else NA
       wait_time = case_when(
-        str_trim(results$`General`) == "No Wait" ~ 0,
-        !is.na(readr::parse_number(results$`General`, na = c("-", ""))) ~
-          readr::parse_number(results$`General`, na = c("-", "")),
-        TRUE ~ NA_real_
+        stringr::str_trim(.data[["General"]]) == "No Wait" ~ 0,
+        TRUE ~ readr::parse_number(.data[["General"]], na = c("-", "", "N/A", "No Wait"))
       ),
       # TSA PreCheck wait time — same logic
       wait_time_pre_check = case_when(
