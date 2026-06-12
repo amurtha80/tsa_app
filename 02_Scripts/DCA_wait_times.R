@@ -12,7 +12,6 @@
 # library(here, verbose = FALSE, warn.conflicts = FALSE)
 # library(chromote, verbose = FALSE, warn.conflicts = FALSE)
 
-
 # here::here()
 
 # Database Connection ----
@@ -40,13 +39,17 @@ scrape_tsa_data_dca <- function() {
   # Scrape and parse data
   # page <- polite::scrape(session)
   page <- safe_read_html_live(url)
-  
+  Sys.sleep(2.0) # Polite delay to ensure page is fully loaded
   
   # Scrape ----
   # Pull every row div, then within each row grab the 4 table-body-cell divs
   # by position: [1] checkpoint name, [2] General time, [3] TSA Pre time, [4] Directions (ignored)
-    rows <- page |>
-    rvest::html_elements(".resp-table-row")
+  rows <- page |>
+  rvest::html_elements(".resp-table-row")
+  
+  if (length(rows) == 0) {
+    stop("DCA: no .resp-table-row elements found — page may not have loaded fully")
+  }
   
   parse_cell <- function(row, position) {
     row |>
@@ -90,9 +93,9 @@ scrape_tsa_data_dca <- function() {
     DCA_data <- tibble(
       airport             = character(),
       checkpoint          = character(),
-      datetime            = lubridate::ymd_hms(character(), tz = "America/New_York"),
+      datetime            = lubridate::ymd_hms(tz = "America/New_York"),
       date                = lubridate::ymd(character()),
-      time                = lubridate::POSIXct(numeric(), tz = "America/New_York"),
+      time                = lubridate::POSIXct(tz = "America/New_York"),
       timezone            = character(),
       wait_time           = numeric(),
       wait_time_priority  = numeric(),
