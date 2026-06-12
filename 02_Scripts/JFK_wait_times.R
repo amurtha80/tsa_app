@@ -33,7 +33,7 @@ scrape_tsa_data_jfk <- function() {
   chromote::local_chrome_version(version = "latest-stable", binary = "chrome-headless-shell")
   
   page <- safe_read_html_live(url)
-  Sys.sleep(0.3)
+  Sys.sleep(1.5)
 
 ####  --------------------------------------------------------------------- ####
   
