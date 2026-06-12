@@ -30,5 +30,7 @@ RShiny Mobile App TSA Historical Wait Times
 - Standardize scraping function naming convention
 - Populate `holiday_travel` column (currently unpopulated in all records)
 - Evaluate DuckDB Quack concurrent read/write protocol when it matures (expected DuckDB v2.0, fall 2026)
+- **Chromote temp cleanup** — schedule a Windows Task Scheduler job to periodically delete chromote temp folders from `%TEMP%`; current accumulation is ~48KB per run which is acceptable short-term
 - **MCO** — Refactor `MCO_wait_times.R` off RSelenium/Firefox; Firefox updates will break the geckodriver version pin; migrate to chromote or `read_html()` depending on page rendering
 - **MIA** — Refactor `MIA_wait_times.R` off RSelenium/Firefox; same Firefox version dependency risk as MCO; investigate whether page is static HTML or JS-rendered before choosing replacement approach
+- **API/JSON refactor** — Long term, audit all existing airport scripts for available REST API or Fetch/XHR JSON endpoints (via DevTools Network tab); where available, migrate from chromote/`read_html()` to direct API calls using `httr`/`jsonlite`; eliminates chromote dependency, reduces per-run time, and improves reliability; CLT and DFW already use this pattern as reference implementations
