@@ -71,9 +71,8 @@ scrape_tsa_data_atl <- function() {
     stringr::str_trim()
   
   
-  # Keep only values that parse as numeric (the actual minute counts)
-  tsa_time <- readr::parse_number(tsa_time_raw, na = c("", "N/A", "Closed")) |>
-    (\(x) x[!is.na(x)])()
+  # fix — keep NAs in position, X becomes NA
+  tsa_time <- readr::parse_number(tsa_time_raw, na = c("", "N/A", "Closed", "X"))
   
   
   # Guard: if counts don't align, log and abort rather than write bad data
@@ -152,8 +151,21 @@ scrape_tsa_data_atl <- function() {
   rm(tsa_terminal, tsa_checkpoint, tsa_terminal_checkpoint)
   rm(tsa_time_raw, tsa_time, checkpoint_h3, is_precheck_only, n_domestic, n_intl)
   rm(wait_time, wait_time_pre_check)
-  rm(page, session, url)
   rm(ATL_data, envir = .GlobalEnv)
+  
+  tryCatch({
+    page$session$close()
+    page$session$parent$close(wait = 2)
+    if (chromote::has_default_chromote_object()) {
+      chromote::set_default_chromote_object(NULL)
+    }
+  }, error = function(e) {
+    message(Sys.time(), " | ATL teardown warning (non-fatal): ", e$message)
+  }, finally = {
+    rm(page)
+    rm(session)
+    rm(url)
+  })
   
   #gc()
 }
