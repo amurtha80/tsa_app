@@ -3,7 +3,8 @@
 # Shiny app wired to tsa_app_summ.duckdb (read-only).
 # Layout: page_navbar() + responsive layout_columns() (stacks on mobile)
 # Mobile-first: inputs stack above charts on small screens, side-by-side on desktop
-# Hamburger menu (top right): dark/light toggle + color picker
+# Navbar: plane icon (left) via nav_item/icon(), centered title via CSS order,
+#         hamburger nav_menu (right) with App Settings dropdown
 # Pinned footer: donate link placeholder
 #
 # UI: bslib + Bootstrap 5
@@ -54,8 +55,6 @@ time_slots <- format(
 
 
 # Color palette ----
-# Three accent options: teal (default), navy, goldenrod
-# Each entry: display label → list(primary, navbar_bg)
 
 color_choices <- list(
   "Teal"      = list(primary = "#18BC9C", bg = "#18BC9C"),
@@ -67,19 +66,17 @@ default_color <- "Teal"
 
 
 # Theme builder ----
-# Rebuilds full bs_theme on color or dark mode change so both navbar bg
-# and primary accent update together.
 
 build_theme <- function(color_name = default_color, mode = "light") {
-  pal     <- color_choices[[color_name]]
-  bg_col  <- if (mode == "dark") "#222222" else "#FFFFFF"
-  fg_col  <- if (mode == "dark") "#FFFFFF" else "#2C3E50"
+  pal    <- color_choices[[color_name]]
+  bg_col <- if (mode == "dark") "#222222" else "#FFFFFF"
+  fg_col <- if (mode == "dark") "#FFFFFF" else "#2C3E50"
   
   bs_theme(
-    version   = 5,
-    bg        = bg_col,
-    fg        = fg_col,
-    primary   = pal$primary,
+    version     = 5,
+    bg          = bg_col,
+    fg          = fg_col,
+    primary     = pal$primary,
     "navbar-bg" = pal$bg
   )
 }
@@ -87,26 +84,25 @@ build_theme <- function(color_name = default_color, mode = "light") {
 
 # Color utility functions ----
 
-# Darken a hex color by reducing RGB values by a given proportion (0-1)
 darken_hex <- function(hex, amount = 0.35) {
   rgb_vals <- col2rgb(hex) / 255
   rgb_vals <- rgb_vals * (1 - amount)
   rgb(rgb_vals[1], rgb_vals[2], rgb_vals[3])
 }
 
-# Return "white" or "black" depending on luminance of hex color
-# Uses WCAG relative luminance formula
 label_color_for <- function(hex) {
   rgb_vals <- col2rgb(hex) / 255
-  # Linearize sRGB channels
-  rgb_lin <- ifelse(rgb_vals <= 0.03928,
-                    rgb_vals / 12.92,
-                    ((rgb_vals + 0.055) / 1.055) ^ 2.4)
+  rgb_lin  <- ifelse(rgb_vals <= 0.03928,
+                     rgb_vals / 12.92,
+                     ((rgb_vals + 0.055) / 1.055) ^ 2.4)
   luminance <- 0.2126 * rgb_lin[1] + 0.7152 * rgb_lin[2] + 0.0722 * rgb_lin[3]
   if (luminance > 0.179) "black" else "white"
 }
 
-footer_css <- "
+
+# CSS ----
+
+app_css <- "
   /* Pinned footer */
   .asap-footer {
     position: fixed;
@@ -129,9 +125,32 @@ footer_css <- "
     text-decoration: underline;
   }
 
-  /* Add bottom padding to main content so footer never covers charts */
+  /* Bottom padding so footer never covers charts */
   .bslib-page-navbar > .container-fluid {
     padding-bottom: 48px;
+  }
+
+  /* Navbar brand — white icon and text against any accent color */
+  .navbar-brand,
+  .navbar-brand svg,
+  .navbar-brand i {
+    color: #fff !important;
+  }
+
+  /* Push nav-menu to the right */
+  .navbar-nav {
+    margin-right: auto !important;
+  }
+
+  /* Hamburger menu toggle — white against any accent color */
+  .navbar-nav .nav-link,
+  .navbar-nav .dropdown-toggle {
+    color: #fff !important;
+  }
+
+  /* Settings dropdown width */
+  .navbar-nav .dropdown-menu {
+    min-width: 220px;
   }
 "
 
@@ -139,13 +158,22 @@ footer_css <- "
 # UI ----
 
 ui <- page_navbar(
-  title        = "ASAP",
+  title = tags$div(
+    style = "display:flex; align-items:center; gap:10px;",
+    icon("plane"),
+    tags$div(
+      tags$span("ASAP",
+                style = "font-size:1.05rem; font-weight:700; display:block; line-height:1.2;"),
+      tags$span("Airport Security Advance Planning",
+                style = "font-size:0.65rem; font-weight:400; opacity:0.85; display:block;")
+    )
+  ),
   window_title = "ASAP - Airport Security Advance Planning",
   theme        = build_theme(default_color, "light"),
   id           = "main_navbar",
+  collapsible  = FALSE,
   
-  # Inject footer CSS
-  header = tags$head(tags$style(HTML(footer_css))),
+  header = tags$head(tags$style(HTML(app_css))),
   
   # Pinned footer
   footer = tags$div(
@@ -158,34 +186,34 @@ ui <- page_navbar(
     ))
   ),
   
-  # Hamburger menu — top right ----
   nav_spacer(),
+  
+  # Hamburger settings menu — right ----
+  # nav_menu with align="right" is the only reliable bslib way to get right-side placement
   nav_menu(
-    title = NULL,
-    icon  = icon("bars"),
+    title = icon("bars"),
     align = "right",
     
-    # Dark / light mode
     nav_item(
-      radioButtons(
-        inputId  = "dark_mode",
-        label    = tags$span(icon("circle-half-stroke"), " App Mode"),
-        choices  = c("Light" = "light", "Dark" = "dark"),
-        selected = "light",
-        inline   = TRUE
-      )
-    ),
-    
-    nav_item(tags$hr(style = "margin: 4px 12px;")),
-    
-    # Color picker
-    nav_item(
-      radioButtons(
-        inputId  = "accent_color",
-        label    = tags$span(icon("palette"), " Accent Color"),
-        choices  = names(color_choices),
-        selected = default_color,
-        inline   = TRUE
+      tags$div(
+        style = "padding: 8px 16px; min-width: 220px;",
+        tags$p(class = "fw-semibold mb-1", icon("circle-half-stroke"), " App Mode"),
+        radioButtons(
+          inputId  = "dark_mode",
+          label    = NULL,
+          choices  = c("Light" = "light", "Dark" = "dark"),
+          selected = "light",
+          inline   = TRUE
+        ),
+        tags$hr(style = "margin: 6px 0;"),
+        tags$p(class = "fw-semibold mb-1", icon("palette"), " Theme Color"),
+        radioButtons(
+          inputId  = "accent_color",
+          label    = NULL,
+          choices  = names(color_choices),
+          selected = default_color,
+          inline   = TRUE
+        )
       )
     )
   ),
@@ -194,13 +222,10 @@ ui <- page_navbar(
   nav_panel(
     title = "Search",
     
-    # Responsive layout: stacks on mobile (inputs then charts),
-    # side-by-side on desktop (inputs left, charts right)
     layout_columns(
       col_widths = breakpoints(sm = 12, lg = c(3, 9)),
       
-      # Inputs column ----
-      # Plain div — no card() wrapper so dropdowns expand freely without clipping
+      # Inputs column — plain div, no card() so dropdowns expand freely
       div(
         h5("Search", style = "font-weight: 600; margin-bottom: 16px;"),
         
@@ -216,7 +241,7 @@ ui <- page_navbar(
         selectInput(
           inputId = "select_checkpoint",
           label   = "Checkpoint",
-          choices = NULL,         # populated server-side
+          choices = NULL,
           width   = "100%"
         ),
         
@@ -236,12 +261,10 @@ ui <- page_navbar(
           width    = "100%"
         ),
         
-        helpText(
-          "\u00b11 hour around selected time (9 bars \u00d7 15 min)."
-        )
+        helpText("\u00b11 hour around selected time (9 bars \u00d7 15 min).")
       ),
       
-      # Charts column ----
+      # Charts column
       div(
         h5("Wait Time Estimates",
            style = "text-align: center; font-weight: 600; margin-bottom: 16px;"),
@@ -268,7 +291,7 @@ ui <- page_navbar(
 server <- function(input, output, session) {
   
   
-  # Theme reactivity — rebuilds on color or mode change ----
+  # Theme reactivity ----
   
   observeEvent(list(input$accent_color, input$dark_mode), ignoreInit = TRUE, {
     session$setCurrentTheme(
@@ -306,10 +329,9 @@ server <- function(input, output, session) {
         input$select_time)
     
     selected_hms <- hms::as_hms(paste0(input$select_time, ":00"))
-    start_hms    <- hms::as_hms(as.numeric(selected_hms) - 3600)  # -1 hour
-    end_hms      <- hms::as_hms(as.numeric(selected_hms) + 3600)  # +1 hour
+    start_hms    <- hms::as_hms(as.numeric(selected_hms) - 3600)
+    end_hms      <- hms::as_hms(as.numeric(selected_hms) + 3600)
     
-    # Central bar — bucket containing the selected time (ceiling snaps forward)
     central_bucket <- hms::as_hms(
       lubridate::ceiling_date(
         as.POSIXct(paste0("2000-01-01 ", input$select_time, ":00")),
@@ -329,7 +351,6 @@ server <- function(input, output, session) {
         highlight    = if_else(bucket_time == central_bucket, "Central", "Other"),
         bucket_label = format(as.POSIXlt(bucket_time), "%H:%M") |>
           factor(levels = unique(format(as.POSIXlt(bucket_time), "%H:%M"))),
-        # label color computed at render time via accent — placeholder here
         label_color  = if_else(highlight == "Central", "white", "black")
       )
   })
@@ -339,11 +360,9 @@ server <- function(input, output, session) {
   
   build_chart <- function(data, avg_col, max_col, subtitle, accent) {
     
-    # Derive chart colors from accent
-    accent_dark  <- darken_hex(accent, amount = 0.35)
-    lbl_color    <- label_color_for(accent)
+    accent_dark <- darken_hex(accent, amount = 0.35)
+    lbl_color   <- label_color_for(accent)
     
-    # Update label_color column now that we know the accent
     data <- data |>
       mutate(label_color = if_else(highlight == "Central", lbl_color, "black"))
     
@@ -422,8 +441,8 @@ server <- function(input, output, session) {
   # Render standard lane chart ----
   
   output$chart_std <- renderPlot({
-    data <- filtered_data()
-    accent <- color_choices[[input$accent_color]]$primary
+    data    <- filtered_data()
+    accent  <- color_choices[[input$accent_color]]$primary
     subtitle <- glue(
       "{input$select_checkpoint} \u2022 {input$select_airport} \u2022 ",
       "{input$select_day} around {input$select_time}"
@@ -435,8 +454,8 @@ server <- function(input, output, session) {
   # Render TSA Pre-check lane chart ----
   
   output$chart_pre <- renderPlot({
-    data <- filtered_data()
-    accent <- color_choices[[input$accent_color]]$primary
+    data    <- filtered_data()
+    accent  <- color_choices[[input$accent_color]]$primary
     subtitle <- glue(
       "{input$select_checkpoint} \u2022 {input$select_airport} \u2022 ",
       "{input$select_day} around {input$select_time}"
@@ -450,3 +469,4 @@ server <- function(input, output, session) {
 # Run ----
 
 shinyApp(ui = ui, server = server)
+
