@@ -1,10 +1,13 @@
 # app_sidebar.R ----
 # ASAP — Airport Security Advance Planning
 # Shiny app wired to tsa_app_summ.duckdb (read-only).
-# Layout: page_navbar() + responsive layout_columns() (stacks on mobile)
+#
+# Navbar: custom HTML tags$nav — plane icon left, title+subtitle center,
+#         hamburger right. Bootstrap offcanvas for settings drawer.
+#         No page_navbar() — avoids all bslib navbar nesting issues.
+#
+# Layout: page_fillable() outer wrapper + responsive layout_columns()
 # Mobile-first: inputs stack above charts on small screens, side-by-side on desktop
-# Navbar: plane icon (left) via nav_item/icon(), centered title via CSS order,
-#         hamburger nav_menu (right) with App Settings dropdown
 # Pinned footer: donate link placeholder
 #
 # UI: bslib + Bootstrap 5
@@ -73,11 +76,10 @@ build_theme <- function(color_name = default_color, mode = "light") {
   fg_col <- if (mode == "dark") "#FFFFFF" else "#2C3E50"
   
   bs_theme(
-    version     = 5,
-    bg          = bg_col,
-    fg          = fg_col,
-    primary     = pal$primary,
-    "navbar-bg" = pal$bg
+    version  = 5,
+    bg       = bg_col,
+    fg       = fg_col,
+    primary  = pal$primary
   )
 }
 
@@ -100,134 +102,179 @@ label_color_for <- function(hex) {
 }
 
 
+# Navbar builder ----
+# Returns a custom tags$nav with three equal-width slots:
+#   left  — plane icon
+#   center — ASAP title + subtitle
+#   right — hamburger button (triggers offcanvas)
+# Accent color passed as argument so navbar bg updates with theme changes.
+
+build_navbar <- function(accent = color_choices[[default_color]]$bg) {
+  tags$nav(
+    id    = "asap-navbar",
+    class = "navbar",
+    style = glue("background-color:{accent}; padding:8px 16px;"),
+    
+    # Three-slot flex container
+    tags$div(
+      style = "display:flex; align-items:center; width:100%;",
+      
+      # Left — plane icon
+      tags$div(
+        style = "flex:0 0 40px; display:flex; align-items:center;",
+        icon("plane", style = "color:#fff; font-size:1.3rem;")
+      ),
+      
+      # Center — title + subtitle
+      tags$div(
+        style = "flex:1 1 auto; text-align:center; line-height:1.25;",
+        tags$span(
+          "ASAP",
+          style = "font-size:1.05rem; font-weight:700; color:#fff; display:block;"
+        ),
+        tags$span(
+          "Airport Security Advance Planning",
+          style = "font-size:0.65rem; font-weight:400; color:#fff; opacity:0.85; display:block;"
+        )
+      ),
+      
+      # Right — hamburger button triggers offcanvas
+      tags$div(
+        style = "flex:0 0 40px; display:flex; align-items:center; justify-content:flex-end;",
+        tags$button(
+          type              = "button",
+          style             = "background:none; border:none; padding:4px; cursor:pointer; line-height:1;",
+          `data-bs-toggle`  = "offcanvas",
+          `data-bs-target`  = "#asap-settings",
+          `aria-controls`   = "asap-settings",
+          icon("bars", style = "color:#fff; font-size:1.3rem;")
+        )
+      )
+    )
+  )
+}
+
+
+# Settings offcanvas panel ----
+# Pure Bootstrap 5 offcanvas — slides in from right.
+# Contains radioButtons for dark/light mode and accent color.
+# Shiny reads these inputs normally via input$dark_mode and input$accent_color.
+
+settings_panel <- tags$div(
+  id       = "asap-settings",
+  class    = "offcanvas offcanvas-end",
+  tabindex = "-1",
+  `aria-labelledby` = "asap-settings-label",
+  
+  # Header
+  tags$div(
+    class = "offcanvas-header",
+    style = "border-bottom: 1px solid #dee2e6;",
+    tags$h5(
+      id    = "asap-settings-label",
+      class = "offcanvas-title fw-semibold",
+      icon("gear"), " App Settings"
+    ),
+    tags$button(
+      type              = "button",
+      class             = "btn-close",
+      `data-bs-dismiss` = "offcanvas",
+      `aria-label`      = "Close"
+    )
+  ),
+  
+  # Body
+  tags$div(
+    class = "offcanvas-body",
+    
+    tags$p(class = "fw-semibold mb-1",
+           icon("circle-half-stroke"), " App Mode"),
+    radioButtons(
+      inputId  = "dark_mode",
+      label    = NULL,
+      choices  = c("Light" = "light", "Dark" = "dark"),
+      selected = "light",
+      inline   = TRUE
+    ),
+    
+    tags$hr(),
+    
+    tags$p(class = "fw-semibold mb-1",
+           icon("palette"), " Theme Color"),
+    radioButtons(
+      inputId  = "accent_color",
+      label    = NULL,
+      choices  = names(color_choices),
+      selected = default_color,
+      inline   = TRUE
+    )
+  )
+)
+
+
 # CSS ----
 
 app_css <- "
+
+  /* Remove default body top margin so custom navbar sits flush */
+  body { margin-top: 0 !important; padding-top: 0 !important; }
+
+  /* Main content area — sits below fixed navbar */
+  #asap-main {
+    padding-top:    16px;
+    padding-bottom: 56px;   /* clears pinned footer */
+    padding-left:   16px;
+    padding-right:  16px;
+  }
+
   /* Pinned footer */
   .asap-footer {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    background-color: rgba(0, 0, 0, 0.75);
-    color: #fff;
-    text-align: center;
-    padding: 6px 0;
-    font-size: 0.82rem;
-    z-index: 1050;
+    position:         fixed;
+    bottom:           0;
+    left:             0;
+    width:            100%;
+    background-color: rgba(0,0,0,0.75);
+    color:            #fff;
+    text-align:       center;
+    padding:          6px 0;
+    font-size:        0.82rem;
+    z-index:          1050;
   }
   .asap-footer a {
-    color: #FFD700;
+    color:           #FFD700;
     text-decoration: none;
-    font-weight: 600;
+    font-weight:     600;
   }
-  .asap-footer a:hover {
-    text-decoration: underline;
-  }
+  .asap-footer a:hover { text-decoration: underline; }
 
-  /* Bottom padding so footer never covers charts */
-  .bslib-page-navbar > .container-fluid {
-    padding-bottom: 48px;
-  }
-
-  /* Navbar brand — white icon and text against any accent color */
-  .navbar-brand,
-  .navbar-brand svg,
-  .navbar-brand i {
-    color: #fff !important;
-  }
-
-  /* Push nav-menu to the right */
-  .navbar-nav {
-    margin-right: auto !important;
-  }
-
-  /* Hamburger menu toggle — white against any accent color */
-  .navbar-nav .nav-link,
-  .navbar-nav .dropdown-toggle {
-    color: #fff !important;
-  }
-
-  /* Settings dropdown width */
-  .navbar-nav .dropdown-menu {
-    min-width: 220px;
-  }
 "
 
 
 # UI ----
 
-ui <- page_navbar(
-  title = tags$div(
-    style = "display:flex; align-items:center; gap:10px;",
-    icon("plane"),
-    tags$div(
-      tags$span("ASAP",
-                style = "font-size:1.05rem; font-weight:700; display:block; line-height:1.2;"),
-      tags$span("Airport Security Advance Planning",
-                style = "font-size:0.65rem; font-weight:400; opacity:0.85; display:block;")
-    )
-  ),
-  window_title = "ASAP - Airport Security Advance Planning",
-  theme        = build_theme(default_color, "light"),
-  id           = "main_navbar",
-  collapsible  = FALSE,
+ui <- page_fillable(
+  title  = "ASAP - Airport Security Advance Planning",
+  theme  = build_theme(default_color, "light"),
+  padding = 0,
   
-  header = tags$head(tags$style(HTML(app_css))),
+  tags$head(tags$style(HTML(app_css))),
   
-  # Pinned footer
-  footer = tags$div(
-    class = "asap-footer",
-    HTML(paste0(
-      "\u2615 Find this useful? ",
-      "<a href='https://www.buymeacoffee.com/' target='_blank'>",
-      "Buy me a coffee</a>",
-      " &nbsp;|&nbsp; ASAP \u2014 Airport Security Advance Planning"
-    ))
-  ),
+  # Settings offcanvas — in DOM but hidden until hamburger clicked
+  settings_panel,
   
-  nav_spacer(),
+  # Custom navbar — built as plain HTML, no bslib nav system
+  uiOutput("navbar_ui"),
   
-  # Hamburger settings menu — right ----
-  # nav_menu with align="right" is the only reliable bslib way to get right-side placement
-  nav_menu(
-    title = icon("bars"),
-    align = "right",
-    
-    nav_item(
-      tags$div(
-        style = "padding: 8px 16px; min-width: 220px;",
-        tags$p(class = "fw-semibold mb-1", icon("circle-half-stroke"), " App Mode"),
-        radioButtons(
-          inputId  = "dark_mode",
-          label    = NULL,
-          choices  = c("Light" = "light", "Dark" = "dark"),
-          selected = "light",
-          inline   = TRUE
-        ),
-        tags$hr(style = "margin: 6px 0;"),
-        tags$p(class = "fw-semibold mb-1", icon("palette"), " Theme Color"),
-        radioButtons(
-          inputId  = "accent_color",
-          label    = NULL,
-          choices  = names(color_choices),
-          selected = default_color,
-          inline   = TRUE
-        )
-      )
-    )
-  ),
-  
-  # Main panel ----
-  nav_panel(
-    title = "Search",
+  # Main content
+  tags$div(
+    id = "asap-main",
     
     layout_columns(
       col_widths = breakpoints(sm = 12, lg = c(3, 9)),
       
       # Inputs column — plain div, no card() so dropdowns expand freely
       div(
-        h5("Search", style = "font-weight: 600; margin-bottom: 16px;"),
+        h5("Search", style = "font-weight:600; margin-bottom:16px;"),
         
         selectizeInput(
           inputId  = "select_airport",
@@ -267,7 +314,7 @@ ui <- page_navbar(
       # Charts column
       div(
         h5("Wait Time Estimates",
-           style = "text-align: center; font-weight: 600; margin-bottom: 16px;"),
+           style = "text-align:center; font-weight:600; margin-bottom:16px;"),
         
         card(
           card_header("Standard Lane \u2014 Average Wait Time (min)"),
@@ -282,6 +329,16 @@ ui <- page_navbar(
         )
       )
     )
+  ),
+  
+  # Pinned footer
+  tags$div(
+    class = "asap-footer",
+    HTML(paste0(
+      "\u2615 Find this useful? ",
+      "<a href='https://www.buymeacoffee.com/' target='_blank'>Buy me a coffee</a>",
+      " &nbsp;|&nbsp; ASAP \u2014 Airport Security Advance Planning"
+    ))
   )
 )
 
@@ -291,7 +348,24 @@ ui <- page_navbar(
 server <- function(input, output, session) {
   
   
-  # Theme reactivity ----
+  # Reactive accent color ----
+  # Drives both session theme and navbar background color
+  
+  accent_hex <- reactive({
+    req(input$accent_color)
+    color_choices[[input$accent_color]]$primary
+  })
+  
+  
+  # Render navbar with current accent color ----
+  # Rebuilds the navbar HTML whenever accent changes so bg color updates
+  
+  output$navbar_ui <- renderUI({
+    build_navbar(accent = accent_hex())
+  })
+  
+  
+  # Theme reactivity — mode + accent ----
   
   observeEvent(list(input$accent_color, input$dark_mode), ignoreInit = TRUE, {
     session$setCurrentTheme(
@@ -441,8 +515,8 @@ server <- function(input, output, session) {
   # Render standard lane chart ----
   
   output$chart_std <- renderPlot({
-    data    <- filtered_data()
-    accent  <- color_choices[[input$accent_color]]$primary
+    data     <- filtered_data()
+    accent   <- accent_hex()
     subtitle <- glue(
       "{input$select_checkpoint} \u2022 {input$select_airport} \u2022 ",
       "{input$select_day} around {input$select_time}"
@@ -454,8 +528,8 @@ server <- function(input, output, session) {
   # Render TSA Pre-check lane chart ----
   
   output$chart_pre <- renderPlot({
-    data    <- filtered_data()
-    accent  <- color_choices[[input$accent_color]]$primary
+    data     <- filtered_data()
+    accent   <- accent_hex()
     subtitle <- glue(
       "{input$select_checkpoint} \u2022 {input$select_airport} \u2022 ",
       "{input$select_day} around {input$select_time}"
@@ -468,5 +542,12 @@ server <- function(input, output, session) {
 
 # Run ----
 
+
 shinyApp(ui = ui, server = server)
+# Connect to local shiny app app_sidebar.R with host
+# shiny::runApp(
+              # shinyApp(ui = ui, server = server),
+              # host = "0.0.0.0",
+              # port = 3838
+              # )
 
