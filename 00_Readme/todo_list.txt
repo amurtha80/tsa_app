@@ -6,11 +6,24 @@ RShiny Mobile App TSA Historical Wait Times
 ## TODO
 
 ### High Priority — MVP App
-- Connect Shiny app (`app3shinyassistant.R`) to DuckDB
-- Port chart logic from `xx_chart_times.R` into Shiny app
-- Wire reactive inputs (airport, day of week, time slot) to chart output
-- Resolve hardcoded local Windows DB path for shinyapps.io deployment
-- Configure `rsconnect` for shinyapps.io deployment
+
+#### App Performance
+- Add `bindCache()` with `cache_mem()` to both `renderPlot()` calls in `app_sidebar.R`, keyed on airport, checkpoint, day, time slot, and accent color (exclude dark/light mode from cache key)
+- Change `bucket_label` display format from 24-hour to 12-hour (`%I:%M %p`) at render time only — keep underlying `bucket_time` filter key as `"HH:MM:SS"` character to preserve lexicographic sort in `filtered_data()`
+- Verify `format(as.POSIXct("2000-01-01 00:00:00"), "%I:%M %p")` produces `"12:00 AM"` (not `"00:00 AM"`) on Windows locale before deploying
+
+#### Data Pipeline — Windows to EC2
+- Add parquet export to `xx_build_summary_db.R`: after writing `tsa_app_summ.duckdb`, write `tsa_app_summ.parquet` via `nanoparquet::write_parquet()`, then push to S3 bucket (`asap-tsa-data`) via `paws` R package — wrap S3 push in `tryCatch` so failures log to runlog without crashing the build
+- Update `app_sidebar.R` to read `tsa_app_summ.parquet` via `nanoparquet::read_parquet()` at startup, replacing DuckDB/DBI read entirely
+
+#### AWS Infrastructure
+- Check business AWS account free-tier eligibility before provisioning (12 months free on t3.micro would eliminate EC2 compute cost)
+- Provision t3.medium EC2 instance (~$33/month) on Ubuntu; install R and Shiny Server Open Source
+- Configure nginx as reverse proxy in front of Shiny Server
+- Configure Let's Encrypt SSL via Certbot for `flyasap.app` (`.app` TLD mandates HTTPS)
+- Configure Route 53 DNS for `flyasap.app` apex domain pointing to EC2
+- Create IAM role scoping EC2 to read-only access on the `asap-tsa-data` S3 bucket
+- Add EC2 cron job to pull nightly parquet from S3 and restart Shiny Server
 
 ### Active Script Bugs
 - **CLT** — Checkpoint names from API no longer fully align with page display names; wait times don't align between API and page (page shows ranges, API shows point values)
@@ -30,7 +43,3 @@ RShiny Mobile App TSA Historical Wait Times
 - Standardize scraping function naming convention
 - Populate `holiday_travel` column (currently unpopulated in all records)
 - Evaluate DuckDB Quack concurrent read/write protocol when it matures (expected DuckDB v2.0, fall 2026)
-- **Chromote temp cleanup** — schedule a Windows Task Scheduler job to periodically delete chromote temp folders from `%TEMP%`; current accumulation is ~48KB per run which is acceptable short-term
-- **MCO** — Refactor `MCO_wait_times.R` off RSelenium/Firefox; Firefox updates will break the geckodriver version pin; migrate to chromote or `read_html()` depending on page rendering
-- **MIA** — Refactor `MIA_wait_times.R` off RSelenium/Firefox; same Firefox version dependency risk as MCO; investigate whether page is static HTML or JS-rendered before choosing replacement approach
-- **API/JSON refactor** — Long term, audit all existing airport scripts for available REST API or Fetch/XHR JSON endpoints (via DevTools Network tab); where available, migrate from chromote/`read_html()` to direct API calls using `httr`/`jsonlite`; eliminates chromote dependency, reduces per-run time, and improves reliability; CLT and DFW already use this pattern as reference implementations
