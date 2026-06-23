@@ -2,13 +2,16 @@ sink(here::here("C:/Users/james/Documents/R/tsa_app/runlog_appdata_xfer.txt"), a
 
 # xx_build_summary_db.R ----
 # Overnight extraction script: reads tsa_app.duckdb, aggregates wait time data
-# into 15-minute buckets by airport / checkpoint / weekday, and writes the
-# summary table to tsa_app_summ.duckdb for use by the Shiny app.
+# into 15-minute buckets by airport / checkpoint / weekday, writes the
+# summary table to tsa_app_summ.duckdb, exports a parquet copy, and pushes
+# the parquet to S3 for EC2 to pull on restart.
 #
 # Schedule: Windows Task Scheduler, nightly at 2:00 AM
 # Runtime: seconds (single aggregation query over ~365 days of rows)
-# Inputs:  01_Data/tsa_app.duckdb      (read-only)
-# Outputs: 01_Data/tsa_app_summ.duckdb (write — created on first run)
+# Inputs:  01_Data/tsa_app.duckdb        (read-only)
+# Outputs: 01_Data/tsa_app_summ.duckdb   (write — created on first run)
+#          01_Data/tsa_app_summ.parquet   (write — overwritten each run)
+#          S3: see S3 Push section below  (requires paws + AWS credentials)
 
 
 # Package Management ----
@@ -25,7 +28,8 @@ foo <- function(x) {
   }
 }
 
-foo(c("duckdb", "DBI", "here", "dplyr", "hms", "lubridate", "glue"))
+foo(c("duckdb", "DBI", "here", "dplyr", "hms", "lubridate", "glue",
+      "nanoparquet", "paws"))
 
 rm(foo)
 print(glue("packages loaded at ", format(Sys.time(), "%a %b %d %X %Y")))
@@ -33,8 +37,9 @@ print(glue("packages loaded at ", format(Sys.time(), "%a %b %d %X %Y")))
 
 # Paths ----
 
-path_source <- here::here("C:/Users/james/Documents/R/tsa_app/01_Data/tsa_app.duckdb")
-path_summ   <- here::here("C:/Users/james/Documents/R/tsa_app/01_Data/tsa_app_summ.duckdb")
+path_source  <- here::here("C:/Users/james/Documents/R/tsa_app/01_Data/tsa_app.duckdb")
+path_summ    <- here::here("C:/Users/james/Documents/R/tsa_app/01_Data/tsa_app_summ.duckdb")
+path_parquet <- here::here("C:/Users/james/Documents/R/tsa_app/01_Data/tsa_app_summ.parquet")
 
 
 # Connect ----
@@ -89,11 +94,42 @@ print(glue("{nrow(tsa_wait_time_summ)} rows written to tsa_wait_time_summ"))
 print(glue("******-- Summary build complete ", format(Sys.time(), "%a %b %d %X %Y"), " --******"))
 
 
+# Write Parquet ----
+# Parquet is the file format read by the Shiny app on EC2.
+# bucket_time stays as "HH:MM:SS" character — filter key, not display value.
+# Display format (12-hour) is applied at render time in app_sidebar.R.
+
+nanoparquet::write_parquet(tsa_wait_time_summ, path_parquet)
+
+print(glue("{nrow(tsa_wait_time_summ)} rows written to tsa_app_summ.parquet at ",
+           format(Sys.time(), "%a %b %d %X %Y")))
+
+
+# S3 Push ----
+# TODO: replace bucket name and key path before deploying.
+# AWS credentials must be configured on this machine (IAM role, env vars,
+# or ~/.aws/credentials). paws picks them up automatically.
+
+tryCatch({
+  s3 <- paws::s3()
+  s3$put_object(
+    Bucket = "asap-tsa-data",
+    Key    = "tsa_app_summ.parquet",
+    Body   = path_parquet
+  )
+  print(glue("parquet pushed to S3 at ", format(Sys.time(), "%a %b %d %X %Y")))
+}, error = function(e) {
+  print(glue("ERROR: S3 push failed at ", format(Sys.time(), "%a %b %d %X %Y"),
+             " — ", conditionMessage(e)))
+})
+
+
 # Cleanup ----
 
 rm(tsa_wait_time_summ)
 rm(path_source)
 rm(path_summ)
+rm(path_parquet)
 
 dbDisconnect(con_source, shutdown = TRUE)
 dbDisconnect(con_summ,   shutdown = TRUE)
