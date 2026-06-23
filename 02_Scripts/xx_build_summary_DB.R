@@ -119,7 +119,7 @@ if (!requireNamespace("paws", quietly = TRUE)) {
 tryCatch({
   s3 <- paws::s3()
   s3$put_object(
-    Bucket = "asap-tsa-data",
+    Bucket = "flyasap-app-data",
     Key    = "tsa_app_summ.parquet",
     Body   = path_parquet
   )
