@@ -29,7 +29,7 @@ foo <- function(x) {
 }
 
 foo(c("duckdb", "DBI", "here", "dplyr", "hms", "lubridate", "glue",
-      "nanoparquet", "paws"))
+      "nanoparquet"))
 
 rm(foo)
 print(glue("packages loaded at ", format(Sys.time(), "%a %b %d %X %Y")))
@@ -109,6 +109,12 @@ print(glue("{nrow(tsa_wait_time_summ)} rows written to tsa_app_summ.parquet at "
 # TODO: replace bucket name and key path before deploying.
 # AWS credentials must be configured on this machine (IAM role, env vars,
 # or ~/.aws/credentials). paws picks them up automatically.
+# paws is installed here rather than via foo() above to avoid a known
+# conflict with glue 1.8.0 when loaded via require() at script startup.
+
+if (!requireNamespace("paws", quietly = TRUE)) {
+  install.packages("paws", repos = "https://cloud.r-project.org/")
+}
 
 tryCatch({
   s3 <- paws::s3()
