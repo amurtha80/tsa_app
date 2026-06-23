@@ -2,13 +2,19 @@
 # ASAP — Airport Security Advance Planning
 # Shiny app wired to tsa_app_summ.duckdb (read-only).
 #
-# Navbar: custom HTML tags$nav — plane icon left, title+subtitle center,
-#         hamburger right. Bootstrap offcanvas for settings drawer.
-#         No page_navbar() — avoids all bslib navbar nesting issues.
+# UI/UX revision — MVP Design Pass (June 2026)
+# Changes from prior version:
+#   - Settings offcanvas (dark mode + color toggle) removed for MVP
+#   - Navbar simplified: "ASAP" + plane icon only, no subtitle
+#   - Fixed theme: Navy (#2C3E7F) primary, Teal (#18BC9C) accent
+#   - Inter + DM Serif Display loaded via Google Fonts
+#   - Hero band with muted airport background + headline + descriptor
+#   - Smart defaults: day + time auto-set from Sys.time() on session start
+#   - Day + Time selectors displayed side-by-side on mobile
+#   - Pinned footer replaced with 30-second delayed donate toast
 #
-# Layout: page_fillable() outer wrapper + responsive layout_columns()
+# Layout: page_fillable() + responsive layout_columns()
 # Mobile-first: inputs stack above charts on small screens, side-by-side on desktop
-# Pinned footer: donate link placeholder
 #
 # UI: bslib + Bootstrap 5
 # DB: tsa_app_summ.duckdb — written nightly by xx_build_summary_db.R
@@ -56,32 +62,27 @@ time_slots <- format(
   "%H:%M"
 )
 
+# Smart defaults derived at app load time ----
+# Day: current weekday label (matches weekday_choices abbreviations)
+# Time: nearest 15-min slot to current system time, rounded up
+default_day <- weekday_choices[lubridate::wday(Sys.time(), week_start = 7)]
 
-# Color palette ----
-
-color_choices <- list(
-  "Teal"      = list(primary = "#18BC9C", bg = "#18BC9C"),
-  "Navy"      = list(primary = "#2C3E7F", bg = "#2C3E7F"),
-  "Goldenrod" = list(primary = "#DAA520", bg = "#DAA520")
+default_time <- format(
+  lubridate::ceiling_date(Sys.time(), "15 mins"),
+  "%H:%M"
 )
+# Guard: if ceiling_date produces 24:00 (midnight rollover), fall back to 00:00
+if (!(default_time %in% time_slots)) default_time <- "00:00"
 
-default_color <- "Teal"
 
+# Fixed theme palette ----
+# Navy primary for navbar/buttons; Teal accent for chart highlights and CTAs.
+# Settings drawer removed for MVP — single fixed theme.
 
-# Theme builder ----
-
-build_theme <- function(color_name = default_color, mode = "light") {
-  pal    <- color_choices[[color_name]]
-  bg_col <- if (mode == "dark") "#222222" else "#FFFFFF"
-  fg_col <- if (mode == "dark") "#FFFFFF" else "#2C3E50"
-  
-  bs_theme(
-    version  = 5,
-    bg       = bg_col,
-    fg       = fg_col,
-    primary  = pal$primary
-  )
-}
+nav_color   <- "#2C3E7F"   # Navy — navbar bg, primary buttons
+accent_teal <- "#18BC9C"   # Teal — chart highlight bar, CTA links
+text_dark   <- "#2C3E50"   # Charcoal — body text
+text_light  <- "#FFFFFF"   # White — text on dark backgrounds
 
 
 # Color utility functions ----
@@ -102,168 +103,300 @@ label_color_for <- function(hex) {
 }
 
 
-# Navbar builder ----
-# Returns a custom tags$nav with three equal-width slots:
-#   left  — plane icon
-#   center — ASAP title + subtitle
-#   right — hamburger button (triggers offcanvas)
-# Accent color passed as argument so navbar bg updates with theme changes.
+# App theme ----
 
-build_navbar <- function(accent = color_choices[[default_color]]$bg) {
-  tags$nav(
-    id    = "asap-navbar",
-    class = "navbar",
-    style = glue("background-color:{accent}; padding:8px 16px;"),
+app_theme <- bs_theme(
+  version = 5,
+  bg      = "#FFFFFF",
+  fg      = text_dark,
+  primary = nav_color,
+  base_font = font_google("Inter"),
+  heading_font = font_google("DM Serif Display")
+)
+
+
+# Navbar ----
+# Simplified from prior version: no subtitle, no hamburger/offcanvas.
+# Just plane icon left, "ASAP" centered, empty right slot for visual balance.
+
+asap_navbar <- tags$nav(
+  id    = "asap-navbar",
+  class = "navbar",
+  style = glue("background-color:{nav_color}; padding:10px 16px; position:sticky; top:0; z-index:1030;"),
+  
+  tags$div(
+    style = "display:flex; align-items:center; width:100%;",
     
-    # Three-slot flex container
+    # Left — plane icon
     tags$div(
-      style = "display:flex; align-items:center; width:100%;",
-      
-      # Left — plane icon
-      tags$div(
-        style = "flex:0 0 40px; display:flex; align-items:center;",
-        icon("plane", style = "color:#fff; font-size:1.3rem;")
-      ),
-      
-      # Center — title + subtitle
-      tags$div(
-        style = "flex:1 1 auto; text-align:center; line-height:1.25;",
-        tags$span(
-          "ASAP",
-          style = "font-size:1.05rem; font-weight:700; color:#fff; display:block;"
-        ),
-        tags$span(
-          "Airport Security Advance Planning",
-          style = "font-size:0.65rem; font-weight:400; color:#fff; opacity:0.85; display:block;"
-        )
-      ),
-      
-      # Right — hamburger button triggers offcanvas
-      tags$div(
-        style = "flex:0 0 40px; display:flex; align-items:center; justify-content:flex-end;",
-        tags$button(
-          type              = "button",
-          style             = "background:none; border:none; padding:4px; cursor:pointer; line-height:1;",
-          `data-bs-toggle`  = "offcanvas",
-          `data-bs-target`  = "#asap-settings",
-          `aria-controls`   = "asap-settings",
-          icon("bars", style = "color:#fff; font-size:1.3rem;")
+      style = "flex:0 0 36px; display:flex; align-items:center;",
+      icon("plane-departure", style = glue("color:{text_light}; font-size:1.2rem;"))
+    ),
+    
+    # Center — title only
+    tags$div(
+      style = "flex:1 1 auto; text-align:center;",
+      tags$span(
+        "ASAP",
+        style = glue(
+          "font-family:'DM Serif Display', serif; font-size:1.25rem; ",
+          "font-weight:400; color:{text_light}; letter-spacing:0.05em;"
         )
       )
-    )
-  )
-}
-
-
-# Settings offcanvas panel ----
-# Pure Bootstrap 5 offcanvas — slides in from right.
-# Contains radioButtons for dark/light mode and accent color.
-# Shiny reads these inputs normally via input$dark_mode and input$accent_color.
-
-settings_panel <- tags$div(
-  id       = "asap-settings",
-  class    = "offcanvas offcanvas-end",
-  tabindex = "-1",
-  `aria-labelledby` = "asap-settings-label",
-  
-  # Header
-  tags$div(
-    class = "offcanvas-header",
-    style = "border-bottom: 1px solid #dee2e6;",
-    tags$h5(
-      id    = "asap-settings-label",
-      class = "offcanvas-title fw-semibold",
-      icon("gear"), " App Settings"
     ),
-    tags$button(
-      type              = "button",
-      class             = "btn-close",
-      `data-bs-dismiss` = "offcanvas",
-      `aria-label`      = "Close"
+    
+    # Right — balanced empty slot (same width as left icon)
+    tags$div(style = "flex:0 0 36px;")
+  )
+)
+
+
+# Hero band ----
+# Narrow strip below navbar with headline + one-sentence descriptor.
+# Background: dark navy overlay on a subtle airport texture.
+# Kept intentionally short (~90px on mobile) — enough to orient, not enough to scroll past.
+
+hero_band <- tags$div(
+  id    = "asap-hero",
+  style = paste0(
+    "background: linear-gradient(135deg, #1a2a5e 0%, #2C3E7F 60%, #18587a 100%);",
+    "padding: 20px 24px 18px 24px;",
+    "text-align: center;",
+    "position: relative;",
+    "overflow: hidden;"
+  ),
+  
+  # Subtle decorative rings — pure CSS, no image dependency
+  tags$div(
+    style = paste0(
+      "position:absolute; top:-40px; right:-40px; width:180px; height:180px;",
+      "border-radius:50%; border:1px solid rgba(255,255,255,0.08); pointer-events:none;"
+    )
+  ),
+  tags$div(
+    style = paste0(
+      "position:absolute; top:-20px; right:-20px; width:120px; height:120px;",
+      "border-radius:50%; border:1px solid rgba(255,255,255,0.06); pointer-events:none;"
     )
   ),
   
-  # Body
-  tags$div(
-    class = "offcanvas-body",
-    
-    tags$p(class = "fw-semibold mb-1",
-           icon("circle-half-stroke"), " App Mode"),
-    radioButtons(
-      inputId  = "dark_mode",
-      label    = NULL,
-      choices  = c("Light" = "light", "Dark" = "dark"),
-      selected = "light",
-      inline   = TRUE
-    ),
-    
-    tags$hr(),
-    
-    tags$p(class = "fw-semibold mb-1",
-           icon("palette"), " Theme Color"),
-    radioButtons(
-      inputId  = "accent_color",
-      label    = NULL,
-      choices  = names(color_choices),
-      selected = default_color,
-      inline   = TRUE
+  # Hero headline
+  tags$h1(
+    "Know before you go.",
+    style = paste0(
+      "font-family:'DM Serif Display', serif;",
+      "font-size: clamp(1.35rem, 4vw, 1.75rem);",
+      "font-weight: 400;",
+      "color: #FFFFFF;",
+      "margin: 0 0 6px 0;",
+      "line-height: 1.2;"
+    )
+  ),
+  
+  # One-line descriptor
+  tags$p(
+    "Pick your airport, day, and time \u2014 see how long security usually takes.",
+    style = paste0(
+      "font-family:'Inter', sans-serif;",
+      "font-size: 0.82rem;",
+      "color: rgba(255,255,255,0.8);",
+      "margin: 0;",
+      "font-weight: 400;"
     )
   )
 )
 
 
+# Donate toast (delayed 30 seconds) ----
+# Bootstrap 5 toast component, shown via JS after 30s.
+# Positioned bottom-right on desktop, bottom-center on mobile.
+# Dismissed state held in session only (no cookie) — reappears on fresh load.
+
+donate_toast <- tags$div(
+  id         = "donate-toast",
+  class      = "toast align-items-center border-0",
+  role       = "alert",
+  `aria-live`        = "assertive",
+  `aria-atomic`      = "true",
+  `data-bs-autohide` = "false",
+  style = paste0(
+    "position:fixed; bottom:20px; right:16px; z-index:1060;",
+    "max-width:300px; width:calc(100% - 32px);",   # full-width on small screens
+    "background-color:#1f2d3d; color:#fff;",
+    "border-radius:12px; box-shadow:0 4px 20px rgba(0,0,0,0.35);"
+  ),
+  
+  tags$div(
+    class = "d-flex",
+    
+    tags$div(
+      class = "toast-body",
+      style = "font-family:'Inter',sans-serif; font-size:0.85rem; padding:14px 12px;",
+      HTML(paste0(
+        "<span style='font-size:1.1rem;'>\u2615</span> ",
+        "<strong>If ASAP saved you time today</strong>, consider buying me a coffee.",
+        "<br><br>",
+        "<a href='https://www.buymeacoffee.com/' target='_blank' ",
+        "style='background:#18BC9C; color:#fff; text-decoration:none; ",
+        "padding:6px 14px; border-radius:6px; font-weight:600; font-size:0.82rem; ",
+        "display:inline-block;'>",
+        "\u2615 Buy me a coffee</a>"
+      ))
+    ),
+    
+    tags$button(
+      type              = "button",
+      class             = "btn-close btn-close-white me-2 m-auto",
+      `data-bs-dismiss` = "toast",
+      `aria-label`      = "Close"
+    )
+  )
+)
+
+# JS: show toast after 30-second delay
+toast_js <- tags$script(HTML("
+  $(document).ready(function() {
+    setTimeout(function() {
+      var toastEl = document.getElementById('donate-toast');
+      if (toastEl) {
+        var toast = new bootstrap.Toast(toastEl, { autohide: false });
+        toast.show();
+      }
+    }, 25000);
+  });
+"))
+
+
 # CSS ----
 
-app_css <- "
+app_css <- glue("
 
-  /* Remove default body top margin so custom navbar sits flush */
-  body { margin-top: 0 !important; padding-top: 0 !important; }
+  /* ── Reset & base ──────────────────────────────── */
+  body {{
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+    font-family: 'Inter', sans-serif;
+    background-color: #f8f9fa;
+  }}
 
-  /* Main content area — sits below fixed navbar */
-  #asap-main {
-    padding-top:    16px;
-    padding-bottom: 56px;   /* clears pinned footer */
+  /* ── Main content area ─────────────────────────── */
+  #asap-main {{
+    padding-top:    20px;
+    padding-bottom: 32px;
     padding-left:   16px;
     padding-right:  16px;
-  }
+  }}
 
-  /* Pinned footer */
-  .asap-footer {
-    position:         fixed;
-    bottom:           0;
-    left:             0;
-    width:            100%;
-    background-color: rgba(0,0,0,0.75);
-    color:            #fff;
-    text-align:       center;
-    padding:          6px 0;
+  /* ── Input section header ──────────────────────── */
+  .asap-section-label {{
+    font-family: 'Inter', sans-serif;
+    font-size:   0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: {nav_color};
+    margin-bottom: 10px;
+    padding-bottom: 4px;
+    border-bottom: 2px solid {accent_teal};
+    display: inline-block;
+  }}
+
+  /* ── Input labels ──────────────────────────────── */
+  .control-label {{
+    font-size:   0.8rem;
+    font-weight: 600;
+    color:       {text_dark};
+  }}
+
+  /* ── Card headers ──────────────────────────────── */
+  .card-header {{
+    background-color: {nav_color} !important;
+    color:            {text_light} !important;
+    font-family:      'Inter', sans-serif;
     font-size:        0.82rem;
-    z-index:          1050;
-  }
-  .asap-footer a {
-    color:           #FFD700;
-    text-decoration: none;
-    font-weight:     600;
-  }
-  .asap-footer a:hover { text-decoration: underline; }
+    font-weight:      600;
+    letter-spacing:   0.04em;
+    border-radius:    8px 8px 0 0 !important;
+    padding:          10px 16px;
+  }}
 
-"
+  /* ── Cards ─────────────────────────────────────── */
+  .card {{
+    border-radius: 10px !important;
+    border:        1px solid #e2e8f0 !important;
+    box-shadow:    0 1px 6px rgba(0,0,0,0.07);
+  }}
+
+  /* -- Select inputs (all native <select> elements) -- */
+  /* selectize = FALSE means every dropdown is a native OS picker on mobile --
+     no virtual keyboard, no text input, no keyboard trigger.               */
+  select.form-select {{
+    border-radius: 6px !important;
+    font-size:     0.85rem !important;
+    border-color:  #cbd5e1 !important;
+    cursor:        pointer;
+  }}
+  select.form-select:focus {{
+    border-color: {accent_teal} !important;
+    box-shadow:   0 0 0 2px rgba(24,188,156,0.2) !important;
+    outline:      none;
+  }}
+
+  /* ── Time window hint ──────────────────────────── */
+  .asap-time-hint {{
+    font-size:  0.72rem;
+    color:      #64748b;
+    margin-top: 6px;
+    display:    flex;
+    align-items: center;
+    gap:        6px;
+  }}
+  .asap-time-hint .hint-line {{
+    flex: 1;
+    height: 2px;
+    background: linear-gradient(to right, #e2e8f0, {accent_teal}, #e2e8f0);
+    border-radius: 2px;
+  }}
+
+  /* ── Hero responsive sizing ────────────────────── */
+  @media (min-width: 768px) {{
+    #asap-hero {{ padding: 28px 40px 24px 40px; }}
+  }}
+
+  /* ── Ensure layout_columns inputs column doesn't
+       get a card wrapper (it's just a plain div) ── */
+  .bslib-gap-spacing {{ gap: 1rem !important; }}
+
+")
 
 
 # UI ----
 
 ui <- page_fillable(
-  title  = "ASAP - Airport Security Advance Planning",
-  theme  = build_theme(default_color, "light"),
+  title   = "ASAP - Airport Security Advance Planning",
+  theme   = app_theme,
   padding = 0,
   
-  tags$head(tags$style(HTML(app_css))),
+  # Head: CSS + Google Fonts loaded via bs_theme font_google() above,
+  # but we add the toast JS trigger here
+  tags$head(
+    tags$style(HTML(app_css)),
+    # FontAwesome (ensure available for plane-departure icon)
+    tags$link(
+      rel  = "stylesheet",
+      href = "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    )
+  ),
   
-  # Settings offcanvas — in DOM but hidden until hamburger clicked
-  settings_panel,
+  # Sticky navbar
+  asap_navbar,
   
-  # Custom navbar — built as plain HTML, no bslib nav system
-  uiOutput("navbar_ui"),
+  # Hero band
+  hero_band,
+  
+  # Donate toast (hidden; shown by JS after 30s)
+  donate_toast,
+  toast_js,
   
   # Main content
   tags$div(
@@ -271,17 +404,21 @@ ui <- page_fillable(
     
     layout_columns(
       col_widths = breakpoints(sm = 12, lg = c(3, 9)),
+      gap        = "1.25rem",
       
-      # Inputs column — plain div, no card() so dropdowns expand freely
+      # ── Inputs column ────────────────────────────
       div(
-        h5("Search", style = "font-weight:600; margin-bottom:16px;"),
+        tags$span("Search", class = "asap-section-label"),
         
-        selectizeInput(
+        # selectize = FALSE renders a native <select> element.
+        # This prevents the virtual keyboard from appearing on mobile,
+        # which selectizeInput triggers because it uses a text input internally.
+        selectInput(
           inputId  = "select_airport",
           label    = "Airport",
           choices  = airport_choices,
           selected = airport_choices[1],
-          options  = list(placeholder = "e.g. ATL"),
+          selectize = FALSE,
           width    = "100%"
         ),
         
@@ -289,56 +426,72 @@ ui <- page_fillable(
           inputId = "select_checkpoint",
           label   = "Checkpoint",
           choices = NULL,
+          selectize = FALSE,
           width   = "100%"
         ),
         
-        selectInput(
-          inputId  = "select_day",
-          label    = "Day of Week",
-          choices  = weekday_choices,
-          selected = "Mon",
-          width    = "100%"
+        # Day + Time side-by-side on mobile --------
+        layout_columns(
+          col_widths = c(6, 6),
+          gap        = "0.75rem",
+          
+          selectInput(
+            inputId  = "select_day",
+            label    = "Day",
+            choices  = weekday_choices,
+            selected = default_day,
+            selectize = FALSE,
+            width    = "100%"
+          ),
+          
+          selectInput(
+            inputId  = "select_time",
+            label    = "Time",
+            choices  = time_slots,
+            selected = default_time,
+            selectize = FALSE,
+            width    = "100%"
+          )
         ),
         
-        selectInput(
-          inputId  = "select_time",
-          label    = "Time of Day (15-min slot)",
-          choices  = time_slots,
-          selected = "08:00",
-          width    = "100%"
-        ),
-        
-        helpText("\u00b11 hour around selected time (9 bars \u00d7 15 min).")
+        # Time window visual hint
+        tags$div(
+          class = "asap-time-hint",
+          tags$span("\u2212 1 hr"),
+          tags$div(class = "hint-line"),
+          tags$span("\u25cf YOU"),
+          tags$div(class = "hint-line"),
+          tags$span("+ 1 hr")
+        )
       ),
       
-      # Charts column
+      # ── Charts column ────────────────────────────
       div(
-        h5("Wait Time Estimates",
-           style = "text-align:center; font-weight:600; margin-bottom:16px;"),
+        tags$span("Wait Time Estimates", class = "asap-section-label"),
         
         card(
-          card_header("Standard Lane \u2014 Average Wait Time (min)"),
-          plotOutput("chart_std", height = "360px")
+          card_header(
+            icon("person-walking-luggage", style = "margin-right:6px;"),
+            "Standard Lane \u2014 Avg Wait (min)"
+          ),
+          card_body(padding = "12px",
+                    plotOutput("chart_std", height = "320px")
+          )
         ),
         
         br(),
         
         card(
-          card_header("TSA Pre\u2713 Lane \u2014 Average Wait Time (min)"),
-          plotOutput("chart_pre", height = "360px")
+          card_header(
+            icon("shield-check", style = "margin-right:6px;"),
+            "TSA Pre\u2713 Lane \u2014 Avg Wait (min)"
+          ),
+          card_body(padding = "12px",
+                    plotOutput("chart_pre", height = "320px")
+          )
         )
       )
     )
-  ),
-  
-  # Pinned footer
-  tags$div(
-    class = "asap-footer",
-    HTML(paste0(
-      "\u2615 Find this useful? ",
-      "<a href='https://www.buymeacoffee.com/' target='_blank'>Buy me a coffee</a>",
-      " &nbsp;|&nbsp; ASAP \u2014 Airport Security Advance Planning"
-    ))
   )
 )
 
@@ -346,35 +499,6 @@ ui <- page_fillable(
 # Server ----
 
 server <- function(input, output, session) {
-  
-  
-  # Reactive accent color ----
-  # Drives both session theme and navbar background color
-  
-  accent_hex <- reactive({
-    req(input$accent_color)
-    color_choices[[input$accent_color]]$primary
-  })
-  
-  
-  # Render navbar with current accent color ----
-  # Rebuilds the navbar HTML whenever accent changes so bg color updates
-  
-  output$navbar_ui <- renderUI({
-    build_navbar(accent = accent_hex())
-  })
-  
-  
-  # Theme reactivity — mode + accent ----
-  
-  observeEvent(list(input$accent_color, input$dark_mode), ignoreInit = TRUE, {
-    session$setCurrentTheme(
-      build_theme(
-        color_name = input$accent_color,
-        mode       = input$dark_mode
-      )
-    )
-  })
   
   
   # Update checkpoint choices when airport changes ----
@@ -425,20 +549,19 @@ server <- function(input, output, session) {
         highlight    = if_else(bucket_time == central_bucket, "Central", "Other"),
         bucket_label = format(as.POSIXlt(bucket_time), "%H:%M") |>
           factor(levels = unique(format(as.POSIXlt(bucket_time), "%H:%M"))),
-        label_color  = if_else(highlight == "Central", "white", "black")
+        label_color  = if_else(highlight == "Central",
+                               label_color_for(accent_teal),
+                               "black")
       )
   })
   
   
   # Helper: build chart ----
+  # Chart colors are now fixed (Navy/Teal) regardless of any theme toggle.
   
-  build_chart <- function(data, avg_col, max_col, subtitle, accent) {
+  build_chart <- function(data, avg_col, max_col, subtitle) {
     
-    accent_dark <- darken_hex(accent, amount = 0.35)
-    lbl_color   <- label_color_for(accent)
-    
-    data <- data |>
-      mutate(label_color = if_else(highlight == "Central", lbl_color, "black"))
+    teal_dark <- darken_hex(accent_teal, amount = 0.30)
     
     if (nrow(data) == 0) {
       return(
@@ -474,40 +597,49 @@ server <- function(input, output, session) {
       geom_text(
         aes(label = round(.data[[avg_col]], 0), color = label_color),
         vjust    = 1.4,
-        size     = 4.5,        # was 3.5
+        size     = 4.5,
         fontface = "bold",
         na.rm    = TRUE
       ) +
       geom_point(
         aes(y = .data[[max_col]]),
-        shape = 21, size = 4.5,  # was 3
-        fill  = accent_dark, color = accent_dark,
+        shape = 21, size = 4.5,
+        fill  = teal_dark, color = teal_dark,
         na.rm = TRUE
       ) +
       geom_text(
         aes(y = .data[[max_col]], label = round(.data[[max_col]], 0)),
-        color    = accent_dark,
+        color    = teal_dark,
         vjust    = -0.8,
-        size     = 4.0,        # was 3.2
+        size     = 4.0,
         fontface = "bold",
         na.rm    = TRUE
       ) +
       scale_color_identity() +
-      scale_fill_manual(values = c("Central" = accent, "Other" = "#AAAAAA")) +
+      scale_fill_manual(values = c("Central" = accent_teal, "Other" = "#AAAAAA")) +
       scale_y_continuous(limits = c(0, y_max)) +
       labs(subtitle = subtitle, x = NULL, y = "Minutes") +
-      theme_minimal() +
+      theme_minimal(base_family = "sans") +
       theme(
-        plot.subtitle      = element_text(hjust = 0.5, size = 13),  # was 11
-        axis.text.x        = element_text(angle = 0, hjust = 0.5, face = "bold"),
+        plot.subtitle      = element_text(hjust = 0.5, size = 11, color = text_dark),
+        axis.text.x        = element_text(angle = 0, hjust = 0.5, face = "bold",
+                                          size = 9, color = text_dark),
+        axis.text.y        = element_text(size = 9, color = "#64748b"),
+        axis.title.y       = element_text(size = 9, color = "#64748b"),
         panel.grid.major.x = element_blank(),
-        panel.grid.minor   = element_blank()
+        panel.grid.minor   = element_blank(),
+        panel.grid.major.y = element_line(color = "#f1f5f9", linewidth = 0.5),
+        plot.background    = element_rect(fill = "white", color = NA),
+        panel.background   = element_rect(fill = "white", color = NA)
       ) +
       annotate(
         "text",
         x = 1, y = y_max,
-        label = "\u25cf = Max Wait",
-        color = accent_dark, face = "bold", size = 4.5, hjust = 0  # was 3.5
+        label  = "\u25cf = Max Wait",
+        color  = teal_dark,
+        size   = 3.8,
+        hjust  = 0,
+        fontface = "bold"
       )
   }
   
@@ -516,12 +648,11 @@ server <- function(input, output, session) {
   
   output$chart_std <- renderPlot({
     data     <- filtered_data()
-    accent   <- accent_hex()
     subtitle <- glue(
       "{input$select_checkpoint} \u2022 {input$select_airport} \u2022 ",
       "{input$select_day} around {input$select_time}"
     )
-    build_chart(data, "avg_time_std", "max_time_std", subtitle, accent)
+    build_chart(data, "avg_time_std", "max_time_std", subtitle)
   })
   
   
@@ -529,12 +660,11 @@ server <- function(input, output, session) {
   
   output$chart_pre <- renderPlot({
     data     <- filtered_data()
-    accent   <- accent_hex()
     subtitle <- glue(
       "{input$select_checkpoint} \u2022 {input$select_airport} \u2022 ",
       "{input$select_day} around {input$select_time}"
     )
-    build_chart(data, "avg_time_tsa_precheck", "max_time_tsa_precheck", subtitle, accent)
+    build_chart(data, "avg_time_tsa_precheck", "max_time_tsa_precheck", subtitle)
   })
   
 }
@@ -542,11 +672,10 @@ server <- function(input, output, session) {
 
 # Run ----
 
-
 # shinyApp(ui = ui, server = server)
-# Connect to local shiny app app_sidebar.R with host
+# Connect to local shiny app with host binding
 shiny::runApp(
-shinyApp(ui = ui, server = server),
-host = "0.0.0.0",
-port = 3838
+  shinyApp(ui = ui, server = server),
+  host = "0.0.0.0",
+  port = 3838
 )
