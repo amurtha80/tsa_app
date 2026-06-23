@@ -474,13 +474,13 @@ server <- function(input, output, session) {
       geom_text(
         aes(label = round(.data[[avg_col]], 0), color = label_color),
         vjust    = 1.4,
-        size     = 3.5,
+        size     = 4.5,        # was 3.5
         fontface = "bold",
         na.rm    = TRUE
       ) +
       geom_point(
         aes(y = .data[[max_col]]),
-        shape = 21, size = 3,
+        shape = 21, size = 4.5,  # was 3
         fill  = accent_dark, color = accent_dark,
         na.rm = TRUE
       ) +
@@ -488,7 +488,7 @@ server <- function(input, output, session) {
         aes(y = .data[[max_col]], label = round(.data[[max_col]], 0)),
         color    = accent_dark,
         vjust    = -0.8,
-        size     = 3.2,
+        size     = 4.0,        # was 3.2
         fontface = "bold",
         na.rm    = TRUE
       ) +
@@ -498,7 +498,7 @@ server <- function(input, output, session) {
       labs(subtitle = subtitle, x = NULL, y = "Minutes") +
       theme_minimal() +
       theme(
-        plot.subtitle      = element_text(hjust = 0.5, size = 11),
+        plot.subtitle      = element_text(hjust = 0.5, size = 13),  # was 11
         axis.text.x        = element_text(angle = 0, hjust = 0.5, face = "bold"),
         panel.grid.major.x = element_blank(),
         panel.grid.minor   = element_blank()
@@ -507,7 +507,7 @@ server <- function(input, output, session) {
         "text",
         x = 1, y = y_max,
         label = "\u25cf = Max Wait",
-        color = accent_dark, size = 3.5, hjust = 0
+        color = accent_dark, face = "bold", size = 4.5, hjust = 0  # was 3.5
       )
   }
   
@@ -543,11 +543,10 @@ server <- function(input, output, session) {
 # Run ----
 
 
-shinyApp(ui = ui, server = server)
+# shinyApp(ui = ui, server = server)
 # Connect to local shiny app app_sidebar.R with host
-# shiny::runApp(
-              # shinyApp(ui = ui, server = server),
-              # host = "0.0.0.0",
-              # port = 3838
-              # )
-
+shiny::runApp(
+shinyApp(ui = ui, server = server),
+host = "0.0.0.0",
+port = 3838
+)
