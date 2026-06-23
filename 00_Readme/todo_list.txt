@@ -8,13 +8,13 @@ RShiny Mobile App TSA Historical Wait Times
 ### High Priority — MVP App
 
 #### App Performance
-- Add `bindCache()` with `cache_mem()` to both `renderPlot()` calls in `app_sidebar.R`, keyed on airport, checkpoint, day, time slot, and accent color (exclude dark/light mode from cache key)
-- Change `bucket_label` display format from 24-hour to 12-hour (`%I:%M %p`) at render time only — keep underlying `bucket_time` filter key as `"HH:MM:SS"` character to preserve lexicographic sort in `filtered_data()`
 - Verify `format(as.POSIXct("2000-01-01 00:00:00"), "%I:%M %p")` produces `"12:00 AM"` (not `"00:00 AM"`) on Windows locale before deploying
+- ~~Add `bindCache()` with `cache_mem()` to both `renderPlot()` calls in `app_sidebar.R`, keyed on airport, checkpoint, day, time slot, and accent color (exclude dark/light mode from cache key)~~ ✅ Done — keyed on airport, checkpoint, day, time (accent color removed; settings drawer dropped for MVP)
+- ~~Change `bucket_label` display format from 24-hour to 12-hour (`%I:%M %p`) at render time only — keep underlying `bucket_time` filter key as `"HH:MM:SS"` character to preserve lexicographic sort in `filtered_data()`~~ ✅ Done
 
 #### Data Pipeline — Windows to EC2
-- Add parquet export to `xx_build_summary_db.R`: after writing `tsa_app_summ.duckdb`, write `tsa_app_summ.parquet` via `nanoparquet::write_parquet()`, then push to S3 bucket (`asap-tsa-data`) via `paws` R package — wrap S3 push in `tryCatch` so failures log to runlog without crashing the build
-- Update `app_sidebar.R` to read `tsa_app_summ.parquet` via `nanoparquet::read_parquet()` at startup, replacing DuckDB/DBI read entirely
+- ~~Add parquet export to `xx_build_summary_db.R`: after writing `tsa_app_summ.duckdb`, write `tsa_app_summ.parquet` via `nanoparquet::write_parquet()`, then push to S3 bucket (`asap-tsa-data`) via `paws` R package — wrap S3 push in `tryCatch` so failures log to runlog without crashing the build~~ ✅ Done — note: `paws` loaded inline at S3 push only (not via `foo()`) due to `glue` 1.8.0 conflict
+- ~~Update `app_sidebar.R` to read `tsa_app_summ.parquet` via `nanoparquet::read_parquet()` at startup, replacing DuckDB/DBI read entirely~~ ✅ Done — also added pre-computed `checkpoints_by_airport` lookup at startup
 
 #### AWS Infrastructure
 - Check business AWS account free-tier eligibility before provisioning (12 months free on t3.micro would eliminate EC2 compute cost)
