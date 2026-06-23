@@ -17,37 +17,43 @@
 # Mobile-first: inputs stack above charts on small screens, side-by-side on desktop
 #
 # UI: bslib + Bootstrap 5
-# DB: tsa_app_summ.duckdb — written nightly by xx_build_summary_db.R
+# Data: tsa_app_summ.parquet — written nightly by xx_build_summary_db.R, pushed to S3,
+#       pulled to EC2 disk before app restarts
 
 
 # Libraries ----
 
-library(shiny,      verbose = FALSE, warn.conflicts = FALSE)
-library(bslib,      verbose = FALSE, warn.conflicts = FALSE)
-library(duckdb,     verbose = FALSE, warn.conflicts = FALSE)
-library(DBI,        verbose = FALSE, warn.conflicts = FALSE)
-library(dplyr,      verbose = FALSE, warn.conflicts = FALSE)
-library(ggplot2,    verbose = FALSE, warn.conflicts = FALSE)
-library(ggrounded,  verbose = FALSE, warn.conflicts = FALSE)
-library(hms,        verbose = FALSE, warn.conflicts = FALSE)
-library(lubridate,  verbose = FALSE, warn.conflicts = FALSE)
-library(glue,       verbose = FALSE, warn.conflicts = FALSE)
-library(here,       verbose = FALSE, warn.conflicts = FALSE)
+library(shiny,       verbose = FALSE, warn.conflicts = FALSE)
+library(bslib,       verbose = FALSE, warn.conflicts = FALSE)
+library(nanoparquet, verbose = FALSE, warn.conflicts = FALSE)
+library(dplyr,       verbose = FALSE, warn.conflicts = FALSE)
+library(ggplot2,     verbose = FALSE, warn.conflicts = FALSE)
+library(ggrounded,   verbose = FALSE, warn.conflicts = FALSE)
+library(hms,         verbose = FALSE, warn.conflicts = FALSE)
+library(lubridate,   verbose = FALSE, warn.conflicts = FALSE)
+library(glue,        verbose = FALSE, warn.conflicts = FALSE)
+library(here,        verbose = FALSE, warn.conflicts = FALSE)
 
 
-# Database ----
-# TODO (shinyapps.io deployment): replace here::here() path with a path
-# relative to the app bundle, e.g. file.path("01_Data", "tsa_app_summ.duckdb")
+# Data ----
+# Read once at startup — all users share this in-memory data frame.
+# TODO (EC2 deployment): confirm path matches where cron job pulls from S3,
+# e.g. here::here("01_Data", "tsa_app_summ.parquet")
 
-db_path  <- here::here("01_Data", "tsa_app_summ.duckdb")
-con_summ <- dbConnect(duckdb::duckdb(), dbdir = db_path, read_only = TRUE)
-
-summ_data <- tbl(con_summ, "tsa_wait_time_summ") |>
-  collect() |>
+summ_data <- nanoparquet::read_parquet(
+  here::here("01_Data", "tsa_app_summ.parquet")
+) |>
   mutate(bucket_time = hms::as_hms(bucket_time))
 
-dbDisconnect(con_summ, shutdown = TRUE)
-rm(con_summ, db_path)
+
+# Pre-computed lookups ----
+# Built once at startup so observeEvent(select_airport) never filters summ_data
+# at runtime — it just looks up a pre-built list.
+
+checkpoints_by_airport <- summ_data |>
+  group_by(airport) |>
+  summarize(checkpoints = list(sort(unique(checkpoint))), .groups = "drop") |>
+  tibble::deframe()
 
 
 # Derived UI inputs ----
@@ -55,12 +61,19 @@ rm(con_summ, db_path)
 airport_choices <- sort(unique(summ_data$airport))
 weekday_choices <- c("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
 
-time_slots <- format(
-  seq(as.POSIXct("2000-01-01 00:00:00"),
-      as.POSIXct("2000-01-01 23:45:00"),
-      by = "15 min"),
-  "%H:%M"
+time_slot_times <- seq(
+  as.POSIXct("2000-01-01 00:00:00"),
+  as.POSIXct("2000-01-01 23:45:00"),
+  by = "15 min"
 )
+
+# Named vector: display label is 12-hour, underlying value stays "HH:MM" for filter
+time_slots <- setNames(
+  format(time_slot_times, "%H:%M"),
+  format(time_slot_times, "%I:%M %p")
+)
+
+rm(time_slot_times)
 
 # Smart defaults derived at app load time ----
 # Day: current weekday label (matches weekday_choices abbreviations)
@@ -502,13 +515,10 @@ server <- function(input, output, session) {
   
   
   # Update checkpoint choices when airport changes ----
+  # Uses pre-computed lookup — no runtime filtering of summ_data.
   
   observeEvent(input$select_airport, {
-    checkpoints_for_airport <- summ_data |>
-      filter(airport == input$select_airport) |>
-      pull(checkpoint) |>
-      unique() |>
-      sort()
+    checkpoints_for_airport <- checkpoints_by_airport[[input$select_airport]]
     
     updateSelectInput(session,
                       inputId  = "select_checkpoint",
@@ -547,8 +557,8 @@ server <- function(input, output, session) {
       ) |>
       mutate(
         highlight    = if_else(bucket_time == central_bucket, "Central", "Other"),
-        bucket_label = format(as.POSIXlt(bucket_time), "%H:%M") |>
-          factor(levels = unique(format(as.POSIXlt(bucket_time), "%H:%M"))),
+        bucket_label = format(as.POSIXlt(bucket_time), "%I:%M %p") |>
+          factor(levels = unique(format(as.POSIXlt(bucket_time), "%I:%M %p"))),
         label_color  = if_else(highlight == "Central",
                                label_color_for(accent_teal),
                                "black")
@@ -653,7 +663,13 @@ server <- function(input, output, session) {
       "{input$select_day} around {input$select_time}"
     )
     build_chart(data, "avg_time_std", "max_time_std", subtitle)
-  })
+  }) |>
+    bindCache(
+      input$select_airport,
+      input$select_checkpoint,
+      input$select_day,
+      input$select_time
+    )
   
   
   # Render TSA Pre-check lane chart ----
@@ -665,7 +681,13 @@ server <- function(input, output, session) {
       "{input$select_day} around {input$select_time}"
     )
     build_chart(data, "avg_time_tsa_precheck", "max_time_tsa_precheck", subtitle)
-  })
+  }) |>
+    bindCache(
+      input$select_airport,
+      input$select_checkpoint,
+      input$select_day,
+      input$select_time
+    )
   
 }
 
