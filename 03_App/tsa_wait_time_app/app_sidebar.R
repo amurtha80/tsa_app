@@ -694,10 +694,10 @@ server <- function(input, output, session) {
 
 # Run ----
 
-# shinyApp(ui = ui, server = server)
+shinyApp(ui = ui, server = server)
 # Connect to local shiny app with host binding
-shiny::runApp(
-  shinyApp(ui = ui, server = server),
-  host = "0.0.0.0",
-  port = 3838
-)
+# shiny::runApp(
+#   shinyApp(ui = ui, server = server),
+#   host = "0.0.0.0",
+#   port = 3838
+# )
