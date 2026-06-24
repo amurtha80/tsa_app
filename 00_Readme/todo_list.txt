@@ -5,27 +5,23 @@ RShiny Mobile App TSA Historical Wait Times
 
 ## TODO
 
-### High Priority — MVP App
+### High Priority — Post-Launch Fixes
+
+#### Deployment
+- Rename `app_sidebar.R` to `app.R` in the GitHub repo — eliminates manual `cp` step required after every `git pull` on EC2
+- Fix `shield-check` icon in `app_sidebar.R` — not a valid FontAwesome icon name, showing warning in Shiny Server logs
 
 #### App Performance
+- Add `bindCache()` with `cache_mem()` to both `renderPlot()` calls in `app_sidebar.R`, keyed on airport, checkpoint, day, time slot, and accent color (exclude dark/light mode from cache key)
+- Change `bucket_label` display format from 24-hour to 12-hour (`%I:%M %p`) at render time only — keep underlying `bucket_time` filter key as `"HH:MM:SS"` character to preserve lexicographic sort in `filtered_data()`
 - Verify `format(as.POSIXct("2000-01-01 00:00:00"), "%I:%M %p")` produces `"12:00 AM"` (not `"00:00 AM"`) on Windows locale before deploying
-- ~~Add `bindCache()` with `cache_mem()` to both `renderPlot()` calls in `app_sidebar.R`, keyed on airport, checkpoint, day, time slot, and accent color (exclude dark/light mode from cache key)~~ ✅ Done — keyed on airport, checkpoint, day, time (accent color removed; settings drawer dropped for MVP)
-- ~~Change `bucket_label` display format from 24-hour to 12-hour (`%I:%M %p`) at render time only — keep underlying `bucket_time` filter key as `"HH:MM:SS"` character to preserve lexicographic sort in `filtered_data()`~~ ✅ Done
-
-#### Data Pipeline — Windows to EC2
-- ~~Add parquet export to `xx_build_summary_db.R`: after writing `tsa_app_summ.duckdb`, write `tsa_app_summ.parquet` via `nanoparquet::write_parquet()`, then push to S3 bucket (`asap-tsa-data`) via `paws` R package — wrap S3 push in `tryCatch` so failures log to runlog without crashing the build~~ ✅ Done — note: `paws` loaded inline at S3 push only (not via `foo()`) due to `glue` 1.8.0 conflict
-- ~~Update `app_sidebar.R` to read `tsa_app_summ.parquet` via `nanoparquet::read_parquet()` at startup, replacing DuckDB/DBI read entirely~~ ✅ Done — also added pre-computed `checkpoints_by_airport` lookup at startup
 
 #### AWS Infrastructure
-- Check business AWS account free-tier eligibility before provisioning (12 months free on t3.micro would eliminate EC2 compute cost)
-- Provision t3.medium EC2 instance (~$33/month) on Ubuntu; install R and Shiny Server Open Source
-- Configure nginx as reverse proxy in front of Shiny Server
-- Configure Let's Encrypt SSL via Certbot for `flyasap.app` (`.app` TLD mandates HTTPS)
-- Configure Route 53 DNS for `flyasap.app` apex domain pointing to EC2
-- Create IAM role scoping EC2 to read-only access on the `asap-tsa-data` S3 bucket
-- Add EC2 cron job to pull nightly parquet from S3 and restart Shiny Server
+- Lock `flyasap-windows` IAM user to `flyasap-app-data` bucket only
+- Set up AWS Budget alert and AWS Billing alert
 
 ### Active Script Bugs
+- **DEN Pre-Check** — missing early morning data (4 AM - 10 AM) despite checkpoint opening at 4 AM; investigate whether scraper was running during those hours or whether data was lost during aggregation
 - **CLT** — Checkpoint names from API no longer fully align with page display names; wait times don't align between API and page (page shows ranges, API shows point values)
 - **WebSocket warning** — suppress `"got non-close frame while closing"` warning during chromote teardown across all chromote scripts
 
