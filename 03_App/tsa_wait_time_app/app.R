@@ -668,7 +668,8 @@ server <- function(input, output, session) {
       input$select_airport,
       input$select_checkpoint,
       input$select_day,
-      input$select_time
+      input$select_time,
+      cache = cache_mem()
     )
   
   
@@ -686,7 +687,8 @@ server <- function(input, output, session) {
       input$select_airport,
       input$select_checkpoint,
       input$select_day,
-      input$select_time
+      input$select_time,
+      cache = cache_mem()
     )
   
 }
