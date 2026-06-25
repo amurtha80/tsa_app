@@ -6,7 +6,8 @@ FlyASAP — Airport Security Advance Planning
 ## 2026-06-25
 
 ### App — UI/UX
-- Chart x-axis AM/PM now renders on a newline below the time — changed `bucket_label` format string from `"%I:%M %p"` to `"%I:%M\n%p"` in `filtered_data()` in `app.R`; fixes AM/PM overflowing into adjacent time bucket on narrow mobile screens; no impact on filter logic, cache keys, or data pipeline; confirmed working on `flyasap.app`
+- Replaced invalid `shield-check` icon (FA Pro only) in TSA Pre✓ card header with `plane-circle-check` (FA6 Free); was generating warnings in Shiny Server logs on every session
+- Chart x-axis AM/PM label overflow identified — fix pending (labels spilling into adjacent time slots on mobile)
 
 ---
 
