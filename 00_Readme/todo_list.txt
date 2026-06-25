@@ -9,10 +9,6 @@ RShiny Mobile App TSA Historical Wait Times
 
 #### Deployment
 - Fix `shield-check` icon in `app.R` — not a valid FontAwesome icon name, showing warning in Shiny Server logs
-- Fix chart x-axis labels to have AM/PM on newline below the time, AM/PM designation is spilling over into next time and makes it hard to read
-
-#### App Performance
-- Verify `format(as.POSIXct("2000-01-01 00:00:00"), "%I:%M %p")` produces `"12:00 AM"` (not `"00:00 AM"`) on Windows desktop rig locale before deploying
 
 #### AWS Infrastructure
 - Lock `flyasap-windows` IAM user to `flyasap-app-data` bucket only
@@ -36,5 +32,4 @@ RShiny Mobile App TSA Historical Wait Times
 - Move `scrape_test.R` from project root into `02_Scripts/`
 - Standardize scraping function naming convention
 - Remove stale `# TODO: replace bucket name` comment from `xx_build_summary_DB.R` line 109
-- Populate `holiday_travel` column (currently unpopulated in all records)
-- Evaluate DuckDB Quack concurrent read/write protocol when it matures (expected DuckDB v2.0, fall 2026)
+-

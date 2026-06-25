@@ -3,6 +3,13 @@ FlyASAP — Airport Security Advance Planning
 
 ---
 
+## 2026-06-25
+
+### App — UI/UX
+- Chart x-axis AM/PM now renders on a newline below the time — changed `bucket_label` format string from `"%I:%M %p"` to `"%I:%M\n%p"` in `filtered_data()` in `app.R`; fixes AM/PM overflowing into adjacent time bucket on narrow mobile screens; no impact on filter logic, cache keys, or data pipeline; confirmed working on `flyasap.app`
+
+---
+
 ## 2026-06-24
 
 ### App — Performance
