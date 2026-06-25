@@ -557,8 +557,8 @@ server <- function(input, output, session) {
       ) |>
       mutate(
         highlight    = if_else(bucket_time == central_bucket, "Central", "Other"),
-        bucket_label = format(as.POSIXlt(bucket_time), "%I:%M %p") |>
-          factor(levels = unique(format(as.POSIXlt(bucket_time), "%I:%M %p"))),
+        bucket_label = format(as.POSIXlt(bucket_time), "%I:%M\n%p") |>
+          factor(levels = unique(format(as.POSIXlt(bucket_time), "%I:%M\n%p"))),
         label_color  = if_else(highlight == "Central",
                                label_color_for(accent_teal),
                                "black")
