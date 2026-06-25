@@ -496,7 +496,7 @@ ui <- page_fillable(
         
         card(
           card_header(
-            icon("shield-check", style = "margin-right:6px;"),
+            icon("plane-circle-check", style = "margin-right:6px;"),
             "TSA Pre\u2713 Lane \u2014 Avg Wait (min)"
           ),
           card_body(padding = "12px",
