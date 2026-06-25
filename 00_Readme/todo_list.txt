@@ -8,13 +8,11 @@ RShiny Mobile App TSA Historical Wait Times
 ### High Priority — Post-Launch Fixes
 
 #### Deployment
-- Rename `app_sidebar.R` to `app.R` in the GitHub repo — eliminates manual `cp` step required after every `git pull` on EC2
-- Fix `shield-check` icon in `app_sidebar.R` — not a valid FontAwesome icon name, showing warning in Shiny Server logs
+- Fix `shield-check` icon in `app.R` — not a valid FontAwesome icon name, showing warning in Shiny Server logs
+- Fix chart x-axis labels to have AM/PM on newline below the time, AM/PM designation is spilling over into next time and makes it hard to read
 
 #### App Performance
-- Add `bindCache()` with `cache_mem()` to both `renderPlot()` calls in `app_sidebar.R`, keyed on airport, checkpoint, day, time slot, and accent color (exclude dark/light mode from cache key)
-- Change `bucket_label` display format from 24-hour to 12-hour (`%I:%M %p`) at render time only — keep underlying `bucket_time` filter key as `"HH:MM:SS"` character to preserve lexicographic sort in `filtered_data()`
-- Verify `format(as.POSIXct("2000-01-01 00:00:00"), "%I:%M %p")` produces `"12:00 AM"` (not `"00:00 AM"`) on Windows locale before deploying
+- Verify `format(as.POSIXct("2000-01-01 00:00:00"), "%I:%M %p")` produces `"12:00 AM"` (not `"00:00 AM"`) on Windows desktop rig locale before deploying
 
 #### AWS Infrastructure
 - Lock `flyasap-windows` IAM user to `flyasap-app-data` bucket only
@@ -37,5 +35,6 @@ RShiny Mobile App TSA Historical Wait Times
 - Archive unused scripts (`scrape_data.R`, `scrape_data_error_test.R`, `zz_misc.R`, `zz_test.R`)
 - Move `scrape_test.R` from project root into `02_Scripts/`
 - Standardize scraping function naming convention
+- Remove stale `# TODO: replace bucket name` comment from `xx_build_summary_DB.R` line 109
 - Populate `holiday_travel` column (currently unpopulated in all records)
 - Evaluate DuckDB Quack concurrent read/write protocol when it matures (expected DuckDB v2.0, fall 2026)
