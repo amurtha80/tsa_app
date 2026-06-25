@@ -6,7 +6,8 @@ FlyASAP — Airport Security Advance Planning
 ## 2026-06-24
 
 ### App — Performance
-- `bindCache()` with `cache_mem()` added to both `renderPlot()` calls in `app.R` — `cache = cache_mem()` argument added inside each `bindCache()` call to use in-memory caching; nightly Shiny Server restart clears stale cache automatically
+- `bindCache()` added to both `renderPlot()` calls in `app.R` using default `cache = "app"` — app-scoped in-memory cache shared across sessions; nightly Shiny Server restart clears stale cache automatically
+- Note: earlier attempt used `cache = cache_mem()` without `cachem::` namespace, which crashed the app on startup; correct call is `cachem::cache_mem()` but unnecessary here since `bindCache()` default behavior is equivalent
 
 ### Infrastructure
 - AWS EC2 t3.medium (`flyasap-app`) provisioned on Ubuntu 24.04 in us-east-2
