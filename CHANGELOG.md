@@ -7,6 +7,8 @@ FlyASAP — Airport Security Advance Planning
 
 ### AWS Infrastructure
 - `flyasap-windows` IAM user scoped to `flyasap-app-data` bucket only via inline policy `flyasap-windows-s3-scoped`; policy grants `s3:PutObject` on `arn:aws:s3:::flyasap-app-data/*` and `s3:ListBucket` on `arn:aws:s3:::flyasap-app-data`; any previously attached broad S3 managed policies removed
+- AWS Budget alert configured (`flyasap-monthly-budget`): monthly cost budget with email notification at 85% forecasted and 100% actual spend
+- CloudWatch billing alarm configured (`flyasap-billing-alarm`): fires on `EstimatedCharges` exceeding threshold; SNS topic `flyasap-billing-alarm` delivers email notification; billing alerts opt-in enabled at account level (requires root); alarm scoped to us-east-1 (required region for billing metrics)
 
 ---
 

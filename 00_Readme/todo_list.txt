@@ -11,9 +11,6 @@ RShiny Mobile App TSA Historical Wait Times
 - Add third chart for CLEAR lane wait times for airports that have CLEAR data (MIA; others TBD) — chart should only render when data exists for the selected airport/checkpoint combination
 - For any charts that are blank, place a textholder stating that there isn't a (precheck/clear) gate for this checkpoint
 
-#### AWS Infrastructure
-- Set up AWS Budget alert and AWS Billing alert
-
 ### Active Script Bugs
 - **DEN Pre-Check** — missing early morning data (4 AM - 10 AM) despite checkpoint opening at 4 AM; investigate whether scraper was running during those hours or whether data was lost during aggregation
 - **CLT** — Checkpoint names from API no longer fully align with page display names; wait times don't align between API and page (page shows ranges, API shows point values)
