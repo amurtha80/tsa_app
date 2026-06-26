@@ -242,14 +242,15 @@ donate_toast <- tags$div(
   tags$div(
     class = "d-flex",
     
+    # considder buying me a coffee
     tags$div(
       class = "toast-body",
       style = "font-family:'Inter',sans-serif; font-size:0.85rem; padding:14px 12px;",
       HTML(paste0(
         "<span style='font-size:1.1rem;'>\u2615</span> ",
-        "<strong>If ASAP saved you time today</strong>, consider buying me a coffee.",
+        "<strong>If ASAP saved you time today</strong>, consider supporting the site.",
         "<br><br>",
-        "<a href='https://www.buymeacoffee.com/' target='_blank' ",
+        "<a href='https://www.buymeacoffee.com/andymurtha' target='_blank' ",
         "style='background:#18BC9C; color:#fff; text-decoration:none; ",
         "padding:6px 14px; border-radius:6px; font-weight:600; font-size:0.82rem; ",
         "display:inline-block;'>",
