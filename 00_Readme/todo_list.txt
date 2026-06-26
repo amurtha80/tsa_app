@@ -9,6 +9,7 @@ RShiny Mobile App TSA Historical Wait Times
 
 #### Deployment
 - Add third chart for CLEAR lane wait times for airports that have CLEAR data (MIA; others TBD) — chart should only render when data exists for the selected airport/checkpoint combination
+- For any charts that are blank, place a textholder stating that there isn't a (precheck/clear) gate for this checkpoint
 
 #### AWS Infrastructure
 - Set up AWS Budget alert and AWS Billing alert
@@ -31,4 +32,3 @@ RShiny Mobile App TSA Historical Wait Times
 - Move `scrape_test.R` from project root into `02_Scripts/`
 - Standardize scraping function naming convention
 - Remove stale `# TODO: replace bucket name` comment from `xx_build_summary_DB.R` line 109
--
