@@ -267,7 +267,7 @@ donate_toast <- tags$div(
   )
 )
 
-# JS: show toast after 30-second delay
+# JS: show toast after 23-second delay
 toast_js <- tags$script(HTML("
   $(document).ready(function() {
     setTimeout(function() {
@@ -276,7 +276,7 @@ toast_js <- tags$script(HTML("
         var toast = new bootstrap.Toast(toastEl, { autohide: false });
         toast.show();
       }
-    }, 25000);
+    }, 23000);
   });
 "))
 
