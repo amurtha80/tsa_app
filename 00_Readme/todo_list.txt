@@ -5,7 +5,13 @@ RShiny Mobile App TSA Historical Wait Times
 
 ## TODO
 
-### High Priority — Post-Launch Fixes
+### High Priority — Post-Launch Fixes'
+
+#### Data Quality — Checkpoint Name Cleanup
+- **DCA "OPENS 4AM"** — page text (operating hours notice) scraped as a checkpoint name by `DCA_wait_times.R`; appears as a junk option in the checkpoint dropdown; delete matching rows from `tsa_wait_times` and fix the CSS selector to prevent recurrence
+- **IAH checkpoint name duplication** — same physical checkpoints stored under up to 4 name variants (`IAH TERMINAL A NORTH PRE-CHECK`, `IAH TERMINAL A NORTH PRECHECK`, `TERMINAL A NORTH PRE-CHECK`, `TERMINAL A NORTH PRECHECK`) due to scraper selector and site format changes over time; consolidate to a single canonical name per checkpoint in `tsa_wait_times`, fix `IAH_wait_times.R` to produce consistent names going forward, then rebuild parquet
+- **DEN "SOUTH" checkpoint weekday sparsity** — Tue–Fri have only 6–10 buckets vs. 37–38 for Sun/Mon; investigate whether selector was reliably capturing South checkpoint on weekday runs; no database cleanup needed until cause is confirmed
+- After all database cleanup: re-run `xx_build_summary_DB.R` to rebuild `tsa_app_summ.parquet` and push to S3
 
 #### Deployment
 - Add third chart for CLEAR lane wait times for airports that have CLEAR data (MIA; others TBD) — chart should only render when data exists for the selected airport/checkpoint combination
