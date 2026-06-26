@@ -570,7 +570,7 @@ server <- function(input, output, session) {
   # Helper: build chart ----
   # Chart colors are now fixed (Navy/Teal) regardless of any theme toggle.
   
-  build_chart <- function(data, avg_col, max_col, subtitle) {
+  build_chart <- function(data, avg_col, max_col, subtitle, lane_label = "standard") {
     
     teal_dark <- darken_hex(accent_teal, amount = 0.30)
     
@@ -588,11 +588,15 @@ server <- function(input, output, session) {
     max_vals <- data[[max_col]]
     
     if (all(is.na(avg_vals))) {
+      msg <- switch(lane_label,
+                    "precheck" = "No TSA Pre\u2713 lane at this checkpoint.",
+                    "clear"    = "No CLEAR lane at this checkpoint.",
+                    "No wait time data for this selection."
+      )
       return(
         ggplot() +
           annotate("text", x = 0.5, y = 0.5,
-                   label = "No wait time data for this selection.",
-                   size = 5, color = "gray50") +
+                   label = msg, size = 5, color = "gray50") +
           theme_void()
       )
     }
@@ -663,7 +667,7 @@ server <- function(input, output, session) {
       "{input$select_checkpoint} \u2022 {input$select_airport} \u2022 ",
       "{input$select_day} around {input$select_time}"
     )
-    build_chart(data, "avg_time_std", "max_time_std", subtitle)
+    build_chart(data, "avg_time_std", "max_time_std", subtitle, lane_label = "standard")
   }) |>
     bindCache(
       input$select_airport,
@@ -681,7 +685,7 @@ server <- function(input, output, session) {
       "{input$select_checkpoint} \u2022 {input$select_airport} \u2022 ",
       "{input$select_day} around {input$select_time}"
     )
-    build_chart(data, "avg_time_tsa_precheck", "max_time_tsa_precheck", subtitle)
+    build_chart(data, "avg_time_tsa_precheck", "max_time_tsa_precheck", subtitle, lane_label = "precheck")
   }) |>
     bindCache(
       input$select_airport,
