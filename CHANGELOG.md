@@ -3,6 +3,13 @@ FlyASAP — Airport Security Advance Planning
 
 ---
 
+## 2026-06-26
+
+### AWS Infrastructure
+- `flyasap-windows` IAM user scoped to `flyasap-app-data` bucket only via inline policy `flyasap-windows-s3-scoped`; policy grants `s3:PutObject` on `arn:aws:s3:::flyasap-app-data/*` and `s3:ListBucket` on `arn:aws:s3:::flyasap-app-data`; any previously attached broad S3 managed policies removed
+
+---
+
 ## 2026-06-25
 
 ### App — UI/UX

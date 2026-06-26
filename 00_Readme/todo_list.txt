@@ -11,7 +11,6 @@ RShiny Mobile App TSA Historical Wait Times
 - Add third chart for CLEAR lane wait times for airports that have CLEAR data (MIA; others TBD) — chart should only render when data exists for the selected airport/checkpoint combination
 
 #### AWS Infrastructure
-- Lock `flyasap-windows` IAM user to `flyasap-app-data` bucket only
 - Set up AWS Budget alert and AWS Billing alert
 
 ### Active Script Bugs
