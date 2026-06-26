@@ -5,6 +5,10 @@ FlyASAP — Airport Security Advance Planning
 
 ## 2026-06-26
 
+### App — UI/UX
+- `build_chart()` refactored to accept `lane_label` parameter (`"standard"`, `"precheck"`, `"clear"`); all-NA empty state now renders a lane-specific message instead of the generic fallback — Pre✓ chart displays "No TSA Pre✓ lane at this checkpoint." and CLEAR chart case is pre-wired for when that chart is added
+- Both `renderPlot()` call sites updated to pass explicit `lane_label` argument
+
 ### AWS Infrastructure
 - `flyasap-windows` IAM user scoped to `flyasap-app-data` bucket only via inline policy `flyasap-windows-s3-scoped`; policy grants `s3:PutObject` on `arn:aws:s3:::flyasap-app-data/*` and `s3:ListBucket` on `arn:aws:s3:::flyasap-app-data`; any previously attached broad S3 managed policies removed
 - AWS Budget alert configured (`flyasap-monthly-budget`): monthly cost budget with email notification at 85% forecasted and 100% actual spend
