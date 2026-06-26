@@ -20,7 +20,9 @@ RShiny Mobile App TSA Historical Wait Times
 - **WebSocket warning** — suppress `"got non-close frame while closing"` warning during chromote teardown across all chromote scripts
 
 ### New Airports (Lower Priority — Post MVP)
+- **DFW** - `DFW_in_progress.R` drafted; needs to be updated to run off of API or JSON data within Fetch/XHR from site load
 - **BOS** — `BOS_wait_times.R` drafted; needs test run to confirm Zensors API Origin allowlist check passes from R; fallback is chromote approach if 403 persists
+- **PHL** - `phl.org`; should need no chromote, has a metric json file and there is a js script matching wait-api.js?th8s81 to map zone ID to checkpoint and pull wait times
 - **LAX** — `flylax.com/wait-times`; static HTML, no chromote needed; straightforward `read_html()` scrape
 - **SEA** — `portseattle.org/page/live-estimated-checkpoint-wait-times`; JS-rendered table, chromote approach
 - **SLC** — `slcairport.com`; JS-rendered widget, investigate for API endpoint before falling back to chromote
