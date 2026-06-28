@@ -3,6 +3,28 @@ FlyASAP — Airport Security Advance Planning
 
 ---
 
+## 2026-06-27
+
+### Data — DEN Checkpoint Cleanup
+- Investigated two DEN TODO items: Pre✓ missing early morning data and 
+  South checkpoint weekday sparsity
+- Root cause: Great Hall Project renamed North/South → East/West checkpoints;
+  CSS scraper wrote corrupt/null checkpoint names Dec 2024 – Jun 2026 during
+  transition; API scraper (live since Jul 2025) captures East/West correctly
+- Deleted 158,465 rows where `checkpoint IS NULL` (only 1,122 had non-null
+  wait times, all Dec 2024 – Feb 2025, too sparse to salvage)
+- Renamed checkpoint variants to canonical API names via three UPDATE statements:
+  `West` → `East Security` (35,922 rows)
+  `South Security` → `West Security` (35,922 rows)
+  `South` → `West Security` (1,803 rows)
+- `Bridge Security` (2,021 rows, last seen 2024-12-05) left as-is — outside
+  rolling 365-day window, never surfaces in app
+- Parquet rebuilt manually and pushed to S3; EC2 pulled and Shiny Server restarted
+- Added `rm(s3)` to cleanup block in `xx_build_summary_DB.R`
+- Saved investigation script as `zz_den_database_cleanup.R` in `02_Scripts/`
+
+---
+
 ## 2026-06-26
 
 ### App — UI/UX

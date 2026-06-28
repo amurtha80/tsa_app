@@ -10,14 +10,12 @@ RShiny Mobile App TSA Historical Wait Times
 #### Data Quality — Checkpoint Name Cleanup
 - **DCA "OPENS 4AM"** — page text (operating hours notice) scraped as a checkpoint name by `DCA_wait_times.R`; appears as a junk option in the checkpoint dropdown; delete matching rows from `tsa_wait_times` and fix the CSS selector to prevent recurrence
 - **IAH checkpoint name duplication** — same physical checkpoints stored under up to 4 name variants (`IAH TERMINAL A NORTH PRE-CHECK`, `IAH TERMINAL A NORTH PRECHECK`, `TERMINAL A NORTH PRE-CHECK`, `TERMINAL A NORTH PRECHECK`) due to scraper selector and site format changes over time; consolidate to a single canonical name per checkpoint in `tsa_wait_times`, fix `IAH_wait_times.R` to produce consistent names going forward, then rebuild parquet
-- **DEN "SOUTH" checkpoint weekday sparsity** — Tue–Fri have only 6–10 buckets vs. 37–38 for Sun/Mon; investigate whether selector was reliably capturing South checkpoint on weekday runs; no database cleanup needed until cause is confirmed
 - After all database cleanup: re-run `xx_build_summary_DB.R` to rebuild `tsa_app_summ.parquet` and push to S3
 
 #### Deployment
 - Add third chart for CLEAR lane wait times for airports that have CLEAR data (MIA; others TBD) — chart should only render when data exists for the selected airport/checkpoint combination
 
 ### Active Script Bugs
-- **DEN Pre-Check** — missing early morning data (4 AM - 10 AM) despite checkpoint opening at 4 AM; investigate whether scraper was running during those hours or whether data was lost during aggregation
 - **CLT** — Checkpoint names from API no longer fully align with page display names; wait times don't align between API and page (page shows ranges, API shows point values)
 - **WebSocket warning** — suppress `"got non-close frame while closing"` warning during chromote teardown across all chromote scripts
 
