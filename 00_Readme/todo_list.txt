@@ -20,7 +20,6 @@ RShiny Mobile App TSA Historical Wait Times
 - Affects all 12 airports — treat as a single coordinated fix, not airport by airport
 
 #### Data Quality — Checkpoint Name Cleanup
-- **DCA "OPENS 4AM"** — page text (operating hours notice) scraped as a checkpoint name by `DCA_wait_times.R`; appears as a junk option in the checkpoint dropdown; delete matching rows from `tsa_wait_times` and fix the CSS selector to prevent recurrence
 - **IAH checkpoint name duplication** — same physical checkpoints stored under up to 4 name variants (`IAH TERMINAL A NORTH PRE-CHECK`, `IAH TERMINAL A NORTH PRECHECK`, `TERMINAL A NORTH PRE-CHECK`, `TERMINAL A NORTH PRECHECK`) due to scraper selector and site format changes over time; consolidate to a single canonical name per checkpoint in `tsa_wait_times`, fix `IAH_wait_times.R` to produce consistent names going forward, then rebuild parquet
 - After all database cleanup: re-run `xx_build_summary_DB.R` to rebuild `tsa_app_summ.parquet` and push to S3
 

@@ -5,6 +5,19 @@ FlyASAP — Airport Security Advance Planning
 
 ## 2026-06-28
 
+### Data — DCA Junk Checkpoint Cleanup
+- Investigated `"Opens 4am"` junk value appearing in DCA checkpoint dropdown
+- Root cause: earlier version of flyreagan.com security page rendered the
+  hours-of-operation notice inside the same `.resp-table-row` CSS class as
+  the wait times table; scraper captured it as a checkpoint name
+- Page has since been updated — hours text now lives in `<li>` elements and
+  is no longer captured by the scraper; no scraper changes required
+- Deleted 68 rows where `airport = 'DCA' AND checkpoint = 'Opens 4am'`
+- Rebuilt `tsa_app_summ.parquet` and pushed to S3; DCA dropdown confirmed clean
+- Cleanup documented in `zz_dca_database_cleanup.R`
+
+---
+
 ### Data Pipeline — Nightly Validation Script
 - Created `xx_validate_scrape.R`: nightly data quality check that runs ~15 min
   after `xx_build_summary_DB.R` and queries yesterday's raw rows from `tsa_app.duckdb`
