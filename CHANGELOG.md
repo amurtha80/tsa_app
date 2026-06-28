@@ -3,6 +3,27 @@ FlyASAP — Airport Security Advance Planning
 
 ---
 
+## 2026-06-28
+
+### Data Pipeline — Nightly Validation Script
+- Created `xx_validate_scrape.R`: nightly data quality check that runs ~15 min
+  after `xx_build_summary_DB.R` and queries yesterday's raw rows from `tsa_app.duckdb`
+- Runs five independent checks each night:
+  1. Airport total absence — zero rows for any known airport
+  2. Row count drop — yesterday's count below 50% of 7-day rolling average
+  3. Checkpoint drop-off — checkpoint absent yesterday but present 5+ of prior 7 days
+  4. Implausible wait time values — any value outside 0–120 min range
+  5. All-NA standard lane — scraper ran but returned no usable wait time data
+- Logs result to `runlog_validate.txt` on every run (pass or fail)
+- Sends HTML email alert via blastula when any check fails; skips silently if
+  credentials missing
+- Email credentials: `SMTP_USER` and `ALERT_EMAIL_TO` in `.Renviron`;
+  sending credential stored in Windows keystore via `blastula::create_smtp_creds_key()`
+- Scheduled in Windows Task Scheduler; task imported from existing working task
+  XML to inherit correct user account context
+
+---
+
 ## 2026-06-27
 
 ### Data — DEN Checkpoint Cleanup
