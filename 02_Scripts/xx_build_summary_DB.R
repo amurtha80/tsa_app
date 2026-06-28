@@ -136,6 +136,7 @@ rm(tsa_wait_time_summ)
 rm(path_source)
 rm(path_summ)
 rm(path_parquet)
+rm(s3)
 
 dbDisconnect(con_source, shutdown = TRUE)
 dbDisconnect(con_summ,   shutdown = TRUE)
