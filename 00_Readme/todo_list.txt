@@ -20,11 +20,11 @@ RShiny Mobile App TSA Historical Wait Times
 - Affects all 12 airports — treat as a single coordinated fix, not airport by airport
 
 #### Data Quality — Checkpoint Name Cleanup
-- **IAH checkpoint name duplication** — same physical checkpoints stored under up to 4 name variants (`IAH TERMINAL A NORTH PRE-CHECK`, `IAH TERMINAL A NORTH PRECHECK`, `TERMINAL A NORTH PRE-CHECK`, `TERMINAL A NORTH PRECHECK`) due to scraper selector and site format changes over time; consolidate to a single canonical name per checkpoint in `tsa_wait_times`, fix `IAH_wait_times.R` to produce consistent names going forward, then rebuild parquet
-- After all database cleanup: re-run `xx_build_summary_DB.R` to rebuild `tsa_app_summ.parquet` and push to S3
+- NA
 
 #### Deployment
 - Add third chart for CLEAR lane wait times for airports that have CLEAR data (MIA; others TBD) — chart should only render when data exists for the selected airport/checkpoint combination
+- Add chart for Premier/Priority lane wait times for airports that have a dedicated airline priority lane (IAH Terminal C North confirmed; others TBD) — chart should only render when `wait_time_priority` data exists for the selected airport/checkpoint combination
 
 ### Active Script Bugs
 - **CLT** — Checkpoint names from API no longer fully align with page display names; wait times don't align between API and page (page shows ranges, API shows point values)

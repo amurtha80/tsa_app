@@ -3,6 +3,21 @@ FlyASAP — Airport Security Advance Planning
 
 ---
 
+### Data — IAH Checkpoint Name Normalization
+- Investigated IAH checkpoint name variants accumulated across three scraper eras
+- Era 1 (Dec 2024 – Mar 2026): old scraper wrote names without "IAH" prefix (`Terminal A North` etc.)
+- Era 2 (Mar 2026 – present): current scraper correctly writes `IAH Terminal X` canonical names
+- Era 3 (Mar 2026 blip): strip-and-pivot logic temporarily failed; lane suffix left in checkpoint name
+- Renamed 5 Era 1 checkpoints to canonical `IAH Terminal X` format (~25K rows each)
+- Renamed 5 Era 3 blip checkpoints to canonical format (1–1,294 rows each)
+- Deleted 2,684 unrecoverable rows: `Loading`, concatenation glitch, all-null Terminal E blip, ambiguous `Terminal E Pre-check`
+- Terminal B retained as-is (historical record, outside 365-day aggregation window)
+- Final state: 7 clean checkpoints — `Terminal B` plus 6 canonical `IAH Terminal X` names
+- Rebuilt `tsa_app_summ.parquet` and pushed to S3
+- Cleanup documented in `zz_iah_database_cleanup.R`
+
+---
+
 ## 2026-06-28
 
 ### Data — DCA Junk Checkpoint Cleanup
