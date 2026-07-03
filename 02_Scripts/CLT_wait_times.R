@@ -49,7 +49,7 @@ scrape_tsa_data_clt <- function() {
   
   # 4. Check results
   status <- resp_status(response)
-  print(paste("HTTP Status Code:", status))
+  # print(paste("HTTP Status Code:", status))
   
   # Parse checkpoints ----
   

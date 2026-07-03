@@ -19,7 +19,7 @@ foo <- function(x) {
 }
 
 ## Then install/load packages...
-foo(c('rvest', 'httr', 'RSelenium', 'jsonlite', 'duckdb', 'glue', 'DBI', 'netstat',
+foo(c('rvest', 'httr', 'httr2',  'RSelenium', 'jsonlite', 'duckdb', 'glue', 'DBI', 'netstat',
       'fs', 'chromote', 'here', 'polite', 'tidyverse'))
 
 # Sys.time()
