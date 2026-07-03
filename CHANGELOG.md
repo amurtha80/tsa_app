@@ -3,6 +3,48 @@ FlyASAP — Airport Security Advance Planning
 
 ---
 
+## 2026-07-03
+
+### Scraper — CLT Complete Rebuild
+- Investigated active bug: CLT checkpoint names and wait times not aligning
+  between API response and page display
+- Discovered root cause: original `checkpoint-queues/current` endpoint had been
+  returning a frozen payload since `2025-04-19T01:20:02Z` — over 14 months of
+  stale data written to DB on every scrape cycle; `generatedAt` field confirmed freeze
+- Identified new endpoint: `api.cltairport.mobi/wait-times/checkpoint/CLT` —
+  no-auth, 200 response, live data confirmed across multiple independent pulls
+- New endpoint returns 6 rows; 2 are orphaned legacy records (`isDisplayable = FALSE`,
+  stale `lastUpdatedTimestamp`); 4 are live lanes across Checkpoint 1, 2, and 3
+- `CLT_wait_times.R` fully rebuilt against new endpoint using `httr2`:
+  - Filters on `isDisplayable == TRUE` to drop orphaned legacy rows
+  - Maps `attributes.general` / `attributes.preCheck` flags to `wait_time` /
+    `wait_time_pre_check` columns via `case_when()` + `pivot_wider()`
+  - Sets `wait_time = NA` when `isOpen == FALSE` regardless of `waitSeconds` value,
+    preventing stale closed-checkpoint values from being recorded as real waits
+  - `round()` applied to both wait time columns before DB write
+  - Explicit `stop()` guard before `pivot_wider()`: fires if any `isDisplayable = TRUE`
+    row has neither `attributes.general` nor `attributes.preCheck` set — surfaces
+    future CLT API schema changes loudly rather than silently writing a malformed column
+  - `print(paste("HTTP Status Code:", status))` removed from production function
+- `httr2` added to `foo()` package loader in `scrape_data_automate.R` — CLT is
+  the only airport currently using `httr2`; `httr` remains for other airports
+
+### Data — CLT Database Cleanup
+- Backed up DB as `tsa_app_backup_pre_clt_cleanup_20260702.duckdb` before any writes
+- Deleted 234,888 frozen rows: `airport = 'CLT' AND date >= DATE '2025-04-19'`
+- Deleted 36,245 all-NA rows: `airport = 'CLT' AND checkpoint = 'Checkpoint A'` —
+  this orphaned row was returned by the old API on every cycle but never contained
+  real data for its entire recorded history (Nov 2024 – Apr 2025)
+- Remaining CLT data: `Checkpoint 1` and `Checkpoint 3`, Nov 27 2024 – Apr 18 2025,
+  36,245 rows each — represents the only period of real, non-frozen CLT data
+- Note: historical `"Checkpoint 1"` rows physically represent Checkpoint 2 due to
+  a CLT backend naming discrepancy introduced when the new checkpoint opened Nov 2023;
+  rename deferred until fresh data accumulates — tracked in TODO
+
+---
+
+## 2026-06-28
+
 ### Data — IAH Checkpoint Name Normalization
 - Investigated IAH checkpoint name variants accumulated across three scraper eras
 - Era 1 (Dec 2024 – Mar 2026): old scraper wrote names without "IAH" prefix (`Terminal A North` etc.)
@@ -15,10 +57,6 @@ FlyASAP — Airport Security Advance Planning
 - Final state: 7 clean checkpoints — `Terminal B` plus 6 canonical `IAH Terminal X` names
 - Rebuilt `tsa_app_summ.parquet` and pushed to S3
 - Cleanup documented in `zz_iah_database_cleanup.R`
-
----
-
-## 2026-06-28
 
 ### Data — DCA Junk Checkpoint Cleanup
 - Investigated `"Opens 4am"` junk value appearing in DCA checkpoint dropdown
