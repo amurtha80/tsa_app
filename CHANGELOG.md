@@ -3,6 +3,32 @@ FlyASAP — Airport Security Advance Planning
 
 ---
 
+## 2026-07-04
+
+### Infrastructure — EC2 Cron Timezone Bug (CLT Missing from App)
+- Investigated: CLT absent from airport dropdown in live app despite confirmed
+  fresh scraper data (Checkpoint 1/2/3) in `tsa_wait_times` for Jul 3–4
+- Ruled out via diagnostics, in order: source table (data present), nightly
+  aggregation in `xx_build_summary_DB.R` (CLT rows present and correct in
+  `tsa_wait_time_summ`), S3 push (confirmed via `runlog_appdata_xfer.txt`,
+  no errors on Jul 2/3/4 builds)
+- Root cause: EC2 root crontab entry (`0 3 * * * aws s3 cp ... && systemctl
+  restart shiny-server`) has no `CRON_TZ` set; `timedatectl` confirmed instance
+  runs `Etc/UTC`, so the job fired at 3:00 AM UTC (11:00 PM ET the prior night) —
+  three hours *before* that night's 2:03 AM ET build even wrote to S3
+- Effect: EC2 was permanently serving a parquet one full build-cycle stale,
+  every day, since deployment — not specific to CLT, affects all airports'
+  freshness by one day, but only became visible once CLT had a full day
+  of live data to compare against
+- Fix: added `CRON_TZ=America/New_York` above the cron entry so the schedule
+  tracks Eastern time (and DST) automatically instead of a fixed UTC offset
+- Verified: manual `sudo aws s3 cp` + `sudo systemctl restart shiny-server`
+  confirmed CLT displays correctly in app once a fresh parquet is loaded
+- No changes required to any R script — `xx_build_summary_DB.R`, `app.R`, and
+  `CLT_wait_times.R` all behaved correctly throughout
+  
+---
+
 ## 2026-07-03
 
 ### Scraper — CLT Complete Rebuild
@@ -68,8 +94,6 @@ FlyASAP — Airport Security Advance Planning
 - Deleted 68 rows where `airport = 'DCA' AND checkpoint = 'Opens 4am'`
 - Rebuilt `tsa_app_summ.parquet` and pushed to S3; DCA dropdown confirmed clean
 - Cleanup documented in `zz_dca_database_cleanup.R`
-
----
 
 ### Data Pipeline — Nightly Validation Script
 - Created `xx_validate_scrape.R`: nightly data quality check that runs ~15 min
