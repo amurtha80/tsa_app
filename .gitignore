@@ -7,6 +7,10 @@ flyasap-admin_credentials.csv
 flyasap_windows_accessKeys.csv
 *.pem
 
+CLAUDE.md
+DEVELOPMENT.md
+STYLEGUIDE.md
+
 01_Data/
 _RSelenium_CLT_tsa_times.R
 tsa_wait_time_JFK_req.svg
@@ -27,3 +31,5 @@ runlog_2026_03_29.txt
 runlog_appdata_xfer.txt
 runlog_validate.txt
 runlog.txt
+
+transcripts/
