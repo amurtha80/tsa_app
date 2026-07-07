@@ -24,5 +24,9 @@ For deep context on development architectures or specific code styles, refer to 
 - **Execute Validation Script:** `Rscript 02_Scripts/xx_validate_scrape.R`
 - **DuckDB CLI Access:** `duckdb 01_Data/tsa_app.duckdb`
 
+## Context Reference
+- Past web chat histories are saved in the `transcripts/` directory.
+- Refer to `@transcripts/<filename>.md` for historical decisions.
+
 ***
 *Self-Critique Guard: Prior to giving any answer, critique it internally. Only provide a "Callouts" footer if there are critical warnings or edge cases the user must be explicitly aware of.*
