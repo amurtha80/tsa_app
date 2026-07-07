@@ -1,6 +1,6 @@
 # Install Packages ----
 
-# install.packages(c("RSQLite", "nanoparquet", "duckdb", "duckplyr", "DBI"))
+# install.packages(c("RSQLite", "nanoparquet", "duckdb", "duckplyr", "DBI", "here", "glue"))
 
 ## Access Libraries to Project ----
 # library(RSQLite, verbose = F)
@@ -9,6 +9,7 @@
 # library(DBI, verbose = F)
 # library(here, verbose = F)
 # library(nanoparquet, verbose = F)
+# library(glue, verbose = F)
 
 # here::here()
 
@@ -33,6 +34,13 @@
 # dbSendQuery(sqlite_db, "PRAGMA journal_mode=WAL;")
 # Update SQLite Database read/write settings to remove concurrency
 # dbSendQuery(sqlite_db, "PRAGMA journal_mode=delete;")
+
+
+## DuckDB Database Settings ----
+# Setup Quack Extension
+# dbExecute(con_write, "INSTALL quack; LOAD quack;")
+# Start Quack background listener
+# dbExecute(con_write, glue("CALL quack_serve('quack:localhost', token := '{Sys.getenv('QUACK_TOKEN')}')"))
 
 
 ## Create Tables ----
