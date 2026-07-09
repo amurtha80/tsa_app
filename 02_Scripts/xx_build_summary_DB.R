@@ -37,14 +37,22 @@ print(glue("packages loaded at ", format(Sys.time(), "%a %b %d %X %Y")))
 
 # Paths ----
 
-path_source  <- here::here("C:/Users/james/Documents/R/tsa_app/01_Data/tsa_app.duckdb")
 path_summ    <- here::here("C:/Users/james/Documents/R/tsa_app/01_Data/tsa_app_summ.duckdb")
 path_parquet <- here::here("C:/Users/james/Documents/R/tsa_app/01_Data/tsa_app_summ.parquet")
 
 
 # Connect ----
 
-con_source <- dbConnect(duckdb::duckdb(), dbdir = path_source, read_only = TRUE)
+# tsa_app.duckdb is read via Quack -- zz_database.R must already be running
+# as the Quack server. tsa_app_summ.duckdb is a separate file nothing else
+# writes concurrently, so it keeps a direct connection.
+con_source <- dbConnect(duckdb::duckdb())
+dbExecute(con_source, "INSTALL quack; LOAD quack;")
+dbExecute(con_source, glue(
+  "ATTACH 'quack:localhost' AS remote_db (TYPE quack, TOKEN '{Sys.getenv('DUCKDB_QUACK_TOKEN')}')"
+))
+dbExecute(con_source, "USE remote_db;")
+
 con_summ   <- dbConnect(duckdb::duckdb(), dbdir = path_summ,   read_only = FALSE)
 
 print(glue("******-- Start summary build ", format(Sys.time(), "%a %b %d %X %Y"), " --******"))
@@ -133,7 +141,6 @@ tryCatch({
 # Cleanup ----
 
 rm(tsa_wait_time_summ)
-rm(path_source)
 rm(path_summ)
 rm(path_parquet)
 rm(s3)

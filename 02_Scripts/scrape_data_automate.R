@@ -132,8 +132,15 @@ safe_read_html_live <- function(url, wait = 2, exit_on_fail = TRUE) {
 ## Run all scripts on a 5 minute loop ----
 
 
-## Connect to Database
-con_write <- dbConnect(duckdb::duckdb(), dbdir = here::here("C:/Users/james/Documents/R/tsa_app/01_Data", "tsa_app.duckdb"), read_only = FALSE)
+## Connect to Database via Quack
+## zz_database.R must already be running as the Quack server against
+## 01_Data/tsa_app.duckdb before this script is sourced.
+con_write <- dbConnect(duckdb::duckdb())
+dbExecute(con_write, "INSTALL quack; LOAD quack;")
+dbExecute(con_write, glue(
+  "ATTACH 'quack:localhost' AS remote_db (TYPE quack, TOKEN '{Sys.getenv('DUCKDB_QUACK_TOKEN')}')"
+))
+dbExecute(con_write, "USE remote_db;")
 
 
 ## Run Scripts ----

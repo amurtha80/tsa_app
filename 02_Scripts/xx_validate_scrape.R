@@ -44,7 +44,6 @@ cat(glue("packages loaded at ", format(Sys.time(), "%a %b %d %X %Y")), "\n")
 
 # Config ----
 
-path_db    <- "C:/Users/james/Documents/R/tsa_app/01_Data/tsa_app.duckdb"
 yesterday  <- lubridate::today() - 1
 
 # Threshold: a checkpoint must appear on at least this many of the prior 7 days
@@ -60,11 +59,21 @@ row_count_drop_pct <- 0.50
 
 
 # Connect ----
+# tsa_app.duckdb is read via Quack -- zz_database.R must already be running
+# as the Quack server.
 
 con <- tryCatch(
-  dbConnect(duckdb::duckdb(), dbdir = path_db, read_only = TRUE),
+  {
+    con <- dbConnect(duckdb::duckdb())
+    dbExecute(con, "INSTALL quack; LOAD quack;")
+    dbExecute(con, glue(
+      "ATTACH 'quack:localhost' AS remote_db (TYPE quack, TOKEN '{Sys.getenv('DUCKDB_QUACK_TOKEN')}')"
+    ))
+    dbExecute(con, "USE remote_db;")
+    con
+  },
   error = function(e) {
-    cat(glue("FATAL: could not connect to database at {path_db} — ",
+    cat(glue("FATAL: could not connect to database via Quack — ",
              conditionMessage(e)), "\n")
     NULL
   }
@@ -411,7 +420,7 @@ tryCatch({
   suppressWarnings(
     rm(list = intersect(
       ls(),
-      c("path_db", "yesterday", "checkpoint_presence_threshold",
+      c("yesterday", "checkpoint_presence_threshold",
         "wait_time_ceiling", "row_count_drop_pct")
     ))
   )

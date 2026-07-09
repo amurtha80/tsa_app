@@ -25,6 +25,47 @@ FlyASAP — Airport Security Advance Planning
 - Not yet rolled out to production `tsa_app.duckdb` or the 12 real airport
   scripts — see `00_Readme/todo_list.txt` for the scoped follow-up work
 
+### Infrastructure — Quack Rolled Out to Production (COMPLETE)
+- Confirmed `USE remote_db;` after `ATTACH` makes unqualified table names
+  resolve automatically — only `zz_database.R`, `scrape_data_automate.R`,
+  `xx_build_summary_DB.R`, and `xx_validate_scrape.R` needed connection-block
+  changes; all 12 airport scraper scripts and the build-summary/validate
+  query lines were untouched
+- `zz_database.R` converted into the persistent Quack server: holds
+  `01_Data/tsa_app.duckdb` open, calls `quack_serve()`, and ends in a
+  `repeat { Sys.sleep(30) }` keep-alive instead of disconnecting; one-time
+  `CREATE TABLE` statements commented out as historical documentation
+- Switched all three Task Scheduler jobs (`tsa_app_scraper`,
+  `tsa_app_nightly_summary_build`, `tsa_app_scraper_validate`) to run under
+  R-4.5.1 instead of R-4.4.3, since R-4.4.3's `duckdb` package (v1.3.2) was
+  below Quack's 1.5.3 engine floor; confirmed R-4.5.1 already had every
+  package the scraper needs (including RSelenium/chromote) before switching
+- Created a new `tsa_app_quack_server` Task Scheduler job for `zz_database.R`
+  (Password logon type — "run whether user is logged on or not" — restart
+  3x/5min, `ExecutionTimeLimit` unlimited, `DisallowHardTerminate` set)
+- Cutover: paused `tsa_app_scraper`, started the Quack server against the
+  real database, manually verified a clean write cycle (all 12 airports)
+  and a concurrent read against live data, then re-enabled the scraper —
+  confirmed working on its regular 5-minute schedule afterward
+- Gotchas hit during rollout (see also `DEVELOPMENT.md` if updated):
+  Task Scheduler actions need an explicit `WorkingDirectory` or `here::here()`
+  resolves against the wrong folder; `Set-ScheduledTask` with only `-Action`
+  silently drops other settings objects — always re-supply the full settings
+  set; a task registered with "Interactive" logon type gets killed ~30s after
+  a manual `Start-ScheduledTask` — needs "Password" logon type to run stably
+  the same way the other three jobs do; Git Bash's overridden `HOME` means
+  any script run from a Bash shell won't find `.Renviron` in
+  `Documents/` and silently falls back to a default token — use PowerShell
+  (or native Windows launch) for anything that needs the real
+  `DUCKDB_QUACK_TOKEN`
+- One live incident during the session: a draft edit was briefly applied to
+  the live `scrape_data_automate.R` before the pause window, causing a
+  ~20-minute scrape gap (no data loss, no bad rows) — caught via the runlog
+  going silent and reverted immediately
+- Found in passing, not yet fixed: `LGA` writes report success each cycle but
+  `MAX(datetime)` for LGA has been stuck at 2026-05-13 — added to
+  `00_Readme/todo_list.txt` for investigation
+
 ---
 
 ## 2026-07-04
