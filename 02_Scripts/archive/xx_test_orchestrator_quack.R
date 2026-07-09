@@ -43,7 +43,7 @@ test_files <- c(
 )
 
 funcs <- tryCatch({
-  as.vector(purrr::map(here::here("02_Scripts", test_files), source))
+  as.vector(purrr::map(here::here("02_Scripts", "archive", test_files), source))
 }, error = function(e) {
   print(glue("ERROR sourcing test funcs: {conditionMessage(e)} at ", format(Sys.time())))
   stop(e)
