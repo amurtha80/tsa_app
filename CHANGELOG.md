@@ -3,6 +3,30 @@ FlyASAP — Airport Security Advance Planning
 
 ---
 
+## 2026-07-09
+
+### Infrastructure — Quack Concurrent DB Access Test (PASSED)
+- Goal: eliminate the 4-minute dev windows caused by DuckDB's exclusive
+  read-write file lock, which blocks even read-only connections from other
+  processes while the scrape orchestrator holds `con_write` open
+- Built a standalone test against a throwaway copy of the DB
+  (`01_Data/tsa_app_quack_test.duckdb`): `zz_test_duckdb_quack.R` runs the
+  Quack server, `xx_test_orchestrator_quack.R` runs 3 lightweight airport
+  scrapers (DEN, MSP, CLT — chosen to avoid chromote/RSelenium browser
+  overhead) as Quack clients, `xx_test_quack_reader_queries.R` runs
+  concurrent reads from a separate session
+- Root cause found and fixed along the way: local `duckdb` R package was
+  serving DuckDB engine v1.4.3; Quack requires 1.5.3+ (shipped via the core
+  extension repository). Updated to current CRAN release (1.5.4.2, engine
+  v1.5.4) via `remove.packages("duckdb"); install.packages("duckdb")`
+- Result: dry run (write-only) and full concurrency run both completed
+  clean — reads returned live rows via `ATTACH 'quack:localhost' AS
+  remote_db` while the orchestrator was actively writing, no lock errors
+- Not yet rolled out to production `tsa_app.duckdb` or the 12 real airport
+  scripts — see `00_Readme/todo_list.txt` for the scoped follow-up work
+
+---
+
 ## 2026-07-04
 
 ### Infrastructure — EC2 Cron Timezone Bug (CLT Missing from App)
