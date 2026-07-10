@@ -23,11 +23,6 @@ RShiny Mobile App TSA Historical Wait Times
 - **CLT checkpoint rename** — historical rows (Nov 2024 – Apr 2025) store `"Checkpoint 1"` for what is physically Checkpoint 2; new scraper (Jul 2026) writes correct names going forward; once sufficient fresh data has accumulated, run `UPDATE tsa_wait_times SET checkpoint = 'Checkpoint 2' WHERE airport = 'CLT' AND checkpoint = 'Checkpoint 1'` to canonicalize historical data, then rebuild parquet
 - After all database cleanup: re-run `xx_build_summary_DB.R` to rebuild `tsa_app_summ.parquet` and push to S3
 
-#### Data Quality — LGA Stale Timestamp
-- `LGA_wait_times.R` appears to run and log successful row appends each cycle, but `MAX(datetime)` for LGA in `tsa_wait_times` was found stuck at `2026-05-13` during the 2026-07-09 Quack cutover verification, well behind every other airport
-- Investigate whether `LGA_wait_times.R` is writing a stale/hardcoded `datetime` value instead of the actual scrape time, or some other root cause — review before assuming it's a one-off
-- Confirm whether this is a new issue or has been silently accumulating since May; check row counts/date range for LGA specifically once diagnosed
-
 #### Deployment
 - Add third chart for CLEAR lane wait times for airports that have CLEAR data (MIA; others TBD) — chart should only render when data exists for the selected airport/checkpoint combination
 

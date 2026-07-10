@@ -3,6 +3,36 @@ FlyASAP — Airport Security Advance Planning
 
 ---
 
+## 2026-07-10
+
+### Data Quality — LGA Mislabeled as JFK (FIXED)
+- Root cause found for the "LGA stale timestamp" issue flagged during the
+  2026-07-09 Quack cutover verification: not a scraper failure, but a
+  copy-paste bug. Two distinct phases:
+  - **2026-05-04 → 2026-05-13**: LGA's website changed its checkpoint table
+    markup; `LGA_wait_times.R`'s old CSS selector degraded (Terminal A
+    stopped 05-04, Terminal B/C stopped 05-13) — a genuine data gap, nothing
+    to backfill
+  - **2026-06-10 → 2026-07-10**: commit `a4657e8` fixed the scraper for the
+    new 2026 website by copy-pasting `JFK_wait_times.R`'s transform block,
+    including the literal `airport = 'JFK'`; a same-day follow-up
+    (`6779fb2`) renamed the local variable `JFK_data` → `LGA_data` but
+    missed the `airport` literal. Every LGA scrape since then ran
+    successfully but wrote its rows to `tsa_wait_times` under `airport =
+    'JFK'` instead of `'LGA'` — also meant the JFK checkpoint chart in the
+    live app was showing 7 checkpoints instead of 5, 2 of which were
+    actually LGA data
+- Fixed the one-line bug in `LGA_wait_times.R` (`airport = 'JFK'` →
+  `airport = 'LGA'`)
+- Backfilled 16,388 mislabeled rows in production
+  (`UPDATE tsa_wait_times SET airport = 'LGA' WHERE airport = 'JFK' AND
+  checkpoint IN ('Terminal B', 'Terminal C') AND datetime >= TIMESTAMP
+  '2026-06-10 22:01:15'`), run directly against `con_write` inside the
+  Quack server process (Quack clients can't run `UPDATE`) — required a
+  brief stop/restart of the `tsa_app_quack_server` task
+- Re-ran `xx_build_summary_DB.R` to rebuild `tsa_app_summ.duckdb` /
+  `tsa_app_summ.parquet` from the corrected data and pushed to S3
+
 ## 2026-07-09
 
 ### Infrastructure — Quack Concurrent DB Access Test (PASSED)

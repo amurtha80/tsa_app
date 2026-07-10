@@ -54,7 +54,7 @@ scrape_tsa_data_lga <- function() {
   # Transform Data ----
   LGA_data <- results |>
     mutate(
-      airport = 'JFK',
+      airport = 'LGA',
       # General wait time — "No Wait" → 0, numeric string → value, else NA
       wait_time = case_when(
         stringr::str_trim(.data[["General"]]) == "No Wait" ~ 0,
