@@ -5,6 +5,33 @@ FlyASAP — Airport Security Advance Planning
 
 ## 2026-07-10
 
+### New Airport — DFW Live and Verified
+- Replaced the drafted-but-blocked `DFW_in_progress.R` with a working
+  `DFW_wait_times.R` (function `scrape_tsa_data_dfw`), auto-discovered by
+  `scrape_data_automate.R`'s `_wait_times.R` glob — no orchestrator changes
+  needed
+- New endpoint: `marketplace.locuslabs.com/venueId/dfw/dynamic-poi`
+  (`Origin`/`Referer`/`x-account-id` headers), replacing the old draft's
+  non-working `rest.locuslabs.com/.../get-all-dynamic-pois/` URL and its
+  incorrect `upperBoundSeconds / 60` field assumption — the real feed
+  already reports wait time in minutes
+- Filters checkpoint POIs dynamically by `category == "security.checkpoint"`
+  instead of a hardcoded POI ID list; the old draft's 24-ID list was already
+  stale (missing 4 newer TSA PreCheck POIs added since it was written)
+- Maps LocusLabs' `queue.queueSubtype` (`general`/`tsapre`/`priority`) onto
+  `wait_time`/`wait_time_pre_check`/`wait_time_priority` — DFW is the first
+  airport in the app to populate `wait_time_priority` with real data
+  (DFW's "Priority" lane, distinct from TSA PreCheck)
+  and nulls out wait time for any POI with `isClosed`/`isTemporarilyClosed`
+  true
+- Verified against the live `dfwairport.com/security/` page via
+  claude-in-chrome: confirmed the JSON endpoint is the same underlying
+  LocusLabs data source the site renders, not a mismatched field — apparent
+  drift on busy checkpoints is ordinary 5-minute-poll sampling noise
+  (consistent with every other airport in this app), not a scraper bug
+- Live production write confirmed: 15 checkpoint rows inserted for `airport
+  = 'DFW'` via `dbAppendTable` through the Quack client connection
+
 ### Data Quality — LGA Mislabeled as JFK (FIXED)
 - Root cause found for the "LGA stale timestamp" issue flagged during the
   2026-07-09 Quack cutover verification: not a scraper failure, but a
