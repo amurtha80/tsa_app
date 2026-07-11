@@ -60,6 +60,46 @@ FlyASAP — Airport Security Advance Planning
 - Re-ran `xx_build_summary_DB.R` to rebuild `tsa_app_summ.duckdb` /
   `tsa_app_summ.parquet` from the corrected data and pushed to S3
 
+### New Airport — PHL Live and Verified
+- New `PHL_wait_times.R` (function `scrape_tsa_data_phl`), auto-discovered by
+  `scrape_data_automate.R`'s `_wait_times.R` glob — no orchestrator changes
+  needed
+- Combines two sources per scrape: a plain JSON GET against
+  `phl.org/phllivereach/metrics` (no auth/headers required, unlike CLT/DFW)
+  for 6 of 7 checkpoints, plus a static `rvest::read_html()` scrape of the
+  `checkpoint-hours` page for Terminal A-West 1, whose wait value is
+  manually-maintained static markup with no live feed at all
+- Zone ID → checkpoint/lane-type mapping (`3971`/`4126` → Terminal D/E,
+  `4368`/`4386` → Terminal A-East, `4377` → Terminal A-West 2, `5047` →
+  Terminal B, `5052` → Terminal C, `5068` → Terminal F) sourced directly from
+  `wait-api.js`'s own hardcoded `if/else` chain and its accompanying
+  `//DE-Precheck: 4126` etc. comment block — verified live against the
+  current file at `phl.org/modules/custom/phl_wait_api/js/wait-api.js`, not
+  inferred; the feed carries ~14 additional unrelated zone IDs, ignored by
+  design. Terminal C's span is misleadingly named `cGen` in the JS but maps
+  to `wait_time_pre_check` (Terminal C is PreCheck-only, per the page's own
+  text) based on its actual HTML label, not the variable name
+- Guard added: errors if any of the 8 expected zone IDs go missing from the
+  metrics response (PHL retiring/renaming a zone), rather than erroring on
+  the ~14 unmapped extras, which are expected noise
+- Terminal A-West 1 gated on a hardcoded 3:00pm–5:30pm clock check (its own
+  operating hours) since `wait-api.js` never nulls that value itself outside
+  those hours — flagged in `todo_list.txt` to replace with a lookup against
+  `airport_checkpoint_hours` once the coordinated hours-of-operation fix
+  lands, so no scraper needs a hardcoded window
+- Checkpoints written in alphabetical order (`dplyr::arrange(checkpoint)`),
+  matching the sort convention used across the project's other scraper
+  scripts
+- Populated `airport_checkpoint_hours` for PHL's 7 checkpoints from
+  `wait-api.js`'s `tHours`/`tAepre`/`tDEpre` objects (cross-checked against
+  the page's displayed hours text). First-ever population of this
+  previously-empty table — established the convention that the `TIMESTAMP_S`
+  date part is the entry date, not a dummy anchor, so future hours changes
+  get a new dated row instead of an in-place update, preserving history
+- Live production write confirmed: 7 checkpoint rows inserted for `airport =
+  'PHL'` via `dbAppendTable`, and 7 rows inserted into
+  `airport_checkpoint_hours`, both through the Quack client connection
+
 ## 2026-07-09
 
 ### Infrastructure — Quack Concurrent DB Access Test (PASSED)

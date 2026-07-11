@@ -14,9 +14,14 @@ RShiny Mobile App TSA Historical Wait Times
   so rows outside operating hours are excluded from parquet aggregation
 - Update `build_chart()` in `app.R`: suppress bars entirely for time slots outside 
   operating hours (no bar = checkpoint closed, not zero wait)
-- Update `build_chart()` in `app.R`: if selected time window falls entirely outside 
-  operating hours, display text message "This checkpoint is not open during this 
+- Update `build_chart()` in `app.R`: if selected time window falls entirely outside
+  operating hours, display text message "This checkpoint is not open during this
   time window" instead of blank chart
+- When this lands, revisit `PHL_wait_times.R`'s hardcoded 3:00pm-5:30pm clock gate
+  for Terminal A-West 1 (added because its wait value is static page markup, not a
+  live feed, and would otherwise write a stale number around the clock) — replace
+  with a lookup against `airport_checkpoint_hours` so no scraper needs a hardcoded
+  open/close window for any checkpoint
 - Affects all 12 airports — treat as a single coordinated fix, not airport by airport
 
 #### Data Quality — Checkpoint Name Cleanup
@@ -62,7 +67,6 @@ RShiny Mobile App TSA Historical Wait Times
 
 ### New Airports (Lower Priority — Post MVP)
 - **BOS** — `BOS_wait_times.R` drafted; needs test run to confirm Zensors API Origin allowlist check passes from R; fallback is chromote approach if 403 persists
-- **PHL** - `phl.org`; should need no chromote, has a metric json file and there is a js script matching wait-api.js?th8s81 to map zone ID to checkpoint and pull wait times
 - **LAX** — `flylax.com/wait-times`; static HTML, no chromote needed; straightforward `read_html()` scrape
 - **SEA** — `portseattle.org/page/live-estimated-checkpoint-wait-times`; JS-rendered table, chromote approach
 - **SLC** — `slcairport.com`; JS-rendered widget, investigate for API endpoint before falling back to chromote

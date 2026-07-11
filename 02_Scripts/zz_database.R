@@ -149,6 +149,27 @@ print(glue::glue("quack server started on tsa_app.duckdb at ",
 # );")
 
 
+# Populate PHL checkpoint hours ----
+# Open/close times sourced from phl.org's wait-api.js (tHours/tPre objects),
+# cross-checked against the displayed hours text on the checkpoint-hours page.
+# Date part of each TIMESTAMP_S is the entry date, not a dummy anchor -- if
+# PHL's hours change later, insert a new dated row rather than updating in
+# place, so this table keeps a history. Downstream consumers should take the
+# most recent row per (airport, checkpoint).
+# dbExecute(con_write, "
+#   INSERT INTO airport_checkpoint_hours
+#     (airport, timezone, checkpoint, open_time_gen, close_time_gen, open_time_prechk, close_time_prechk)
+#   VALUES
+#     ('PHL', 'America/New_York', 'Terminal A-West 1', NULL, NULL, '2026-07-10 15:00:00', '2026-07-10 17:30:00'),
+#     ('PHL', 'America/New_York', 'Terminal A-West 2', '2026-07-10 05:00:00', '2026-07-10 22:15:00', NULL, NULL),
+#     ('PHL', 'America/New_York', 'Terminal A-East',   '2026-07-10 04:15:00', '2026-07-10 20:15:00', '2026-07-10 04:15:00', '2026-07-10 18:30:00'),
+#     ('PHL', 'America/New_York', 'Terminal B',         '2026-07-10 03:30:00', '2026-07-10 21:15:00', NULL, NULL),
+#     ('PHL', 'America/New_York', 'Terminal C',         NULL, NULL, '2026-07-10 04:15:00', '2026-07-10 20:00:00'),
+#     ('PHL', 'America/New_York', 'Terminal D/E',       '2026-07-10 03:00:00', '2026-07-10 23:25:00', '2026-07-10 03:45:00', '2026-07-10 20:00:00'),
+#     ('PHL', 'America/New_York', 'Terminal F',          '2026-07-10 04:30:00', '2026-07-10 21:15:00', NULL, NULL);
+# ")
+
+
 ## View tables ----
 dbGetQuery(con_write, "SHOW TABLES;")
 dbListTables(con_write)
