@@ -30,6 +30,7 @@ RShiny Mobile App TSA Historical Wait Times
 
 #### Deployment
 - Add third chart for CLEAR lane wait times for airports that have CLEAR data (MIA; others TBD) — chart should only render when data exists for the selected airport/checkpoint combination
+- **LAX coverage note in app UI** — flylax.com/wait-times only publishes wait times for TBIT (the International Terminal), even though LAX physically has its own security checkpoint at nearly every terminal (1–8, with T8 sharing T7's). When a user selects LAX in the app, show a message stating that only TBIT wait times are currently available, so it's not misread as "LAX has one checkpoint total"
 
 ### Active Script Bugs
 - **WebSocket warning** — suppress `"got non-close frame while closing"` warning during chromote teardown across all chromote scripts
@@ -67,10 +68,19 @@ RShiny Mobile App TSA Historical Wait Times
 
 ### New Airports (Lower Priority — Post MVP)
 - **BOS** — `BOS_wait_times.R` drafted; needs test run to confirm Zensors API Origin allowlist check passes from R; fallback is chromote approach if 403 persists
-- **LAX** — `flylax.com/wait-times`; static HTML, no chromote needed; straightforward `read_html()` scrape
 - **SEA** — `portseattle.org/page/live-estimated-checkpoint-wait-times`; JS-rendered table, chromote approach
 - **SLC** — `slcairport.com`; JS-rendered widget, investigate for API endpoint before falling back to chromote
 - **DTW** — `metroairport.com`; Angular/Vue app, likely REST API behind it; inspect via DevTools before building script
+
+#### Data Source — Investigate TSA's Own Android/Mobile Wait-Times App as a Backup Feed
+- TSA's own Android app publishes checkpoint wait time data on its site, discovered while
+  researching LAX (2026-07-11) — worth scoping as a fallback data source for airports where
+  the airport's own site only has partial coverage (e.g. LAX only publishing TBIT)
+- Granularity/quality looked worse than what individual airport sites (or this app) already
+  provide, so this is a backup source, not a primary one — don't replace any existing scraper
+  with it, just evaluate whether it's usable as a fallback when an airport site has gaps
+- Scoping first: confirm what data/endpoint backs it, what airports/checkpoints it covers,
+  and whether it's scrapable before committing to build anything against it
 
 ### Housekeeping
 - Update and format README for GitHub

@@ -3,6 +3,49 @@ FlyASAP — Airport Security Advance Planning
 
 ---
 
+## 2026-07-11
+
+### New Airport — LAX Live and Verified
+- New `LAX_wait_times.R` (function `scrape_tsa_data_lax`), auto-discovered by
+  `scrape_data_automate.R`'s `_wait_times.R` glob — no orchestrator changes
+  needed
+- Confirmed via claude-in-chrome that `flylax.com/wait-times` is genuinely
+  static, server-rendered HTML (a raw `fetch()` with no JS execution already
+  returns the populated table; no API/XHR call backs it) — `rvest::read_html()`
+  is sufficient, no chromote required, as originally scoped in `todo_list.txt`
+- Parses `table.wait-time-table`'s `<tbody>` rows directly rather than via
+  `rvest::html_table()` — the table's `<thead>` has a merged "Security Wait
+  Times" title row above the real column-header row, which breaks
+  `html_table()`'s header detection and also picks up the `<tfoot>` "Data
+  Last Updated" row as a phantom data row
+- Only 2 rows currently published, both `TBIT` (General Boarding, TSA
+  PreCheck) — despite LAX physically having its own security checkpoint at
+  nearly every terminal (1–8, T8 sharing T7's), flylax.com's own site does not
+  surface live wait data for those terminals on this page. Parser doesn't
+  hardcode "TBIT" as the only possible checkpoint — it reshapes whatever rows
+  are present, so it won't need changes if LAX adds more terminals to the
+  page later
+- Guard added: errors if any row's Boarding Type text doesn't map to
+  `wait_time`/`wait_time_pre_check`, matching the schema-change guard pattern
+  used in CLT/DFW/PHL
+- Investigated an apparent ~3 hour discrepancy between flylax.com's wait time
+  and news.delta.com/airport-wait-times' displayed LAX wait time — not a data
+  quality issue: Delta's page shows a single site-wide "Last updated"
+  timestamp (Eastern time, Delta/Atlanta) rather than a per-airport one, and
+  the gap lines up exactly with the ET/PT offset. Both sources reflect
+  essentially the same moment, just labeled in different timezones
+- Live production write confirmed: `scrape_tsa_data_lax()` validated
+  end-to-end against `01_Data/tsa_app_test.duckdb` (production `tsa_app.duckdb`
+  was unavailable for direct testing — held open by the live Quack server
+  process, as expected); 1 row inserted for `airport = 'LAX'`, checkpoint
+  `TBIT`, matching schema/types of existing CLT/DFW/PHL rows; test rows
+  deleted from the test DB afterward
+- Follow-ups filed in `todo_list.txt`: an app-UI note that LAX only publishes
+  TBIT wait times (not "LAX has one checkpoint total"), and a lower-priority
+  research item to scope the TSA's own Android/mobile wait-times app as a
+  potential backup data source for airports with partial official-site
+  coverage
+
 ## 2026-07-10
 
 ### New Airport — DFW Live and Verified
