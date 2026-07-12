@@ -3,6 +3,55 @@ FlyASAP — Airport Security Advance Planning
 
 ---
 
+## 2026-07-12 (4)
+
+### Data Quality — Checkpoint Hours Re-Verified Against Official Sources
+- Closed the `todo_list.txt` item "Data Quality — Checkpoint Hours Need Re-Verification".
+  Researched official/authoritative sources for all flagged checkpoints: JFK (Terminal
+  1/4/5/7/8), EWR (Terminal A/B/C), LGA (Terminal A/B/C), MIA (checkpoints 2 and 7), DEN
+  (East/West Security), ATL (`INT'L MAIN`), IAH (Terminal C South and D), and LAX (TBIT).
+  - **JFK, EWR, LGA**: no official airport or terminal-operator page publishes
+    checkpoint-level operating hours at all (only live/average wait times) — remain
+    unverifiable against a primary source; current DB values left as-is since nothing
+    contradicts them and no better source exists.
+  - **ATL `INT'L MAIN`, IAH Terminal C South/D, LAX TBIT**: matched the airport's own
+    official source (ATL, IAH) or consistent secondary sources (LAX — flylax.com blocks
+    non-browser fetches, so still medium-confidence but no longer contradicted). No
+    changes needed.
+  - **MIA checkpoint 2**: DB had close time 11:45 pm; official
+    miami-airport.com/airport-security.asp states 10:45 pm. Corrected (1-hour conflict).
+  - **DEN East/West Security**: DB had asymmetric hours (East 3:00a–8:00p, West
+    3:30a–1:00a); flydenver.com/security states both checkpoints share identical hours,
+    3:00a–1:00a standard / 4:00a–8:45p PreCheck. Corrected both to match.
+- **Found and fixed a real bug** in the append-only-history design for
+  `airport_checkpoint_hours` while preparing the MIA/DEN corrections: the table's
+  `TIMESTAMP_S` columns' date part is only an entry-date anchor with no time-of-day
+  meaning, so a same-day correction ties with the row it's meant to replace —
+  `xx_build_summary_DB.R`'s "take the most recent row per checkpoint" join had no way
+  to break that tie and, verified via a dry-run simulation, would have silently kept
+  the *old* (wrong) row. Added a dedicated `entry_timestamp TIMESTAMP` column (real
+  write-time, distinct from the schedule's own open/close columns); backfilled existing
+  rows to midnight of their anchor date and set new correction rows to
+  `CURRENT_TIMESTAMP`, so ranking is now unambiguous. Updated `hours_lookup` in
+  `xx_build_summary_DB.R` to dedupe on `entry_timestamp` via `slice_max(..., n = 1,
+  with_ties = FALSE)` per `(airport, checkpoint)` instead of the old derived-date
+  approach. Verified `slice_max` correctly keeps single-row groups even when
+  `entry_timestamp` is NULL (checkpoints with no hours data at all, e.g. all 15 DFW
+  checkpoints — `is_open()` already treats NA open/close as "no restriction" either way).
+- Schema change and corrective INSERTs required a direct (non-Quack) connection —
+  `ALTER TABLE` isn't supported through the Quack remote connection. Stopped
+  `tsa_app_quack_server` ~2 minutes after a scheduled scraper run, applied the changes,
+  verified row counts (73 → 76) and the dedup logic against real data, then restarted
+  the task and confirmed the next scraper run (5:35 PM) wrote successfully with
+  `LastTaskResult = 0`.
+- **MCO Gates 70-129** standard/CLEAR hours remain genuinely unresolved — flymco.com's
+  security page has no gate-specific breakdown, only an airport-wide PreCheck window and
+  a blanket CLEAR-availability note. Left open in `todo_list.txt` as it needs a phone
+  call or another source, not further web research.
+- No forced parquet rebuild needed — `xx_build_summary_DB.R` runs nightly and rebuilds
+  from scratch each time, so the corrected hours automatically apply starting with
+  tonight's run.
+
 ## 2026-07-12 (3)
 
 ### Data Quality — Stale Overnight Wait-Time Values Fixed (scraper-level)

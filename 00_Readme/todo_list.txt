@@ -7,21 +7,25 @@ RShiny Mobile App TSA Historical Wait Times
 
 ### High Priority — Post-Launch Fixes
 
-#### Data Quality — Checkpoint Hours Need Re-Verification (found 2026-07-12)
-- Same audit found *real, varying* wait times (10-30+ min swings, not a repeated
-  number) during "closed" hours at JFK (all 5 terminals), EWR (all 3), LGA, MIA
-  (checkpoints 2 and 7), DEN, ATL `INT'L MAIN`, IAH (C South and D), and LAX — this
-  looks like the researched hours are too conservative/wrong for these checkpoints
-  (most were already flagged medium-confidence/secondary-source in
-  `04_Assets/tsa_checkpoint_hours.html`), not a scraper bug. Re-verify against each
-  airport's own official source and update `airport_checkpoint_hours` accordingly
-- MCO standard-screening and CLEAR (Gates 70-129 only) hours were never recorded in
-  the original research file — still NULL in `airport_checkpoint_hours` (degrades
-  gracefully, no filtering applied, but not accurate) — needs a manual check at
-  flymco.com/security/
-- LAX TBIT hours are a secondary-source estimate (~7:00 AM-12:00 AM) — flylax.com
-  blocks non-browser fetches so this couldn't be cross-checked against the primary
-  site; verify manually
+#### Data Quality — MCO Standard-Screening/CLEAR Hours Unrecorded (all 3 checkpoints)
+- Confirmed 2026-07-12: **all three** MCO checkpoints (`Gates 1 - 59`, `Gates 70 - 129`,
+  `Gates C230 - C254`) have NULL `open_time_gen`/`close_time_gen` and NULL
+  `open_time_clear`/`close_time_clear` in `airport_checkpoint_hours` — only PreCheck
+  hours (4:00 AM – 8:30 PM, identical across all three) are recorded. Degrades
+  gracefully (NULL = no filtering applied) but is not accurate. flymco.com/security/
+  doesn't publish a gate-specific breakdown for standard screening or CLEAR (only the
+  airport-wide PreCheck window and a blanket "CLEAR available at all three
+  checkpoints" note) — needs a phone call to the airport or another source, not
+  further web research
+
+#### Data Quality — JFK/EWR/LGA Checkpoint Hours Have No Official Source
+- Confirmed 2026-07-12: none of jfkairport.com, newarkairport.com, or
+  laguardiaairport.com (nor their terminal-operator pages) publish checkpoint-level
+  operating hours — only live/average wait times. Current `airport_checkpoint_hours`
+  values for JFK (Terminal 1/4/5/7/8), EWR (Terminal A/B/C), and LGA (Terminal A/B/C)
+  remain unverified secondary-source estimates with no primary source to check
+  against. Not actionable via further web research — revisit only if a phone call to
+  the airport, or a newly published official page, becomes available
 
 #### Data Quality — Checkpoint Name Cleanup
 - **CLT checkpoint rename** — historical rows (Nov 2024 – Apr 2025) store `"Checkpoint 1"` for what is physically Checkpoint 2; new scraper (Jul 2026) writes correct names going forward; once sufficient fresh data has accumulated, run `UPDATE tsa_wait_times SET checkpoint = 'Checkpoint 2' WHERE airport = 'CLT' AND checkpoint = 'Checkpoint 1'` to canonicalize historical data, then rebuild parquet

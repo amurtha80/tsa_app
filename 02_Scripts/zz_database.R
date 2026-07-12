@@ -190,6 +190,58 @@ print(glue::glue("quack server started on tsa_app.duckdb at ",
 # ")
 
 
+# Add entry_timestamp + correct MIA/DEN hours (2026-07-12 checkpoint-hours re-verification) ----
+# The append-only-history design above has a real gap: the TIMESTAMP_S date
+# part is just an entry-date anchor with no time-of-day meaning, so a
+# same-day correction ties with the row it's meant to supersede and
+# xx_build_summary_DB.R's "take the most recent row" join can't tell them
+# apart (verified this would silently pick the OLD row before this fix).
+# Added a dedicated entry_timestamp column (real write-time) so ranking is
+# unambiguous even for same-day corrections. Existing rows are backfilled
+# using their own anchor date at midnight, which always sorts before a
+# correction's CURRENT_TIMESTAMP (written later the same day).
+#
+# Direct (non-Quack) connection -- only safe while tsa_app_quack_server is
+# stopped (same requirement as the CLEAR-columns block above). Executed
+# 2026-07-12, ~2 min after a scraper run to minimize the write-failure window.
+# library(duckdb)
+# library(DBI)
+#
+# con_write <- dbConnect(duckdb::duckdb(), dbdir = "01_Data/tsa_app.duckdb", read_only = FALSE)
+#
+# dbExecute(con_write, "ALTER TABLE airport_checkpoint_hours ADD COLUMN entry_timestamp TIMESTAMP;")
+#
+# dbExecute(con_write, "
+#   UPDATE airport_checkpoint_hours
+#   SET entry_timestamp = CAST(COALESCE(open_time_gen, open_time_prechk, open_time_clear,
+#                                        close_time_gen, close_time_prechk, close_time_clear)::DATE AS TIMESTAMP)
+#   WHERE entry_timestamp IS NULL;
+# ")
+#
+# # MIA checkpoint 2: DB had close 11:45 pm, official miami-airport.com/airport-security.asp
+# # says 10:45 pm -- 1 hour conflict, corrected.
+# dbExecute(con_write, "
+#   INSERT INTO airport_checkpoint_hours
+#     (airport, timezone, checkpoint, open_time_gen, close_time_gen, entry_timestamp)
+#   VALUES
+#     ('MIA', 'America/New_York', '2', '2026-07-12 03:30:00', '2026-07-12 22:45:00', CURRENT_TIMESTAMP);
+# ")
+#
+# # DEN East/West: DB had asymmetric hours (East 3:00a-8:00p, West 3:30a-1:00a);
+# # flydenver.com/security states both checkpoints share identical hours,
+# # 3:00a-1:00a standard, 4:00a-8:45p PreCheck -- corrected both to match.
+# dbExecute(con_write, "
+#   INSERT INTO airport_checkpoint_hours
+#     (airport, timezone, checkpoint, open_time_gen, close_time_gen, open_time_prechk, close_time_prechk, entry_timestamp)
+#   VALUES
+#     ('DEN', 'America/Denver', 'East Security', '2026-07-12 03:00:00', '2026-07-13 01:00:00', '2026-07-12 04:00:00', '2026-07-12 20:45:00', CURRENT_TIMESTAMP),
+#     ('DEN', 'America/Denver', 'West Security', '2026-07-12 03:00:00', '2026-07-13 01:00:00', '2026-07-12 04:00:00', '2026-07-12 20:45:00', CURRENT_TIMESTAMP);
+# ")
+#
+# DBI::dbDisconnect(con_write, shutdown = TRUE)
+# rm(con_write)
+
+
 ## View tables ----
 dbGetQuery(con_write, "SHOW TABLES;")
 dbListTables(con_write)

@@ -68,6 +68,15 @@ print(glue("******-- Start summary build ", format(Sys.time(), "%a %b %d %X %Y")
 hours_lookup <- tbl(con_source, "airport_checkpoint_hours") |>
   collect() |>
   mutate(checkpoint = toupper(checkpoint)) |>
+  # Table is append-only (a correction adds a new dated row rather than
+  # updating in place), so take only the most recently entered row per
+  # checkpoint, ranked by entry_timestamp (real write-time, distinct from the
+  # schedule's own open/close columns -- those can't be used for ranking
+  # since same-day corrections would tie with the row they're replacing).
+  group_by(airport, checkpoint) |>
+  slice_max(entry_timestamp, n = 1, with_ties = FALSE) |>
+  ungroup() |>
+  select(-entry_timestamp) |>
   mutate(
     open_gen_tod      = hms::as_hms(open_time_gen),
     close_gen_tod      = hms::as_hms(close_time_gen),
