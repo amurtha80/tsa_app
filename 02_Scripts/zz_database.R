@@ -148,6 +148,26 @@ print(glue::glue("quack server started on tsa_app.duckdb at ",
 #           close_time_prechk TIMESTAMP_S
 # );")
 
+# Updating to add new open/close times for clear checkpoints ----
+# library(duckdb)
+# library(DBI)
+# library(here)
+# 
+# # Direct (non-Quack) connection -- only safe while tsa_app_quack_server is stopped
+# con_write <- dbConnect(duckdb::duckdb(), dbdir = "01_Data/tsa_app.duckdb", read_only = FALSE)
+# 
+# # Confirm current schema before changing it
+# print(dbGetQuery(con_write, "DESCRIBE airport_checkpoint_hours;"))
+# 
+# dbExecute(con_write, "ALTER TABLE airport_checkpoint_hours ADD COLUMN open_time_clear TIMESTAMP_S;")
+# dbExecute(con_write, "ALTER TABLE airport_checkpoint_hours ADD COLUMN close_time_clear TIMESTAMP_S;")
+# 
+# # Confirm the change landed
+# print(dbGetQuery(con_write, "DESCRIBE airport_checkpoint_hours;"))
+# 
+# DBI::dbDisconnect(con_write, shutdown = TRUE)
+# rm(con_write)
+
 
 # Populate PHL checkpoint hours ----
 # Open/close times sourced from phl.org's wait-api.js (tHours/tPre objects),
