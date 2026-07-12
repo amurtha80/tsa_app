@@ -3,6 +3,23 @@ FlyASAP — Airport Security Advance Planning
 
 ---
 
+## 2026-07-12 (5)
+
+### Data Quality — MCO Standard-Screening/CLEAR Hours Populated
+- Closed the `todo_list.txt` item "MCO Standard-Screening/CLEAR Hours Unrecorded".
+  flymco.com/security/ confirmed standard checkpoints and PreCheck lanes both operate
+  4:00 AM – 8:30 PM, and CLEAR is available at the same hours as standard/PreCheck at
+  all three checkpoints. Set `open_time_gen`/`close_time_gen` and
+  `open_time_clear`/`close_time_clear` to match the existing `prechk` window
+  (04:00:00–20:30:00) for all three MCO checkpoints (`Gates 1 - 59`, `Gates 70 - 129`,
+  `Gates C230 - C254`) in `airport_checkpoint_hours`. MCO's separate "Reserve" slot
+  program (5:00 AM–5:00 PM booking window for 6:30 AM–8:30 PM departures) is a
+  reservation system, not a checkpoint operating window, so it was not applied here.
+- Update required a direct (non-Quack) connection since Quack clients can't run
+  `UPDATE`: stopped `tsa_app_quack_server` after confirming the 7:00 PM scraper run
+  finished, ran the `UPDATE` directly, verified before/after via `SELECT`, then
+  restarted the task and re-verified through a Quack client read.
+
 ## 2026-07-12 (4)
 
 ### Data Quality — Checkpoint Hours Re-Verified Against Official Sources

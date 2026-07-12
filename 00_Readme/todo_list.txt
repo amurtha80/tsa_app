@@ -7,17 +7,6 @@ RShiny Mobile App TSA Historical Wait Times
 
 ### High Priority — Post-Launch Fixes
 
-#### Data Quality — MCO Standard-Screening/CLEAR Hours Unrecorded (all 3 checkpoints)
-- Confirmed 2026-07-12: **all three** MCO checkpoints (`Gates 1 - 59`, `Gates 70 - 129`,
-  `Gates C230 - C254`) have NULL `open_time_gen`/`close_time_gen` and NULL
-  `open_time_clear`/`close_time_clear` in `airport_checkpoint_hours` — only PreCheck
-  hours (4:00 AM – 8:30 PM, identical across all three) are recorded. Degrades
-  gracefully (NULL = no filtering applied) but is not accurate. flymco.com/security/
-  doesn't publish a gate-specific breakdown for standard screening or CLEAR (only the
-  airport-wide PreCheck window and a blanket "CLEAR available at all three
-  checkpoints" note) — needs a phone call to the airport or another source, not
-  further web research
-
 #### Data Quality — JFK/EWR/LGA Checkpoint Hours Have No Official Source
 - Confirmed 2026-07-12: none of jfkairport.com, newarkairport.com, or
   laguardiaairport.com (nor their terminal-operator pages) publish checkpoint-level
