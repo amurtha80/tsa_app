@@ -3,6 +3,38 @@ FlyASAP — Airport Security Advance Planning
 
 ---
 
+## 2026-07-12
+
+### Infra Fix — EC2 S3 Pull Cron Replaced with Timezone-Aware systemd Timer
+- Root-caused why DFW/PHL/LAX (and by extension every airport, every night)
+  consistently appeared in the app a full day later than the overnight build
+  actually produced fresh data: the EC2 crontab entry (`CRON_TZ=America/New_York`
+  + `0 3 * * * aws s3 cp ... && systemctl restart shiny-server`) was silently
+  ignoring `CRON_TZ` and firing at 03:00 UTC (server's system time) instead of
+  03:00 America/New_York (07:00/08:00 UTC depending on DST) — i.e. ~4 hours
+  *before* the Windows-side 2:03 AM ET nightly build had even run, so the pull
+  always grabbed the previous night's parquet from S3
+- Confirmed via `aws s3api head-object` (S3 object `LastModified` matched the
+  correct/current nightly build time) vs. the downloaded file's mtime on EC2
+  (matched the *prior* night's build) — proved the push (`paws::s3()` in
+  `xx_build_summary_DB.R`) was working correctly and the bug was entirely in
+  the EC2-side pull scheduling, not the Windows-side build/push
+- Replaced the crontab entry with `tsa-parquet-pull.service` +
+  `tsa-parquet-pull.timer` (systemd), using `OnCalendar=*-*-* 03:00:00
+  America/New_York` — note the timezone is a *trailing* field per
+  `systemd.time(7)`, not a prefix; systemd 255 on this box supports
+  timezone-qualified `OnCalendar=` natively (added in systemd v239), so DST
+  transitions are now handled automatically with no manual re-tuning twice a
+  year
+- Old `crontab -e` entry removed entirely; verified via
+  `systemctl list-timers` that `NEXT` correctly resolved to 07:00 UTC (3 AM
+  EDT) for the current DST period
+- Gotcha for future debugging: `aws s3 cp` on this box stamps the downloaded
+  file's local mtime to match the **S3 object's own `LastModified`**, not the
+  wall-clock download time — don't use local mtime alone to judge whether a
+  manual pull test actually ran; compare file size/`ETag` against
+  `head-object` instead
+
 ## 2026-07-11
 
 ### New Airport — LAX Live and Verified
