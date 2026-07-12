@@ -98,8 +98,42 @@ scrape_tsa_data_mia <- function() {
                                 TRUE ~ Clear)
            ) |> 
     mutate(across(c(General:Clear), as.numeric)) |> suppressWarnings()
-  
-  
+
+  # Guard: checkpoints 4 and 10 don't clear their General wait time immediately
+  # at close -- the last real reading is left on the page for a while after the
+  # published close time before the site itself eventually flips to "Closed".
+  # Scoped to just these two checkpoints (not applied airport-wide): checkpoints
+  # 2 and 7 are separately flagged as possibly having too-conservative researched
+  # hours, so gating them here would risk suppressing real data instead of stale
+  # data. Same pattern as the DCA/IAH/PHL A-West 1 fixes.
+  stale_gate_hours <- dbGetQuery(con_write, "
+    SELECT checkpoint, open_time_gen, close_time_gen
+    FROM airport_checkpoint_hours
+    WHERE airport = 'MIA' AND checkpoint IN ('4', '10')
+  ")
+  now_et <- lubridate::now(tzone = "America/New_York")
+  now_minutes_of_day <- lubridate::hour(now_et) * 60 + lubridate::minute(now_et)
+  tod_minutes <- function(ts) lubridate::hour(ts) * 60 + lubridate::minute(ts)
+  is_checkpoint_open <- function(cp) {
+    hrs <- stale_gate_hours[stale_gate_hours$checkpoint == cp, ]
+    if (nrow(hrs) == 0 || is.na(hrs$open_time_gen[1]) || is.na(hrs$close_time_gen[1])) {
+      return(TRUE)
+    }
+    open_min  <- tod_minutes(hrs$open_time_gen[1])
+    close_min <- tod_minutes(hrs$close_time_gen[1])
+    if (close_min < open_min) {
+      now_minutes_of_day >= open_min || now_minutes_of_day <= close_min
+    } else {
+      now_minutes_of_day >= open_min && now_minutes_of_day <= close_min
+    }
+  }
+  for (cp in c("4", "10")) {
+    if (!is_checkpoint_open(cp)) {
+      MIA_transform$General[MIA_transform$Checkpoint == cp] <- NA_real_
+    }
+  }
+
+
   # Create tibble for data insertion
   if(!exists("MIA_data", envir = .GlobalEnv)) {
     MIA_data <- tibble(airport = character(),
@@ -156,6 +190,7 @@ scrape_tsa_data_mia <- function() {
   rm(checkpoint_data)
   rm(mia_tbl)
   rm(MIA_transform)
+  rm(stale_gate_hours, now_et, now_minutes_of_day, tod_minutes, is_checkpoint_open, cp)
   rm(MIA_data, envir = .GlobalEnv)
   
   brow$close()

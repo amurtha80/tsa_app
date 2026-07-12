@@ -79,6 +79,43 @@ scrape_tsa_data_phl <- function() {
     dplyr::select(checkpoint, lane_type, wait_minutes) |>
     tidyr::pivot_wider(names_from = lane_type, values_from = wait_minutes)
 
+  # Guard: Terminal A-East and Terminal F don't clear their wait time overnight
+  # -- the feed leaves a stale ~3 min reading in place for the entire closed
+  # window instead of dropping the zone or returning a null. Scoped to just
+  # these two checkpoints (the other live-feed checkpoints -- D/E, A-West 2, B,
+  # C -- weren't flagged by the overnight audit and are left alone). Same
+  # pattern as the A-West 1 gate below, and as DCA/IAH/MIA/MSP.
+  stale_gate_hours <- dbGetQuery(con_write, "
+    SELECT checkpoint, open_time_gen, close_time_gen, open_time_prechk, close_time_prechk
+    FROM airport_checkpoint_hours
+    WHERE airport = 'PHL' AND checkpoint IN ('Terminal A-East', 'Terminal F')
+  ")
+  now_et_gate <- lubridate::now(tzone = "America/New_York")
+  now_min_gate <- lubridate::hour(now_et_gate) * 60 + lubridate::minute(now_et_gate)
+  tod_minutes_gate <- function(ts) lubridate::hour(ts) * 60 + lubridate::minute(ts)
+  is_open_gate <- function(cp, open_col, close_col) {
+    hrs <- stale_gate_hours[stale_gate_hours$checkpoint == cp, ]
+    open_val  <- hrs[[open_col]][1]
+    close_val <- hrs[[close_col]][1]
+    if (nrow(hrs) == 0 || is.na(open_val) || is.na(close_val)) return(TRUE)
+    open_min  <- tod_minutes_gate(open_val)
+    close_min <- tod_minutes_gate(close_val)
+    if (close_min < open_min) {
+      now_min_gate >= open_min || now_min_gate <= close_min
+    } else {
+      now_min_gate >= open_min && now_min_gate <= close_min
+    }
+  }
+  if (!is_open_gate("Terminal A-East", "open_time_gen", "close_time_gen")) {
+    api_checkpoints$wait_time[api_checkpoints$checkpoint == "Terminal A-East"] <- NA_real_
+  }
+  if (!is_open_gate("Terminal A-East", "open_time_prechk", "close_time_prechk")) {
+    api_checkpoints$wait_time_pre_check[api_checkpoints$checkpoint == "Terminal A-East"] <- NA_real_
+  }
+  if (!is_open_gate("Terminal F", "open_time_gen", "close_time_gen")) {
+    api_checkpoints$wait_time[api_checkpoints$checkpoint == "Terminal F"] <- NA_real_
+  }
+
   # Terminal A-West 1 ----
   # Not part of the metrics feed at all (wait-api.js never targets #aw1Gen) --
   # its wait time is a static value manually maintained in the checkpoint-hours
@@ -184,6 +221,7 @@ scrape_tsa_data_phl <- function() {
   rm(rows)
   rm(metrics)
   rm(missing_ids)
+  rm(stale_gate_hours, now_et_gate, now_min_gate, tod_minutes_gate, is_open_gate)
   rm(api_checkpoints)
   rm(hours_url)
   rm(hours_page)

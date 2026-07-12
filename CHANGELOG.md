@@ -3,6 +3,49 @@ FlyASAP — Airport Security Advance Planning
 
 ---
 
+## 2026-07-12 (3)
+
+### Data Quality — Stale Overnight Wait-Time Values Fixed (scraper-level)
+- Closed the `todo_list.txt` item "Data Quality — Stale Overnight Wait-Time Values",
+  fixing all 5 checkpoints/airports the 2026-07-12 systematic overnight audit flagged as
+  showing the same single flat number during their published closed hours, confirmed via
+  a fresh 7-day hour-by-hour query against each checkpoint before touching any scraper:
+  - **DCA** — all 3 terminals flatlined around 4-5 min for the whole 9pm/11pm–4am closed
+    window (confirmed real variation 3-11+ min during open hours). Added an
+    `airport_checkpoint_hours` lookup gating `wait_time`/`wait_time_pre_check` per
+    checkpoint (three different close times: 9pm/11pm/9pm), same pattern as PHL A-West 1
+  - **IAH Terminal A South** — flatlined at 3 min from midnight to its 3:30am open.
+    Gated *only* this checkpoint (not IAH-wide): IAH's C South and D terminals are
+    separately flagged as possibly having too-conservative researched hours, so an
+    airport-wide gate risked nulling real data there instead of stale data
+  - **MIA checkpoints 4 and 10** — checkpoint 4 is a genuinely low-traffic checkpoint
+    (~0 min nearly all day) with only a brief stale-carryover tail past its 8:15pm close;
+    checkpoint 10 flatlined at 3 min for roughly an hour past its 7:15pm close before the
+    site itself eventually nulled it. Gated only checkpoints 4 and 10 (not MIA-wide) for
+    the same reason as IAH — checkpoints 2 and 7 are separately flagged as possibly
+    under-researched hours
+  - **MSP T2 Checkpoints 1 and 2** — both held a stale ~5 min reading (the site's own
+    minimum display tier) in the hour before their shared 4am open. Gated both against
+    their published 4am–10pm window
+  - **PHL Terminal A-East and Terminal F** — both flatlined at ~3 min for the entirety of
+    their closed hours (confirmed via the live `/phllivereach/metrics` feed's zone IDs),
+    while still showing real variation mixed with occasional low (~3 min) readings during
+    open hours. Gated only these two zones from the feed, not the other live-feed
+    checkpoints (D/E, A-West 2, B, C), which weren't flagged
+- Fix shape is uniform across all 5: a per-checkpoint (never airport-wide) lookup against
+  `airport_checkpoint_hours`, reducing the stored `TIMESTAMP_S` open/close to
+  time-of-day + an overnight-wrap check, nulling the affected wait-time column(s) when
+  outside the published window — same pattern established by the PHL A-West 1 fix.
+  Verified each gate's open/closed boundary against real data before editing, and
+  re-verified the implemented logic against synthetic timestamps (midnight, boundary
+  minutes, midday) after editing, before considering any checkpoint done
+- Checked `Get-ScheduledTask` state for `tsa_app_scraper` (Ready, not mid-run) before
+  editing any of the 4 live scraper scripts (`DCA_wait_times.R`, `IAH_wait_times.R`,
+  `MIA_wait_times.R`, `MSP_wait_times.R`, `PHL_wait_times.R`)
+- Deliberately did not touch the separate "Checkpoint Hours Need Re-Verification" item
+  (JFK, EWR, LGA, MIA 2 & 7, DEN, ATL `INT'L MAIN`, IAH C South & D, LAX) — those need
+  hours-table corrections, not scraper-level gates, and weren't part of this pass
+
 ## 2026-07-12 (2)
 
 ### Data Quality — Checkpoint Hours of Operation Populated + Hours-Based Chart Filtering

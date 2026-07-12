@@ -95,6 +95,34 @@ scrape_tsa_data_dca <- function() {
   wait_time           <- wait_time[keep]
   wait_time_pre_check <- wait_time_pre_check[keep]
 
+  # Guard: flyreagan.com does not clear its displayed wait time when a checkpoint
+  # closes -- the last real reading (settling around 4-5 min) is left on the page
+  # indefinitely, so the scraper would otherwise faithfully record a stale non-NA
+  # value all night. Gate against airport_checkpoint_hours (time-of-day only, no
+  # DCA checkpoint's published window wraps midnight) rather than a hardcoded
+  # clock literal -- same pattern as the PHL Terminal A-West 1 fix.
+  dca_hours <- dbGetQuery(con_write, "
+    SELECT checkpoint, open_time_gen, close_time_gen
+    FROM airport_checkpoint_hours
+    WHERE airport = 'DCA'
+  ")
+  now_et <- lubridate::now(tzone = "America/New_York")
+  now_minutes_of_day <- lubridate::hour(now_et) * 60 + lubridate::minute(now_et)
+  tod_minutes <- function(ts) lubridate::hour(ts) * 60 + lubridate::minute(ts)
+
+  is_checkpoint_open <- function(cp) {
+    hrs <- dca_hours[dca_hours$checkpoint == cp, ]
+    if (nrow(hrs) == 0 || is.na(hrs$open_time_gen[1]) || is.na(hrs$close_time_gen[1])) {
+      return(TRUE)
+    }
+    now_minutes_of_day >= tod_minutes(hrs$open_time_gen[1]) &&
+      now_minutes_of_day <= tod_minutes(hrs$close_time_gen[1])
+  }
+
+  open_now <- purrr::map_lgl(checkpoints, is_checkpoint_open)
+  wait_time[!open_now]           <- NA_real_
+  wait_time_pre_check[!open_now] <- NA_real_
+
 
   # Build output tibble ----
   if (!exists("DCA_data", envir = .GlobalEnv)) {
@@ -139,7 +167,8 @@ scrape_tsa_data_dca <- function() {
   
   
   # Cleanup ----
-  rm(rows, checkpoints, raw_general, raw_pre, wait_time, wait_time_pre_check, parse_cell, parse_time)
+  rm(rows, checkpoints, raw_general, raw_pre, wait_time, wait_time_pre_check, parse_cell, parse_time,
+     dca_hours, now_et, now_minutes_of_day, tod_minutes, is_checkpoint_open, open_now)
   rm(DCA_data, envir = .GlobalEnv)
   
   

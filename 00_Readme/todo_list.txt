@@ -7,19 +7,6 @@ RShiny Mobile App TSA Historical Wait Times
 
 ### High Priority — Post-Launch Fixes
 
-#### Data Quality — Stale Overnight Wait-Time Values (scraper-level, found 2026-07-12)
-- 7-day audit found these checkpoints report the *exact same single number* every
-  time during their published closed hours (matching the pattern PHL Terminal A-West 1
-  had before its own clock-gate fix) — needs scraper-level investigation, likely each
-  airport's site not clearing/nulling its displayed value when the checkpoint closes:
-  DCA (all 3 terminals, flat at 4 min), IAH Terminal A South (flat at 3), MIA
-  checkpoints 4 and 10 (flat at 0 and 3), MSP T2 Checkpoints 1 and 2 (flat at 5), PHL
-  Terminal A-East and Terminal F (flat at 3)
-- Investigate one at a time; the fix shape is the same as PHL A-West 1's original
-  clock gate (now itself replaced by an `airport_checkpoint_hours` lookup) — but only
-  add a scraper-level gate if the raw source value is provably static/disconnected
-  from real status, not as a first resort
-
 #### Data Quality — Checkpoint Hours Need Re-Verification (found 2026-07-12)
 - Same audit found *real, varying* wait times (10-30+ min swings, not a repeated
   number) during "closed" hours at JFK (all 5 terminals), EWR (all 3), LGA, MIA

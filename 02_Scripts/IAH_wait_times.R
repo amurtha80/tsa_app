@@ -94,7 +94,39 @@ scrape_tsa_data_iah <- function() {
   if (!"Standard" %in% names(data_tbl)) data_tbl$Standard <- NA_real_
   if (!"PreCheck" %in% names(data_tbl)) data_tbl$PreCheck <- NA_real_
   if (!"Premier"  %in% names(data_tbl)) data_tbl$Premier  <- NA_real_
-  
+
+  # Guard: fly2houston.com does not clear the Standard-lane wait time for
+  # Terminal A South when it closes overnight (midnight - 3:30am) -- the last
+  # real reading (settling around 3 min) is left on the page indefinitely.
+  # Scoped to A South only (not applied airport-wide): IAH's other checkpoints
+  # are separately flagged as possibly having too-conservative researched hours,
+  # so gating them here would risk suppressing real overnight data instead of
+  # stale data. Same pattern as the DCA/PHL A-West 1 fixes.
+  a_south_hours <- dbGetQuery(con_write, "
+    SELECT open_time_gen, close_time_gen
+    FROM airport_checkpoint_hours
+    WHERE airport = 'IAH' AND checkpoint = 'IAH Terminal A South'
+  ")
+  now_ct <- lubridate::now(tzone = "America/Chicago")
+  now_minutes_of_day <- lubridate::hour(now_ct) * 60 + lubridate::minute(now_ct)
+  tod_minutes <- function(ts) lubridate::hour(ts) * 60 + lubridate::minute(ts)
+  a_south_open <- if (nrow(a_south_hours) == 0 ||
+                       is.na(a_south_hours$open_time_gen[1]) ||
+                       is.na(a_south_hours$close_time_gen[1])) {
+    TRUE
+  } else {
+    open_min  <- tod_minutes(a_south_hours$open_time_gen[1])
+    close_min <- tod_minutes(a_south_hours$close_time_gen[1])
+    if (close_min < open_min) {
+      now_minutes_of_day >= open_min || now_minutes_of_day <= close_min
+    } else {
+      now_minutes_of_day >= open_min && now_minutes_of_day <= close_min
+    }
+  }
+  if (!a_south_open) {
+    data_tbl$Standard[data_tbl$checkpoint == "IAH Terminal A South"] <- NA_real_
+  }
+
   
   # Initialize or retrieve data tibble from global environment ----
     if(!exists("IAH_data", envir = .GlobalEnv)) {
@@ -144,6 +176,7 @@ scrape_tsa_data_iah <- function() {
   rm(times_raw)
   rm(raw_tbl)
   rm(data_tbl)
+  rm(a_south_hours, now_ct, now_minutes_of_day, tod_minutes, a_south_open)
   rm(IAH_data, envir = .GlobalEnv)
   
   # June 2026 - New Tear-down Methodology to avoid Headless Chrome Temp files

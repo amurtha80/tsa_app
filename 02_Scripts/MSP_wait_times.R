@@ -65,6 +65,38 @@ scrape_tsa_data_msp <- function() {
     stop("The length of tsa_time and tsa_terminal_checkpoint do not match.")
   }
 
+  # Guard: T2 Checkpoint 1 and T2 Checkpoint 2 don't clear their wait time
+  # before opening at 4:00am -- the prior day's last reading is left on the
+  # page (settling around 5 min, the site's minimum display tier) until the
+  # checkpoint actually opens. Scoped to just these two checkpoints, matching
+  # the pattern already used at DCA/IAH/MIA/PHL.
+  stale_gate_hours <- dbGetQuery(con_write, "
+    SELECT checkpoint, open_time_gen, close_time_gen
+    FROM airport_checkpoint_hours
+    WHERE airport = 'MSP' AND checkpoint IN ('T2 Checkpoint 1', 'T2 Checkpoint 2')
+  ")
+  now_ct <- lubridate::now(tzone = "America/Chicago")
+  now_minutes_of_day <- lubridate::hour(now_ct) * 60 + lubridate::minute(now_ct)
+  tod_minutes <- function(ts) lubridate::hour(ts) * 60 + lubridate::minute(ts)
+  is_checkpoint_open <- function(cp) {
+    hrs <- stale_gate_hours[stale_gate_hours$checkpoint == cp, ]
+    if (nrow(hrs) == 0 || is.na(hrs$open_time_gen[1]) || is.na(hrs$close_time_gen[1])) {
+      return(TRUE)
+    }
+    open_min  <- tod_minutes(hrs$open_time_gen[1])
+    close_min <- tod_minutes(hrs$close_time_gen[1])
+    if (close_min < open_min) {
+      now_minutes_of_day >= open_min || now_minutes_of_day <= close_min
+    } else {
+      now_minutes_of_day >= open_min && now_minutes_of_day <= close_min
+    }
+  }
+  for (cp in c("T2 Checkpoint 1", "T2 Checkpoint 2")) {
+    if (!is_checkpoint_open(cp)) {
+      mine$wait_time[mine$checkpoints == cp] <- NA_real_
+    }
+  }
+
 
 if(!exists("MSP_data", envir = .GlobalEnv)) {
   MSP_data <- tibble(airport = character(),
@@ -120,6 +152,7 @@ if(!exists("MSP_data", envir = .GlobalEnv)) {
   rm(mine)
   rm(page)
   rm(session)
+  rm(stale_gate_hours, now_ct, now_minutes_of_day, tod_minutes, is_checkpoint_open, cp)
   rm(MSP_data, envir = .GlobalEnv)
 
   
