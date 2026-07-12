@@ -3,6 +3,87 @@ FlyASAP — Airport Security Advance Planning
 
 ---
 
+## 2026-07-12 (2)
+
+### Data Quality — Checkpoint Hours of Operation Populated + Hours-Based Chart Filtering
+- Closed both `todo_list.txt` items "Data Quality — Checkpoint Hours of Operation" and
+  "Overnight Wait Time Data — Validity Check" in a single coordinated pass, per the
+  project's stated preference to treat checkpoint-hours as one fix across all airports
+  rather than airport-by-airport
+- `airport_checkpoint_hours` schema: added `open_time_clear`/`close_time_clear`
+  (`ALTER TABLE`, run directly against the DB file with the `tsa_app_quack_server`
+  scheduled task briefly stopped — Quack clients can't run DDL, confirmed live via
+  `Alter not implemented yet` error)
+- Populated `airport_checkpoint_hours` for all 14 active airports (66 new rows; PHL's
+  7 rows already existed from its own onboarding) via a one-time checkpoint-name
+  crosswalk mapping the `04_Assets/tsa_checkpoint_hours.html` research file's display
+  names to the actual canonical `tsa_wait_times.checkpoint` strings (e.g. ATL's
+  `Domestic — Main` → `DOMESTIC MAIN`, MIA's `Concourse D — Checkpoint 1` → `1`) — a
+  one-time documentation exercise, not a pipeline step; new airports are expected to
+  write canonical checkpoint names from the start, as PHL/DFW/LAX already do
+- Added IAH (13th airport, previously missing entirely from the hours research) and
+  researched hours for the three newly-live airports (DFW, PHL[already done], LAX) into
+  the HTML asset and the DB table
+- **DFW correction**: confirmed via a live fetch of the LocusLabs `dynamic-poi` endpoint
+  that it has no hours/schedule fields at all (only live queue state + `isClosed` flags)
+  — the HTML file's prior recommendation to "pull hours from the DFW API" was checked
+  and isn't possible. DFW's 15 checkpoints are intentionally left NULL in
+  `airport_checkpoint_hours`; its scraper already nulls `wait_time` in real time via
+  `isClosed`/`isTemporarilyClosed`, so no static table is needed there
+- Two pre-existing checkpoint-name data-hygiene bugs fixed so they don't silently break
+  the new hours join: `DCA_wait_times.R` now drops rows with a blank checkpoint name
+  (a rare divider-row artifact); `PDX_wait_times.R` now collapses the embedded `\n`
+  that `html_text2()` was leaving in `.checkpoint-name` (from a `<br>` in the source
+  markup) into a single space
+- `xx_build_summary_DB.R`: added an hours-based filter before aggregation — each raw
+  row's `wait_time`/`wait_time_pre_check`/`wait_time_clear` is nulled individually if
+  local time-of-day falls outside that lane's `airport_checkpoint_hours` window
+  (open/close reduced to time-of-day + an overnight-wrap flag, since the table's
+  `TIMESTAMP_S` date part is just an entry-date anchor, not meaningful for comparison).
+  **NULL open/close on a checkpoint/lane means "no known restriction" and is never
+  filtered** — this is what makes DFW and MCO's missing-standard-hours rows behave
+  correctly with no special-casing
+- `app.R` `build_chart()`: bars for closed time slots are now `na.rm`-dropped (no bar,
+  not a zero bar); when the entire selected ±1hr window is closed, the chart now shows
+  "This checkpoint is not open during this time window" instead of the previous generic
+  "no data" message — a `lane_exists_elsewhere` check (does this lane have data
+  *anywhere* for this checkpoint, not just this window) keeps that message from being
+  shown for checkpoints that simply have no PreCheck/CLEAR lane at all, which still get
+  their prior "No TSA Pre✓/CLEAR lane" message. Verified live in-browser: ATL
+  `DOMESTIC NORTH` (closed 9pm–4am) at 2:00 AM Sunday correctly renders the new message
+- `PHL_wait_times.R`'s hardcoded 3:00pm–5:30pm clock gate for Terminal A-West 1 (added
+  when the hours table didn't exist yet) replaced with a live lookup against
+  `airport_checkpoint_hours` — verified the new logic reproduces the old hardcoded
+  window exactly (open at 3:30pm/5:29pm, closed at 2pm/5:31pm/8pm) before deploying
+- Ran the updated nightly build once live (ahead of its normal 2 AM schedule, with the
+  user's confirmation) — 39,611 rows aggregated and pushed to S3 successfully
+
+### Data Quality — Systematic Overnight Validity Audit
+- Ran a 7-day audit joining every airport/checkpoint's raw scraped data against its new
+  operating hours to check for non-null `wait_time` during known-closed windows —
+  surfaced two genuinely distinct problems that had been bundled under one todo item:
+  - **Real stale-cache bugs** (the exact same single number every time during closed
+    hours, matching the pattern PHL's A-West 1 had before its own fix): DCA (all 3
+    terminals, flat at 4 min), IAH Terminal A South (flat at 3), MIA checkpoints 4 and
+    10 (flat at 0 and 3), MSP T2 Checkpoints 1 and 2 (flat at 5), PHL Terminal A-East
+    and Terminal F (flat at 3) — these need scraper-level investigation, filed as a new
+    todo item rather than fixed in this pass
+  - **Hours data that's likely too conservative, not a scraper bug** — real, varying
+    wait times (10–30+ minute swings, not a repeated number) during "closed" hours at
+    JFK (all 5 terminals), EWR (all 3), LGA, MIA (checkpoints 2 and 7), DEN, ATL
+    `INT'L MAIN`, IAH (C South and D), and LAX — mostly the airports the original
+    research already flagged as medium-confidence/secondary-source estimates. This
+    suggests those checkpoints are genuinely open later than researched, not that the
+    scrapers are malfunctioning — filed as a separate todo item to re-verify hours
+    rather than conflating it with the stale-cache bugs above
+  - A hand-verified 3-checkpoint spot check earlier in this session (ATL `DOMESTIC
+    NORTH`, DEN `East Security`, MIA checkpoint `9`) had already suggested the
+    2026-07-12 UTC/local timezone fix (see below) resolved most of the "every airport
+    shows overnight activity" symptom; this systematic audit confirms that theory for
+    the majority of checkpoints while isolating the genuine remaining exceptions above
+
+---
+
 ## 2026-07-12
 
 ### Data Quality Fix — Charts Now Show Airport-Local Time, Not UTC

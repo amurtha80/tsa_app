@@ -92,13 +92,24 @@ scrape_tsa_data_phl <- function() {
     purrr::keep(~ stringr::str_detect(rvest::html_text2(rvest::html_element(.x, "h2")), "A-West 1"))
 
   # A-West 1's wait value is static markup, not a live feed -- wait-api.js only
-  # uses its 3:00pm-5:30pm hours to toggle the open/closed status badge, never
-  # to gate this value, so it reads "< 10" around the clock even when closed.
-  # Gate on the clock ourselves rather than write a meaningless number for the
-  # ~21 hours/day this checkpoint isn't open.
+  # uses its published hours to toggle the open/closed status badge, never to
+  # gate this value, so it reads "< 10" around the clock even when closed.
+  # Gate on airport_checkpoint_hours (PreCheck window) rather than write a
+  # meaningless number for the hours this checkpoint isn't open -- replaces
+  # the old hardcoded 3:00pm-5:30pm check now that the hours table is populated.
+  aw1_hours <- dbGetQuery(con_write, "
+    SELECT open_time_prechk, close_time_prechk FROM airport_checkpoint_hours
+    WHERE airport = 'PHL' AND checkpoint = 'Terminal A-West 1'
+  ")
   now_et <- lubridate::now(tzone = "America/New_York")
   now_minutes_of_day <- lubridate::hour(now_et) * 60 + lubridate::minute(now_et)
-  aw1_open <- now_minutes_of_day >= (15 * 60) && now_minutes_of_day <= (17 * 60 + 30)
+  tod_minutes <- function(ts) lubridate::hour(ts) * 60 + lubridate::minute(ts)
+  aw1_open <- if (nrow(aw1_hours) == 0 || is.na(aw1_hours$open_time_prechk[1])) {
+    FALSE
+  } else {
+    now_minutes_of_day >= tod_minutes(aw1_hours$open_time_prechk[1]) &&
+      now_minutes_of_day <= tod_minutes(aw1_hours$close_time_prechk[1])
+  }
 
   aw1_wait <- if (length(aw1_card) == 0 || !aw1_open) {
     # Card absent entirely (PHL swapped in the commented-out "CLOSED" variant)
@@ -177,8 +188,10 @@ scrape_tsa_data_phl <- function() {
   rm(hours_url)
   rm(hours_page)
   rm(aw1_card)
+  rm(aw1_hours)
   rm(now_et)
   rm(now_minutes_of_day)
+  rm(tod_minutes)
   rm(aw1_open)
   rm(aw1_wait)
   rm(aw1_checkpoint)

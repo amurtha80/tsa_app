@@ -60,6 +60,35 @@ print(glue("******-- Start summary build ", format(Sys.time(), "%a %b %d %X %Y")
 
 # Extract and Aggregate ----
 
+# Operating hours lookup: airport_checkpoint_hours' TIMESTAMP_S date part is
+# just an entry-date anchor, not meaningful for comparison -- reduce each
+# open/close pair to a time-of-day plus a "wraps past midnight" flag (true
+# when close's date is one day after open's, e.g. DEN West 3:30 AM - 1:00 AM).
+# NULL open/close means "no known restriction" -- never filters that lane.
+hours_lookup <- tbl(con_source, "airport_checkpoint_hours") |>
+  collect() |>
+  mutate(checkpoint = toupper(checkpoint)) |>
+  mutate(
+    open_gen_tod      = hms::as_hms(open_time_gen),
+    close_gen_tod      = hms::as_hms(close_time_gen),
+    wraps_gen          = as.Date(close_time_gen) > as.Date(open_time_gen),
+    open_prechk_tod   = hms::as_hms(open_time_prechk),
+    close_prechk_tod   = hms::as_hms(close_time_prechk),
+    wraps_prechk       = as.Date(close_time_prechk) > as.Date(open_time_prechk),
+    open_clear_tod    = hms::as_hms(open_time_clear),
+    close_clear_tod    = hms::as_hms(close_time_clear),
+    wraps_clear        = as.Date(close_time_clear) > as.Date(open_time_clear)
+  ) |>
+  select(airport, checkpoint, starts_with("open_"), starts_with("close_"), starts_with("wraps_"))
+
+is_open <- function(tod, open_tod, close_tod, wraps) {
+  dplyr::case_when(
+    is.na(open_tod) | is.na(close_tod) ~ TRUE,
+    wraps                              ~ (tod >= open_tod | tod <= close_tod),
+    TRUE                                ~ (tod >= open_tod & tod <= close_tod)
+  )
+}
+
 tsa_wait_time_summ <- tbl(con_source, "tsa_wait_times") |>
   collect() |>
   # `time` is a genuine UTC instant (DuckDB's TIMESTAMP_S column is naive;
@@ -72,8 +101,18 @@ tsa_wait_time_summ <- tbl(con_source, "tsa_wait_times") |>
   group_by(timezone) |>
   mutate(time_local = lubridate::with_tz(time, tzone = dplyr::first(timezone))) |>
   ungroup() |>
+  mutate(checkpoint = toupper(checkpoint)) |>
+  left_join(hours_lookup, by = c("airport", "checkpoint")) |>
   mutate(
-    checkpoint  = toupper(checkpoint),
+    time_of_day = hms::as_hms(time_local),
+    wait_time           = if_else(is_open(time_of_day, open_gen_tod, close_gen_tod, wraps_gen),
+                                   wait_time, NA_real_),
+    wait_time_pre_check = if_else(is_open(time_of_day, open_prechk_tod, close_prechk_tod, wraps_prechk),
+                                   wait_time_pre_check, NA_real_),
+    wait_time_clear     = if_else(is_open(time_of_day, open_clear_tod, close_clear_tod, wraps_clear),
+                                   wait_time_clear, NA_real_)
+  ) |>
+  mutate(
     bucket_time = hms::as_hms(lubridate::ceiling_date(time_local, "15 mins")),
     weekday     = lubridate::wday(time_local, label = TRUE, abbr = TRUE)
   ) |>

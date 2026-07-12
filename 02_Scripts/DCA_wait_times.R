@@ -86,8 +86,16 @@ scrape_tsa_data_dca <- function() {
   
   wait_time           <- parse_time(raw_general)
   wait_time_pre_check <- parse_time(raw_pre)
-  
-  
+
+  # Guard: an occasional row on this page renders with a blank checkpoint name
+  # (a divider/empty row, not a real checkpoint) -- drop it rather than write a
+  # row that can never join against airport_checkpoint_hours
+  keep <- !is.na(checkpoints) & stringr::str_trim(checkpoints) != ""
+  checkpoints         <- checkpoints[keep]
+  wait_time           <- wait_time[keep]
+  wait_time_pre_check <- wait_time_pre_check[keep]
+
+
   # Build output tibble ----
   if (!exists("DCA_data", envir = .GlobalEnv)) {
     DCA_data <- tibble(

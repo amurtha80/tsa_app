@@ -46,9 +46,14 @@ scrape_tsa_data_pdx <- function() {
   
 ####  --------------------------------------------------------------------- ####
   
-  gates <- page |> 
-    html_elements('.checkpoint-name') |> 
-    html_text2()
+  # html_text2() converts the page's <br> inside .checkpoint-name into a literal
+  # "\n" (e.g. "Security checkpoint for gates\nBC") -- collapse to a single space
+  # so the stored checkpoint string stays joinable against airport_checkpoint_hours
+  gates <- page |>
+    html_elements('.checkpoint-name') |>
+    html_text2() |>
+    stringr::str_replace_all("[\r\n]+", " ") |>
+    stringr::str_squish()
   
   
   wait_time <- page |> 

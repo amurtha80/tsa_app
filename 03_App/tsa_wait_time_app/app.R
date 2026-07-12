@@ -570,10 +570,11 @@ server <- function(input, output, session) {
   # Helper: build chart ----
   # Chart colors are now fixed (Navy/Teal) regardless of any theme toggle.
   
-  build_chart <- function(data, avg_col, max_col, subtitle, lane_label = "standard") {
-    
+  build_chart <- function(data, avg_col, max_col, subtitle, lane_label = "standard",
+                           lane_exists_elsewhere = TRUE) {
+
     teal_dark <- darken_hex(accent_teal, amount = 0.30)
-    
+
     if (nrow(data) == 0) {
       return(
         ggplot() +
@@ -583,16 +584,25 @@ server <- function(input, output, session) {
           theme_void()
       )
     }
-    
+
     avg_vals <- data[[avg_col]]
     max_vals <- data[[max_col]]
-    
+
     if (all(is.na(avg_vals))) {
-      msg <- switch(lane_label,
-                    "precheck" = "No TSA Pre\u2713 lane at this checkpoint.",
-                    "clear"    = "No CLEAR lane at this checkpoint.",
-                    "No wait time data for this selection."
-      )
+      # A lane with no data anywhere for this checkpoint (e.g. no CLEAR lane at
+      # all) is a different situation from a lane that exists but is closed
+      # during this specific selected window (per airport_checkpoint_hours) --
+      # `lane_exists_elsewhere` distinguishes the two so the message doesn't
+      # claim a checkpoint has no PreCheck/CLEAR lane when it's simply closed.
+      msg <- if (!lane_exists_elsewhere) {
+        switch(lane_label,
+               "precheck" = "No TSA Pre\u2713 lane at this checkpoint.",
+               "clear"    = "No CLEAR lane at this checkpoint.",
+               "No wait time data for this selection."
+        )
+      } else {
+        "This checkpoint is not open during this time window."
+      }
       return(
         ggplot() +
           annotate("text", x = 0.5, y = 0.5,
@@ -607,6 +617,7 @@ server <- function(input, output, session) {
       geom_col_rounded(
         width       = 0.9,
         show.legend = FALSE,
+        na.rm       = TRUE,
         aes(fill = highlight)
       ) +
       geom_text(
@@ -667,7 +678,12 @@ server <- function(input, output, session) {
       "{input$select_checkpoint} \u2022 {input$select_airport} \u2022 ",
       "{input$select_day} around {input$select_time}"
     )
-    build_chart(data, "avg_time_std", "max_time_std", subtitle, lane_label = "standard")
+    lane_exists <- summ_data |>
+      filter(airport == input$select_airport, checkpoint == input$select_checkpoint) |>
+      summarise(any(!is.na(avg_time_std))) |>
+      pull()
+    build_chart(data, "avg_time_std", "max_time_std", subtitle,
+                lane_label = "standard", lane_exists_elsewhere = lane_exists)
   }) |>
     bindCache(
       input$select_airport,
@@ -685,7 +701,12 @@ server <- function(input, output, session) {
       "{input$select_checkpoint} \u2022 {input$select_airport} \u2022 ",
       "{input$select_day} around {input$select_time}"
     )
-    build_chart(data, "avg_time_tsa_precheck", "max_time_tsa_precheck", subtitle, lane_label = "precheck")
+    lane_exists <- summ_data |>
+      filter(airport == input$select_airport, checkpoint == input$select_checkpoint) |>
+      summarise(any(!is.na(avg_time_tsa_precheck))) |>
+      pull()
+    build_chart(data, "avg_time_tsa_precheck", "max_time_tsa_precheck", subtitle,
+                lane_label = "precheck", lane_exists_elsewhere = lane_exists)
   }) |>
     bindCache(
       input$select_airport,

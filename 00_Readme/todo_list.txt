@@ -7,22 +7,34 @@ RShiny Mobile App TSA Historical Wait Times
 
 ### High Priority — Post-Launch Fixes
 
-#### Data Quality — Checkpoint Hours of Operation
-- Populate `airport_checkpoint_hours` table in `tsa_app.duckdb` with open/close 
-  times per checkpoint per airport — research already complete for all 12 airports
-- Add operating hours join/filter in `xx_build_summary_DB.R` before `group_by` 
-  so rows outside operating hours are excluded from parquet aggregation
-- Update `build_chart()` in `app.R`: suppress bars entirely for time slots outside 
-  operating hours (no bar = checkpoint closed, not zero wait)
-- Update `build_chart()` in `app.R`: if selected time window falls entirely outside
-  operating hours, display text message "This checkpoint is not open during this
-  time window" instead of blank chart
-- When this lands, revisit `PHL_wait_times.R`'s hardcoded 3:00pm-5:30pm clock gate
-  for Terminal A-West 1 (added because its wait value is static page markup, not a
-  live feed, and would otherwise write a stale number around the clock) — replace
-  with a lookup against `airport_checkpoint_hours` so no scraper needs a hardcoded
-  open/close window for any checkpoint
-- Affects all 12 airports — treat as a single coordinated fix, not airport by airport
+#### Data Quality — Stale Overnight Wait-Time Values (scraper-level, found 2026-07-12)
+- 7-day audit found these checkpoints report the *exact same single number* every
+  time during their published closed hours (matching the pattern PHL Terminal A-West 1
+  had before its own clock-gate fix) — needs scraper-level investigation, likely each
+  airport's site not clearing/nulling its displayed value when the checkpoint closes:
+  DCA (all 3 terminals, flat at 4 min), IAH Terminal A South (flat at 3), MIA
+  checkpoints 4 and 10 (flat at 0 and 3), MSP T2 Checkpoints 1 and 2 (flat at 5), PHL
+  Terminal A-East and Terminal F (flat at 3)
+- Investigate one at a time; the fix shape is the same as PHL A-West 1's original
+  clock gate (now itself replaced by an `airport_checkpoint_hours` lookup) — but only
+  add a scraper-level gate if the raw source value is provably static/disconnected
+  from real status, not as a first resort
+
+#### Data Quality — Checkpoint Hours Need Re-Verification (found 2026-07-12)
+- Same audit found *real, varying* wait times (10-30+ min swings, not a repeated
+  number) during "closed" hours at JFK (all 5 terminals), EWR (all 3), LGA, MIA
+  (checkpoints 2 and 7), DEN, ATL `INT'L MAIN`, IAH (C South and D), and LAX — this
+  looks like the researched hours are too conservative/wrong for these checkpoints
+  (most were already flagged medium-confidence/secondary-source in
+  `04_Assets/tsa_checkpoint_hours.html`), not a scraper bug. Re-verify against each
+  airport's own official source and update `airport_checkpoint_hours` accordingly
+- MCO standard-screening and CLEAR (Gates 70-129 only) hours were never recorded in
+  the original research file — still NULL in `airport_checkpoint_hours` (degrades
+  gracefully, no filtering applied, but not accurate) — needs a manual check at
+  flymco.com/security/
+- LAX TBIT hours are a secondary-source estimate (~7:00 AM-12:00 AM) — flylax.com
+  blocks non-browser fetches so this couldn't be cross-checked against the primary
+  site; verify manually
 
 #### Data Quality — Checkpoint Name Cleanup
 - **CLT checkpoint rename** — historical rows (Nov 2024 – Apr 2025) store `"Checkpoint 1"` for what is physically Checkpoint 2; new scraper (Jul 2026) writes correct names going forward; once sufficient fresh data has accumulated, run `UPDATE tsa_wait_times SET checkpoint = 'Checkpoint 2' WHERE airport = 'CLT' AND checkpoint = 'Checkpoint 1'` to canonicalize historical data, then rebuild parquet
@@ -34,18 +46,6 @@ RShiny Mobile App TSA Historical Wait Times
 
 ### Active Script Bugs
 - **WebSocket warning** — suppress `"got non-close frame while closing"` warning during chromote teardown across all chromote scripts
-
-#### Overnight Wait Time Data — Validity Check
-- Every airport is showing standard wait time data between 1–3 AM local time 
-  with non-trivial averages and max values; most checkpoints should be closed 
-  during this window
-- Before the hours of operation filter is implemented, investigate whether 
-  overnight data reflects real activity or is an artifact of the scraper 
-  recording stale/cached values from the airport websites during closed hours
-- Suggested approach: query last 7 days of raw data in `tsa_app.duckdb` for 
-  each airport between midnight and 4 AM local time and review wait_time values 
-  for plausibility — consistent non-zero values across all airports suggests 
-  website caching, not real traffic
 
 ### New Airports (Lower Priority — Post MVP)
 - **BOS** — `BOS_wait_times.R` drafted; needs test run to confirm Zensors API Origin allowlist check passes from R; fallback is chromote approach if 403 persists
