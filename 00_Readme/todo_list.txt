@@ -65,7 +65,6 @@ RShiny Mobile App TSA Historical Wait Times
 
 ### Housekeeping
 - Update and format README for GitHub
-- Archive unused scripts (`scrape_data.R`, `scrape_data_error_test.R`, `zz_misc.R`, `zz_test.R`)
 - Move `scrape_test.R` from project root into `02_Scripts/`
 - Standardize scraping function naming convention
 - Remove stale `# TODO: replace bucket name` comment from `xx_build_summary_DB.R` line 109
