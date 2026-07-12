@@ -72,6 +72,18 @@ FlyASAP — Airport Security Advance Planning
   manual pull test actually ran; compare file size/`ETag` against
   `head-object` instead
 
+### Housekeeping
+- Fixed `zz_delete_temp_files.R`: `n_success`/`n_fail` reporting was broken
+  because `unlink()` returns a single 0/1 result for the whole call, not a
+  per-file vector like `file.remove()` does — `sum(results == 0)` was
+  checking one scalar, not counting actual deletions, so `n_success` always
+  printed 0
+- Fix: capture the total file count before deleting, then after `unlink()`
+  check `file.exists()` on the original list to count real failures
+  (still-locked files), and derive `n_success` by subtraction
+- Verified against the live temp folder: 500 items deleted, 3 failed
+  (locked by an active Chrome/scraper process)
+
 ## 2026-07-11
 
 ### New Airport — LAX Live and Verified
