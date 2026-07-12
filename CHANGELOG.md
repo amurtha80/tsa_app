@@ -5,6 +5,43 @@ FlyASAP — Airport Security Advance Planning
 
 ## 2026-07-12
 
+### Data Quality Fix — Charts Now Show Airport-Local Time, Not UTC
+- Root-caused the open todo item flagging that `tsa_wait_times.time` (`TIMESTAMP_S`,
+  a naive/non-timezone-aware DuckDB column type) silently stores a UTC instant on
+  write, not the airport-local wall clock each scraper builds it as — the DuckDB R
+  driver drops the `tzone` attribute from a tz-aware `POSIXct` when writing into a
+  naive timestamp column via `dbAppendTable`, with no explicit conversion code
+  anywhere doing this
+- Neither `xx_build_summary_DB.R` (nightly parquet build) nor `app.R` (`filtered_data()`)
+  did any timezone conversion before this fix — both treated the raw `time` value as
+  if it were already airport-local, so every airport's chart was shifted by that
+  airport's UTC offset (varying with DST); e.g. ATL's Sunday `DOMESTIC LOWER NORTH`
+  peak wait time appeared at noon-2pm instead of the true 7:30-9:00am rush
+- No backfill/UPDATE of historical `tsa_wait_times` data was needed: R's `POSIXct`
+  always stores seconds-since-epoch-UTC internally regardless of the `tzone` label
+  used to construct it, and `floor_date(unit = "minute")` is timezone-invariant, so
+  every scraper's `time` column has always held a genuinely correct UTC instant —
+  confirmed via live-DB query (`attr(result$time, "tzone")` returns `"UTC"`) and via
+  a value-level before/after comparison showing the peak wait-time bucket shift into
+  a plausible daytime window
+- Fix is a single change in `xx_build_summary_DB.R`: force-tag `time` as UTC, then
+  `group_by(timezone) |> with_tz(time, tzone = first(timezone))` to convert each
+  row to its true airport-local wall clock (grouped by timezone since a single
+  `POSIXct` vector can only carry one `tzone` attribute at a time) before deriving
+  `bucket_time`/`weekday` for the parquet — `app.R` needed no changes, since it
+  already just compares `bucket_time` at face value
+- Verified DST-correctness (not just a fixed-offset shift) across the 2025-03-09
+  spring-forward transition for both an Eastern-time airport (ATL: -5 → -4) and a
+  Pacific-time airport (PDX: -8 → -7) — `with_tz()` against an Olson/IANA zone name
+  (e.g. `"America/New_York"`) automatically applies the correct historical DST rule
+  for any date, so this fix is retroactively correct back to whenever each airport's
+  scraping began, with no DST-boundary-specific code required
+- CLT/JFK's separate, pre-existing bug where `datetime`/`date` are built from a
+  fixed-offset `'EST'` literal (no DST) was confirmed to never touch `time`/`timezone`
+  (both correctly use `America/New_York`), so it did not taint this fix; still an
+  open cleanup item for a future pass
+- Debugging/verification queries archived at `02_Scripts/archive/xx_utc_local_time_fix_verification.R`
+
 ### Infra Fix — EC2 S3 Pull Cron Replaced with Timezone-Aware systemd Timer
 - Root-caused why DFW/PHL/LAX (and by extension every airport, every night)
   consistently appeared in the app a full day later than the overnight build

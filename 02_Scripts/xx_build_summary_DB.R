@@ -62,12 +62,20 @@ print(glue("******-- Start summary build ", format(Sys.time(), "%a %b %d %X %Y")
 
 tsa_wait_time_summ <- tbl(con_source, "tsa_wait_times") |>
   collect() |>
+  # `time` is a genuine UTC instant (DuckDB's TIMESTAMP_S column is naive;
+  # the R driver drops tz on write). Force-tag UTC explicitly, then convert
+  # to each row's true airport-local wall clock via the `timezone` column
+  # before bucketing, so charts reflect airport-local time of day.
+  mutate(time = lubridate::force_tz(time, tzone = "UTC")) |>
   # Keep rolling 365-day window from most recent scraped date
   filter(date >= max(date, na.rm = TRUE) - 365) |>
+  group_by(timezone) |>
+  mutate(time_local = lubridate::with_tz(time, tzone = dplyr::first(timezone))) |>
+  ungroup() |>
   mutate(
     checkpoint  = toupper(checkpoint),
-    bucket_time = hms::as_hms(lubridate::ceiling_date(time, "15 mins")),
-    weekday     = lubridate::wday(time, label = TRUE, abbr = TRUE)
+    bucket_time = hms::as_hms(lubridate::ceiling_date(time_local, "15 mins")),
+    weekday     = lubridate::wday(time_local, label = TRUE, abbr = TRUE)
   ) |>
   group_by(airport, checkpoint, weekday, bucket_time) |>
   summarize(

@@ -35,25 +35,6 @@ RShiny Mobile App TSA Historical Wait Times
 ### Active Script Bugs
 - **WebSocket warning** — suppress `"got non-close frame while closing"` warning during chromote teardown across all chromote scripts
 
-#### Data Quality — datetime/time Columns Stored as UTC, Not Airport-Local (Investigate)
-- Confirmed during DFW onboarding (2026-07-10): `tsa_wait_times.datetime`/`.time` are stored
-  as UTC instants for every airport (verified on CLT's live data too, not DFW-specific) — R's
-  POSIXct silently converts to UTC on `dbAppendTable` write regardless of the `tzone` used to
-  build it (e.g. `lubridate::now(tzone = 'America/Chicago')`). The `timezone` column is just a
-  descriptive text label, not an applied offset — reading `datetime` at face value gives the
-  wrong local wall-clock time
-- Scraping runs from one PC (single system tz) across airports in multiple real timezones (e.g.
-  Central for DFW, Eastern for others), so need to determine whether this is applied consistently
-  enough to still be correct end-to-end, or whether it's producing wrong displayed times
-- Need to trace through `xx_build_summary_DB.R` and `app.R`/`build_chart()` to determine whether
-  either (a) already converts `datetime`/`time` back to local using the `timezone` column before
-  display, making this a non-issue, or (b) displays the raw UTC values as if they were local,
-  which would mean every airport's chart is showing wait times shifted by that airport's UTC
-  offset (e.g. DFW charts off by 5-6 hours, other airports off by 4-5 hours depending on DST)
-- Scope is broad if real: would touch every scraper's datetime construction and/or the summary
-  build/app display layer — do not fix piecemeal, diagnose full extent first before deciding
-  where the correction belongs
-
 #### Overnight Wait Time Data — Validity Check
 - Every airport is showing standard wait time data between 1–3 AM local time 
   with non-trivial averages and max values; most checkpoints should be closed 
