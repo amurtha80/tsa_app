@@ -7,16 +7,6 @@ RShiny Mobile App TSA Historical Wait Times
 
 ### High Priority — Post-Launch Fixes
 
-#### LGA Terminal A: Monitor for Reactivation (Spirit Airlines Shutdown)
-- 2026-07-13: Spirit Airlines ceased all operations at 3:00 AM ET on 2026-05-02,
-  vacating LGA's Marine Air Terminal (Terminal A). Marked `is_active = FALSE` in
-  `airport_checkpoint_hours` — app now shows "This checkpoint is not currently in
-  use." for both lanes instead of real wait-time data (see CHANGELOG 2026-07-13 (2)).
-  No firm reopening date exists as of this writing. When Terminal A resumes service
-  (new tenant airline or Spirit's gates reassigned), insert one new
-  `airport_checkpoint_hours` row for LGA Terminal A with `is_active = TRUE` — no code
-  change needed, just a data row per the append-only convention.
-
 #### Data Quality — EWR: Add `airport_checkpoint_hours` Rows for the 3 Split Terminal B Checkpoints
 - 2026-07-13: `tsa_wait_times` EWR Terminal B was backfilled and the scraper fixed to
   capture 3 real checkpoints (`Terminal B 40-49`, `Terminal B 51-57`, `Terminal B
@@ -65,7 +55,6 @@ RShiny Mobile App TSA Historical Wait Times
 
 #### Data Quality — Checkpoint Name Cleanup
 - **CLT checkpoint rename** — historical rows (Nov 2024 – Apr 2025) store `"Checkpoint 1"` for what is physically Checkpoint 2; new scraper (Jul 2026) writes correct names going forward; once sufficient fresh data has accumulated, run `UPDATE tsa_wait_times SET checkpoint = 'Checkpoint 2' WHERE airport = 'CLT' AND checkpoint = 'Checkpoint 1'` to canonicalize historical data, then rebuild parquet
-- After all database cleanup: re-run `xx_build_summary_DB.R` to rebuild `tsa_app_summ.parquet` and push to S3
 
 #### Deployment
 - Add third chart for CLEAR lane wait times for airports that have CLEAR data (MIA; others TBD) — chart should only render when data exists for the selected airport/checkpoint combination
@@ -80,6 +69,8 @@ RShiny Mobile App TSA Historical Wait Times
 - **SLC** — `slcairport.com`; JS-rendered widget, investigate for API endpoint before falling back to chromote
 - **DTW** — `metroairport.com`; Angular/Vue app, likely REST API behind it; inspect via DevTools before building script
 
+### Longer Term Updates | Fixes | Enhancements
+
 #### Data Source — Investigate TSA's Own Android/Mobile Wait-Times App as a Backup Feed
 - TSA's own Android app publishes checkpoint wait time data on its site, discovered while
   researching LAX (2026-07-11) — worth scoping as a fallback data source for airports where
@@ -89,9 +80,18 @@ RShiny Mobile App TSA Historical Wait Times
   with it, just evaluate whether it's usable as a fallback when an airport site has gaps
 - Scoping first: confirm what data/endpoint backs it, what airports/checkpoints it covers,
   and whether it's scrapable before committing to build anything against it
+  
+#### LGA Terminal A: Monitor for Reactivation (Spirit Airlines Shutdown)
+- 2026-07-13: Spirit Airlines ceased all operations at 3:00 AM ET on 2026-05-02,
+  vacating LGA's Marine Air Terminal (Terminal A). Marked `is_active = FALSE` in
+  `airport_checkpoint_hours` — app now shows "This checkpoint is not currently in
+  use." for both lanes instead of real wait-time data (see CHANGELOG 2026-07-13 (2)).
+  No firm reopening date exists as of this writing. When Terminal A resumes service
+  (new tenant airline or Spirit's gates reassigned), insert one new
+  `airport_checkpoint_hours` row for LGA Terminal A with `is_active = TRUE` — no code
+  change needed, just a data row per the append-only convention.
 
 ### Housekeeping
 - Update and format README for GitHub
-- Move `scrape_test.R` from project root into `02_Scripts/`
 - Standardize scraping function naming convention
 - Remove stale `# TODO: replace bucket name` comment from `xx_build_summary_DB.R` line 109
