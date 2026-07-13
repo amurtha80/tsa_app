@@ -3,6 +3,70 @@ FlyASAP — Airport Security Advance Planning
 
 ---
 
+## 2026-07-13 (1)
+
+### Data Quality — EWR: Data-First Analysis, Terminal B Scraper Bug Found and Fixed, PreCheck Hours Set
+- Changed methodology per explicit user direction: instead of the JFK/LGA approach of
+  bouncing between site-listed hours, Google-search hours, and scraper data, did EWR
+  data-first — pulled a 45-day hourly profile (`pct_na`, `pct_zero`, mean wait) per
+  checkpoint/lane via Quack, then sanity-checked the method itself against JFK Terminal
+  7 (confirmed open 05:00-23:00) before touching any online source. That calibration
+  revealed the method has a real blind spot: JFK T7's PreCheck field is 100% NA at
+  *every* hour despite the checkpoint being open (a scraper coverage gap, not a status
+  signal), and its genuinely-closed overnight hours (0-4am) still read as 0% NA / 0%
+  zero — indistinguishable from a real-but-quiet open period. So the NA/zero-cliff
+  method can detect a checkpoint that goes fully silent (worked cleanly for EWR
+  Terminal A) but can't distinguish "24hr with low overnight traffic" from "closed but
+  still emitting a low baseline reading" for EWR Terminal B/C.
+- User then redirected away from `tsa.gov/precheck/schedule` entirely (used for
+  JFK/LGA) back to Google search + `04_Assets/tsa_checkpoint_hours.html`, citing it as
+  a likely source of the JFK/LGA back-and-forth. Confirmed the html file's existing EWR
+  general hours already match the current `airport_checkpoint_hours` DB values exactly
+  (both ultimately sourced from the same prior research) — no PreCheck data existed in
+  either.
+- **Root cause found for a long-standing EWR data quality issue**: newarkairport.com's
+  live wait-time table has 4 columns — `Terminal | Gates | General | TSA Pre✓` — with 5
+  rows every scrape (Terminal A/All Gates, Terminal B/40-49, Terminal B/51-57, Terminal
+  B/60-68, Terminal C/All Gates). `EWR_wait_times.R` was doing `rename(checkpoint =
+  Terminal)`, which kept the Terminal column but silently dropped Gates, collapsing all
+  3 Terminal B rows into identical `checkpoint = "Terminal B"` values on every single
+  scrape since the scraper's inception. This explains both the 3x row-count ratio
+  (313,458 EWR Terminal B rows vs 104,494 each for A/C) and the flat 66.7%-NA-at-every-
+  hour PreCheck artifact found during the JFK-T7-calibrated sanity check (2 of every 3
+  gate groups never carry PreCheck at all — confirmed against the live official page,
+  where only 40-49 shows a `TSA Pre✓` value and 51-57/60-68 show `-`).
+- Verified the fix was safe before applying: across the full history (104,485 distinct
+  scrape timestamps), Terminal B rows came in groups of exactly 3 with zero exceptions,
+  in a stable scan order confirmed by running the same query 3 times with identical
+  results, and position 1 carried a non-NA PreCheck reading 99.5% of the time (position
+  2/3: 0.01-0.02%) — strong confirmation that position 1=40-49, 2=51-57, 3=60-68.
+- Stopped `tsa_app_quack_server` (explicit user authorization, "sacrifice a few
+  scrapes") and ran a direct `UPDATE ... FROM` keyed on DuckDB's `rowid` plus
+  `row_number() OVER (PARTITION BY datetime ORDER BY rowid)` to relabel all 313,458
+  historical "Terminal B" rows into `Terminal B 40-49`/`Terminal B 51-57`/`Terminal B
+  60-68`. Post-update counts: 104,494 rows each, exactly matching A and C. Fixed
+  `EWR_wait_times.R` to capture the Gates column going forward (`checkpoint =
+  if_else(Gates == "All Gates", Terminal, paste(Terminal, Gates))`).
+- Also found (official newarkairport.com Terminal B page) that the html file's
+  existing "Terminal B general hours" (4:30am-7:30pm Sun-Fri / 4:30am-6pm Sat) is
+  actually **CLEAR hours for gates 40-49 specifically**, mislabeled as general hours by
+  the prior research — left as-is per explicit user instruction not to adjust backend
+  data on this task, but noting the mislabel for future reference. An official
+  EWRairport X/Twitter post found via search: "TSA security checkpoint hours at
+  Terminals A and C offer from 4 AM to 12 [AM], while Terminal B operates based on
+  flight schedules" (i.e. no fixed hours for B) — consistent with the data-first
+  finding that Terminal B's standard lane never goes to zero/NA at any hour.
+- Per explicit user instruction (no further analysis/hedging): inserted new
+  `airport_checkpoint_hours` rows for EWR Terminal A/B/C with `open_time_prechk` =
+  04:00, `close_time_prechk` = 20:00, carrying forward each checkpoint's existing
+  general hours unchanged, `clear` columns left NULL.
+- **Known follow-up gap**: `xx_build_summary_DB.R`'s hours-based filtering joins
+  `tsa_wait_times.checkpoint` to `airport_checkpoint_hours.checkpoint` by exact name.
+  Since `airport_checkpoint_hours` still has only one "Terminal B" row, the 3 newly-
+  split checkpoints won't match it — `is_open()` treats an unmatched (NA) lookup as
+  unrestricted, so no hours-based filtering applies to any of the 3 EWR Terminal B
+  checkpoints until matching rows are added. See `todo_list.txt`.
+
 ## 2026-07-12 (6)
 
 ### Data Quality — JFK and LGA PreCheck/CLEAR Hours Populated from TSA's Own Schedule Tool

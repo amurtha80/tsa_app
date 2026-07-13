@@ -7,15 +7,22 @@ RShiny Mobile App TSA Historical Wait Times
 
 ### High Priority — Post-Launch Fixes
 
-#### Data Quality — EWR Checkpoint Hours Have No Official Source
-- Confirmed 2026-07-12: newarkairport.com (nor its terminal-operator pages) publishes
-  checkpoint-level operating hours — only live/average wait times. Current
-  `airport_checkpoint_hours` values for EWR (Terminal A/B/C) remain unverified
-  secondary-source estimates. JFK and LGA were resolved 2026-07-12 via
-  tsa.gov/precheck/schedule (TSA's own PreCheck checkpoint-schedule tool, which does
-  publish per-checkpoint PreCheck hours even though the airport's own site doesn't) —
-  plan to check EWR against the same tool before falling back to a phone call or a
-  newly published official page
+#### Data Quality — EWR: Add `airport_checkpoint_hours` Rows for the 3 Split Terminal B Checkpoints
+- 2026-07-13: `tsa_wait_times` EWR Terminal B was backfilled and the scraper fixed to
+  capture 3 real checkpoints (`Terminal B 40-49`, `Terminal B 51-57`, `Terminal B
+  60-68`) instead of one collapsed "Terminal B" row — see CHANGELOG 2026-07-13 (1).
+  `airport_checkpoint_hours` still only has a single "Terminal B" row. Since
+  `xx_build_summary_DB.R` joins on exact checkpoint name, the 3 new checkpoints won't
+  match it and get no hours-based filtering (unmatched lookup = treated as
+  unrestricted) until 3 corresponding rows are added.
+
+#### Data Quality — EWR General Hours Still Unverified (No Official Source Found)
+- Confirmed 2026-07-13: newarkairport.com's own Terminal A and Terminal C pages
+  publish no operating hours at all (live wait times only); Terminal B's page has one
+  hours block, which turned out to be CLEAR hours for gates 40-49 specifically, not
+  general checkpoint hours (mislabeled as general in the existing
+  `04_Assets/tsa_checkpoint_hours.html`/DB values). Current EWR general hours in
+  `airport_checkpoint_hours` remain unverified secondary-source estimates.
 
 #### Data Quality — JFK Terminal 1 24-Hour PreCheck Assumption Needs Recheck (by 2026-08-12)
 - 2026-07-12: TSA's schedule tool shows JFK Terminal 1 PreCheck closing twice overnight
