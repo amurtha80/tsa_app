@@ -571,7 +571,7 @@ server <- function(input, output, session) {
   # Chart colors are now fixed (Navy/Teal) regardless of any theme toggle.
   
   build_chart <- function(data, avg_col, max_col, subtitle, lane_label = "standard",
-                           lane_exists_elsewhere = TRUE) {
+                           lane_exists_elsewhere = TRUE, checkpoint_active = TRUE) {
 
     teal_dark <- darken_hex(accent_teal, amount = 0.30)
 
@@ -594,7 +594,13 @@ server <- function(input, output, session) {
       # during this specific selected window (per airport_checkpoint_hours) --
       # `lane_exists_elsewhere` distinguishes the two so the message doesn't
       # claim a checkpoint has no PreCheck/CLEAR lane when it's simply closed.
-      msg <- if (!lane_exists_elsewhere) {
+      msg <- if (!checkpoint_active) {
+        # Checked before lane_exists_elsewhere: an inactive checkpoint NAs out
+        # its wait times for all time, so lane_exists_elsewhere would also be
+        # FALSE here -- but "not currently in use" is the correct message
+        # regardless of which lane exists, not "no lane at this checkpoint."
+        "This checkpoint is not currently in use."
+      } else if (!lane_exists_elsewhere) {
         switch(lane_label,
                "precheck" = "No TSA Pre\u2713 lane at this checkpoint.",
                "clear"    = "No CLEAR lane at this checkpoint.",
@@ -682,8 +688,13 @@ server <- function(input, output, session) {
       filter(airport == input$select_airport, checkpoint == input$select_checkpoint) |>
       summarise(any(!is.na(avg_time_std))) |>
       pull()
+    checkpoint_active <- summ_data |>
+      filter(airport == input$select_airport, checkpoint == input$select_checkpoint) |>
+      summarise(dplyr::first(is_active)) |>
+      pull()
     build_chart(data, "avg_time_std", "max_time_std", subtitle,
-                lane_label = "standard", lane_exists_elsewhere = lane_exists)
+                lane_label = "standard", lane_exists_elsewhere = lane_exists,
+                checkpoint_active = checkpoint_active)
   }) |>
     bindCache(
       input$select_airport,
@@ -705,8 +716,13 @@ server <- function(input, output, session) {
       filter(airport == input$select_airport, checkpoint == input$select_checkpoint) |>
       summarise(any(!is.na(avg_time_tsa_precheck))) |>
       pull()
+    checkpoint_active <- summ_data |>
+      filter(airport == input$select_airport, checkpoint == input$select_checkpoint) |>
+      summarise(dplyr::first(is_active)) |>
+      pull()
     build_chart(data, "avg_time_tsa_precheck", "max_time_tsa_precheck", subtitle,
-                lane_label = "precheck", lane_exists_elsewhere = lane_exists)
+                lane_label = "precheck", lane_exists_elsewhere = lane_exists,
+                checkpoint_active = checkpoint_active)
   }) |>
     bindCache(
       input$select_airport,

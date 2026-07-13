@@ -7,6 +7,16 @@ RShiny Mobile App TSA Historical Wait Times
 
 ### High Priority — Post-Launch Fixes
 
+#### LGA Terminal A: Monitor for Reactivation (Spirit Airlines Shutdown)
+- 2026-07-13: Spirit Airlines ceased all operations at 3:00 AM ET on 2026-05-02,
+  vacating LGA's Marine Air Terminal (Terminal A). Marked `is_active = FALSE` in
+  `airport_checkpoint_hours` — app now shows "This checkpoint is not currently in
+  use." for both lanes instead of real wait-time data (see CHANGELOG 2026-07-13 (2)).
+  No firm reopening date exists as of this writing. When Terminal A resumes service
+  (new tenant airline or Spirit's gates reassigned), insert one new
+  `airport_checkpoint_hours` row for LGA Terminal A with `is_active = TRUE` — no code
+  change needed, just a data row per the append-only convention.
+
 #### Data Quality — EWR: Add `airport_checkpoint_hours` Rows for the 3 Split Terminal B Checkpoints
 - 2026-07-13: `tsa_wait_times` EWR Terminal B was backfilled and the scraper fixed to
   capture 3 real checkpoints (`Terminal B 40-49`, `Terminal B 51-57`, `Terminal B

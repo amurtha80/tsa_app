@@ -3,6 +3,37 @@ FlyASAP — Airport Security Advance Planning
 
 ---
 
+## 2026-07-13 (2)
+
+### Feature — LGA Terminal A "Not Currently in Use" Status (Spirit Airlines Shutdown)
+- Spirit Airlines ceased all operations at 3:00 AM ET on 2026-05-02, vacating LGA's
+  Marine Air Terminal (Terminal A) entirely. LGA's live wait-time site stopped listing
+  the checkpoint shortly after — the scraper's last real Terminal A row is
+  2026-05-04 20:25 (a two-day-stale "1 min" ghost reading before the row disappeared
+  from the site). There's no current plan to permanently close the terminal, so this
+  needed to be a reversible status flag, not a deletion.
+- Added `is_active` (BOOLEAN, default TRUE) to `airport_checkpoint_hours`. Inserted a
+  new LGA Terminal A row with `is_active = FALSE`, carrying forward its existing
+  general/PreCheck/CLEAR hours unchanged (append-only convention — no UPDATE).
+- `xx_build_summary_DB.R`: when a checkpoint's latest `airport_checkpoint_hours` row
+  has `is_active = FALSE`, all three wait-time columns are forced to NA for every
+  bucket regardless of time-of-day (bypasses the hours-of-day check entirely — this
+  is a different situation from a nightly closure). `is_active` is carried through
+  into `tsa_wait_time_summ` (constant per airport/checkpoint) so the app can read it
+  without a second lookup.
+- `app.R`: `build_chart()` now takes a `checkpoint_active` flag and shows
+  "This checkpoint is not currently in use." — checked *before* the existing
+  `lane_exists_elsewhere` check, since an inactive checkpoint has no data anywhere
+  (not just the selected window), which would otherwise trip the "no lane at this
+  checkpoint" / "no wait time data" messages instead. Terminal A stays selectable in
+  the dropdown rather than disappearing.
+- Verified live: ran `xx_build_summary_DB.R` manually, confirmed all 672 LGA Terminal A
+  buckets NA with `is_active = FALSE` in the parquet, then ran the app locally and
+  confirmed both Standard and PreCheck panels show the new message for Terminal A
+  while Terminal B/C render normally with real data (no regression).
+- **Reactivation**: when Terminal A returns to service, insert one new
+  `airport_checkpoint_hours` row with `is_active = TRUE` — no code change needed.
+
 ## 2026-07-13 (1)
 
 ### Data Quality — EWR: Data-First Analysis, Terminal B Scraper Bug Found and Fixed, PreCheck Hours Set

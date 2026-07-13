@@ -88,7 +88,7 @@ hours_lookup <- tbl(con_source, "airport_checkpoint_hours") |>
     close_clear_tod    = hms::as_hms(close_time_clear),
     wraps_clear        = as.Date(close_time_clear) > as.Date(open_time_clear)
   ) |>
-  select(airport, checkpoint, starts_with("open_"), starts_with("close_"), starts_with("wraps_"))
+  select(airport, checkpoint, is_active, starts_with("open_"), starts_with("close_"), starts_with("wraps_"))
 
 is_open <- function(tod, open_tod, close_tod, wraps) {
   dplyr::case_when(
@@ -114,11 +114,18 @@ tsa_wait_time_summ <- tbl(con_source, "tsa_wait_times") |>
   left_join(hours_lookup, by = c("airport", "checkpoint")) |>
   mutate(
     time_of_day = hms::as_hms(time_local),
-    wait_time           = if_else(is_open(time_of_day, open_gen_tod, close_gen_tod, wraps_gen),
+    # is_active FALSE means the checkpoint itself is out of service for an
+    # indefinite/unknown duration (e.g. an airline shutdown vacating a
+    # terminal), not just closed for the day -- overrides the hours-of-day
+    # check entirely rather than participating in is_open().
+    wait_time           = if_else(coalesce(is_active, TRUE) &
+                                     is_open(time_of_day, open_gen_tod, close_gen_tod, wraps_gen),
                                    wait_time, NA_real_),
-    wait_time_pre_check = if_else(is_open(time_of_day, open_prechk_tod, close_prechk_tod, wraps_prechk),
+    wait_time_pre_check = if_else(coalesce(is_active, TRUE) &
+                                     is_open(time_of_day, open_prechk_tod, close_prechk_tod, wraps_prechk),
                                    wait_time_pre_check, NA_real_),
-    wait_time_clear     = if_else(is_open(time_of_day, open_clear_tod, close_clear_tod, wraps_clear),
+    wait_time_clear     = if_else(coalesce(is_active, TRUE) &
+                                     is_open(time_of_day, open_clear_tod, close_clear_tod, wraps_clear),
                                    wait_time_clear, NA_real_)
   ) |>
   mutate(
@@ -133,6 +140,10 @@ tsa_wait_time_summ <- tbl(con_source, "tsa_wait_times") |>
     max_time_tsa_precheck = max(wait_time_pre_check,         na.rm = TRUE),
     avg_time_clear        = ceiling(mean(wait_time_clear,    na.rm = TRUE)),
     max_time_clear        = max(wait_time_clear,             na.rm = TRUE),
+    # Constant per (airport, checkpoint) via the left_join above -- carried
+    # through so app.R can distinguish "closed right now" from "checkpoint
+    # out of service indefinitely" without a second lookup.
+    is_active              = dplyr::first(coalesce(is_active, TRUE)),
     .groups = "drop"
   ) |>
   # Inf/-Inf from max/mean over all-NA groups → replace with NA
