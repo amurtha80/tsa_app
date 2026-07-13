@@ -34,6 +34,16 @@ RShiny Mobile App TSA Historical Wait Times
   `04_Assets/tsa_checkpoint_hours.html`/DB values). Current EWR general hours in
   `airport_checkpoint_hours` remain unverified secondary-source estimates.
 
+#### Data Quality — EWR PreCheck/Hours Judgment Calls Need Recheck (by 2026-08-13)
+- 2026-07-13: PreCheck close time was set to 8pm local for all 3 EWR checkpoints per
+  explicit user instruction (decisive, not itself in question), but the underlying
+  general hours it's paired with are unverified secondary-source estimates (see the
+  "EWR General Hours Still Unverified" item above), and the newly split Terminal B
+  checkpoints (`Terminal B 40-49`/`51-57`/`60-68`) have no `airport_checkpoint_hours`
+  rows yet at all (see the item above). Revisit all three once ~1 month of fresh
+  `tsa_wait_times` data has accumulated under the fixed scraper (by 2026-08-13) —
+  same pattern as the JFK/LGA rechecks below.
+
 #### Data Quality — JFK Terminal 1 24-Hour PreCheck Assumption Needs Recheck (by 2026-08-12)
 - 2026-07-12: TSA's schedule tool shows JFK Terminal 1 PreCheck closing twice overnight
   (1-4am, 6-8am), but the checkpoint's own general hours (04:00-23:00, from
