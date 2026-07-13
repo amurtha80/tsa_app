@@ -3,6 +3,58 @@ FlyASAP — Airport Security Advance Planning
 
 ---
 
+## 2026-07-12 (6)
+
+### Data Quality — JFK and LGA PreCheck/CLEAR Hours Populated from TSA's Own Schedule Tool
+- Discovered `tsa.gov/precheck/schedule` publishes per-checkpoint PreCheck hours for
+  JFK and LGA even though neither airport's own site does — walked through every
+  time window on a single representative day (Monday) for both airports via
+  claude-in-chrome to build each checkpoint's open/close pattern.
+- **JFK**: added `open_time_prechk`/`close_time_prechk` for all 5 checkpoints.
+  Terminal 4's "Terminal 4 Main Checkpoint" and "Checkpoint 96/Terminal 4 Delta 1"
+  are tracked as one `Terminal 4` row in `tsa_wait_times`, so their PreCheck hours
+  were reconciled to the general-hours window (04:30-23:00) rather than either raw
+  reading. Terminal 1 set to 24hr PreCheck as a judgment call after the schedule
+  tool's claimed overnight closures conflicted with its own general hours — see the
+  new `todo_list.txt` item for the planned 1-month recheck. `open_time_gen`/
+  `close_time_gen` left as-is for all 5 checkpoints (matches
+  `04_Assets/tsa_checkpoint_hours.html`, the verified general-hours source).
+- **LGA**: added `open_time_prechk`/`close_time_prechk` and `open_time_clear`/
+  `close_time_clear` (CLEAR mirrors PreCheck at LGA) for all 3 checkpoints, using a
+  4am-8pm default with two exceptions found via the schedule tool: Terminal B opens
+  at 3am (confirmed at the exact hour boundary), and Terminal A has no dedicated
+  PreCheck listing in the tool at all despite having general hours — defaulted to
+  4am-8pm anyway as a judgment call. Both exceptions flagged in `todo_list.txt` for a
+  1-month recheck.
+- **Real bug found and fixed**: an initial JFK insert used `as.POSIXct(..., tz =
+  "America/New_York")`, which the DBI/duckdb write path silently converted to UTC on
+  write (this table's `TIMESTAMP` columns are naive local time, not tz-aware) —
+  shifted every value +4 hours. Caught before it reached the app, but the bad rows'
+  `entry_timestamp` was also shifted forward, meaning `slice_max` would have picked
+  the *wrong* row over the corrected fix. Deleted the 5 bad rows via direct
+  connection (`epoch(entry_timestamp)::BIGINT` match — plain `epoch()` returns a
+  fractional value, so an unqualified integer comparison silently matched nothing on
+  the first attempt). Rewrote the write path to construct all datetimes with `tz =
+  "UTC"` (a literal copy of the intended wall-clock value, since the column doesn't
+  actually store UTC) instead of the airport's real timezone — avoids the driver's
+  implicit conversion. LGA's write used this corrected pattern from the start with no
+  issue.
+- Stopping `tsa_app_quack_server` for the JFK DELETE briefly interrupted two 5-minute
+  scraper cycles (9:40pm and 9:45pm) — both simply skipped writing that cycle, no
+  data corruption; scraper resumed normally the next cycle. LGA's write needed no
+  server restart (append-only INSERT works fine through a Quack client).
+- Investigated whether ~21 days of scraped `tsa_wait_times` data could settle JFK
+  Terminal 1's overnight-closure question independently of either published source.
+  Inconclusive: `wait_time_pre_check` turned out to be non-NA at 100% of readings for
+  4 of JFK's 5 checkpoints across every hour of the day regardless of the schedule
+  tool's claimed closures, while the 5th checkpoint (Terminal 7) was 0% non-NA at
+  every hour including its own confirmed-open hours — the field doesn't reliably
+  track true open/closed status, so real usage data was not used to override the
+  published schedule for this decision.
+- Updated the stale `todo_list.txt` item claiming JFK/EWR/LGA have no official
+  checkpoint-hours source — narrowed to EWR only, noting the schedule-tool approach
+  to try there next (planned for 2026-07-13).
+
 ## 2026-07-12 (5)
 
 ### Data Quality — MCO Standard-Screening/CLEAR Hours Populated

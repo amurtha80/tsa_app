@@ -7,14 +7,34 @@ RShiny Mobile App TSA Historical Wait Times
 
 ### High Priority — Post-Launch Fixes
 
-#### Data Quality — JFK/EWR/LGA Checkpoint Hours Have No Official Source
-- Confirmed 2026-07-12: none of jfkairport.com, newarkairport.com, or
-  laguardiaairport.com (nor their terminal-operator pages) publish checkpoint-level
-  operating hours — only live/average wait times. Current `airport_checkpoint_hours`
-  values for JFK (Terminal 1/4/5/7/8), EWR (Terminal A/B/C), and LGA (Terminal A/B/C)
-  remain unverified secondary-source estimates with no primary source to check
-  against. Not actionable via further web research — revisit only if a phone call to
-  the airport, or a newly published official page, becomes available
+#### Data Quality — EWR Checkpoint Hours Have No Official Source
+- Confirmed 2026-07-12: newarkairport.com (nor its terminal-operator pages) publishes
+  checkpoint-level operating hours — only live/average wait times. Current
+  `airport_checkpoint_hours` values for EWR (Terminal A/B/C) remain unverified
+  secondary-source estimates. JFK and LGA were resolved 2026-07-12 via
+  tsa.gov/precheck/schedule (TSA's own PreCheck checkpoint-schedule tool, which does
+  publish per-checkpoint PreCheck hours even though the airport's own site doesn't) —
+  plan to check EWR against the same tool before falling back to a phone call or a
+  newly published official page
+
+#### Data Quality — JFK Terminal 1 24-Hour PreCheck Assumption Needs Recheck (by 2026-08-12)
+- 2026-07-12: TSA's schedule tool shows JFK Terminal 1 PreCheck closing twice overnight
+  (1-4am, 6-8am), but the checkpoint's own general hours (04:00-23:00, from
+  `04_Assets/tsa_checkpoint_hours.html`) don't cover the tool's claimed open windows in
+  that gap either — an unresolved conflict. Set to 24hr PreCheck as a judgment call
+  (terminals generally don't cycle open/closed multiple times a day) rather than
+  trusting either source outright. Revisit using ~1 month of fresh `tsa_wait_times`
+  scraping data (by 2026-08-12) to make a final decision — a same-length lookback done
+  2026-07-12 was inconclusive (see CHANGELOG 2026-07-12 (6) for why)
+
+#### Data Quality — LGA PreCheck Edge Cases Need Recheck (by 2026-08-12)
+- 2026-07-12: LGA PreCheck hours set to a 4am-8pm default across all 3 terminals per
+  project convention, except Terminal B, which TSA's schedule tool showed opening at
+  3am instead of 4am. Terminal A never showed a dedicated PreCheck listing anywhere in
+  the tool's full 24-hour sweep (despite having general hours) — PreCheck/CLEAR hours
+  for Terminal A were set to the 4am-8pm default as a judgment call, not a verified
+  finding. Revisit both the Terminal B early-open and the Terminal A gap using ~1
+  month of fresh `tsa_wait_times` scraping data (by 2026-08-12)
 
 #### Data Quality — Checkpoint Name Cleanup
 - **CLT checkpoint rename** — historical rows (Nov 2024 – Apr 2025) store `"Checkpoint 1"` for what is physically Checkpoint 2; new scraper (Jul 2026) writes correct names going forward; once sufficient fresh data has accumulated, run `UPDATE tsa_wait_times SET checkpoint = 'Checkpoint 2' WHERE airport = 'CLT' AND checkpoint = 'Checkpoint 1'` to canonicalize historical data, then rebuild parquet
