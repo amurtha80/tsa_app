@@ -3,6 +3,22 @@ FlyASAP — Airport Security Advance Planning
 
 ---
 
+## 2026-07-13 (3)
+
+### New Airport — SEA (Seattle-Tacoma) Scraper Live
+- Added `SEA_wait_times.R`. Turned out not to need chromote (contrary to the original
+  todo note) — `portseattle.org/api/cwt/wait-times` is a plain JSON API, no auth
+  required. General/PreCheck/CLEAR all share one `WaitTimeMinutes` value per
+  checkpoint; a lane only gets that value when the API's live `Options` list marks it
+  `"Available"`, otherwise NA (matches the rendered page's lane badges 1:1, verified
+  in-browser against all 6 checkpoints).
+- Populated `airport_checkpoint_hours` for SEA's 6 checkpoints (hours + lane
+  capability from Port of Seattle's published checkpoint info); Checkpoint 4 (open 24
+  hours) uses the existing midnight-to-midnight convention already used for JFK
+  Terminal 1 PreCheck.
+- Verified end-to-end: ran the orchestrator manually, confirmed it auto-discovered
+  the new `*_wait_times.R` file and wrote real rows to `tsa_wait_times` via Quack.
+
 ## 2026-07-13 (2)
 
 ### Feature — LGA Terminal A "Not Currently in Use" Status (Spirit Airlines Shutdown)
