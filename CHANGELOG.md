@@ -3,6 +3,47 @@ FlyASAP — Airport Security Advance Planning
 
 ---
 
+## 2026-07-14 (6)
+
+### Refactor — MIA Scraper Migrated from RSelenium/Chromote to JSON API
+- Replaced `MIA_wait_times.R`'s RSelenium/Firefox headless-browser scrape of the
+  miami-airport.com rendered `ag-grid` table with a plain `httr2` GET against
+  `waittime.api.aero/waittime/v2/current/MIA` (`x-apikey`/`Origin`/`Referer`
+  headers) — endpoint confirmed via the user-supplied `MIA_in_progress.R` stub.
+  Old RSelenium version archived to `02_Scripts/archive/MIA_scrape_v1.R` (first
+  archive for MIA).
+- The API returns a flat list of 28 checkpoint-lane objects keyed by
+  `queueName` (`"<checkpoint> <lane>"`, e.g. `"8 TSA-Pre"`, `"FIS General"`),
+  with a live `status` (Open/Closed) flag per lane and a `projectedWaitTime`
+  (seconds) plus `projectedMin/MaxWaitMinutes` range. Checkpoint token (bare
+  numeric `1`-`10` or `FIS`) and lane set (`General`/`Priority`/`TSA-Pre`/
+  `Clear`) reproduce the DB's existing 11-checkpoint convention exactly —
+  verified every checkpoint/lane combination present in the API against which
+  `tsa_wait_times` columns are historically populated vs. NA for that
+  checkpoint.
+- Conservative wait parsing: prefer `max(projectedWaitTime / 60,
+  projectedMaxWaitMinutes)`, same "never understate the wait" convention as
+  DCA/IAH/MCO.
+- Primary gate is the API's own live per-lane `status == "Open"` flag.
+  Backstop gate is the pre-existing `airport_checkpoint_hours` time-of-day
+  check (no corrections needed — data matched DB history), now deduped by
+  `slice_max(entry_timestamp)` per checkpoint before use, since checkpoint
+  `"2"` carries two rows from a prior same-day hours correction (see
+  2026-07-12 entry) and a naive first-row lookup could otherwise pick the
+  superseded close time. This backstop, now applied across all checkpoints,
+  replaces the old RSelenium-era one-off patch that suppressed stale
+  General-lane readings for checkpoints 4 and 10 specifically — the live
+  `status` flag is the real protection against that now, same reasoning IAH
+  used to retire its Terminal D patch.
+- Verified end-to-end: scratchpad dry-run (write disabled, full tibble
+  printed) matched an independent same-moment raw JSON fetch exactly across
+  all 11 checkpoints; confirmed two consecutive live orchestrator cycles
+  (4:10 and 4:15 PM) landed clean rows via a read-only Quack query, zero
+  errors.
+
+**JSON-API migration queue status:** SEA, DCA, IAH, PDX, MCO, MIA done — no
+further airports currently staged in this series.
+
 ## 2026-07-14 (5)
 
 ### Refactor — MCO Scraper Migrated from RSelenium/Chromote to JSON API
