@@ -64,7 +64,7 @@ scrape_tsa_data_sea <- function() {
     }
 
     tibble::tibble(
-      checkpoint = as.character(cp$Name),
+      checkpoint = stringr::str_squish(as.character(cp$Name)),
       wait_time = if (lane_available("General")) wait else NA_real_,
       wait_time_pre_check = if (lane_available("Pre")) wait else NA_real_,
       wait_time_clear = if (lane_available("Clear")) wait else NA_real_

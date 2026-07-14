@@ -59,7 +59,7 @@ scrape_tsa_data_den <- function() {
   
   DEN_data_list <- purrr::map(seq_len(nrow(raw)), \(i) {
     
-    checkpoint_name <- raw$title[[i]]
+    checkpoint_name <- stringr::str_squish(raw$title[[i]])
     
     # Keep only visible lanes (hide_lane == FALSE)
     lanes <- raw$lanes[[i]] |>

@@ -59,7 +59,8 @@ scrape_tsa_data_atl <- function() {
   tsa_terminal_checkpoint <- c(
     paste0(tsa_terminal[1], " ", tsa_checkpoint[seq_len(n_domestic)]),
     paste0(tsa_terminal[2], " ", tsa_checkpoint[length(tsa_checkpoint)])
-  )
+  ) |>
+    stringr::str_squish()
   
   
   # Scrape wait time numbers ----

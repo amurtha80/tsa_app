@@ -70,7 +70,8 @@ scrape_tsa_data_clt <- function() {
         attributes.general  == TRUE ~ "wait_time",
         TRUE ~ NA_character_
       ),
-      wait_minutes = dplyr::if_else(isOpen == TRUE, waitSeconds / 60, NA_real_)
+      wait_minutes = dplyr::if_else(isOpen == TRUE, waitSeconds / 60, NA_real_),
+      name = stringr::str_squish(name)
     ) |>
     dplyr::select(checkpoint = name, lane_type, wait_minutes)
   

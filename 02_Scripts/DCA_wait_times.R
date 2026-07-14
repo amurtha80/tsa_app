@@ -56,7 +56,7 @@ scrape_tsa_data_dca <- function() {
       rvest::html_elements(".table-body-cell") |>
       magrittr::extract(position) |>
       rvest::html_text2() |>
-      stringr::str_trim()
+      stringr::str_squish()
   }
   
   checkpoints <- purrr::map_chr(rows, \(r) parse_cell(r, 1))

@@ -76,11 +76,12 @@ scrape_tsa_data_mia <- function() {
   mia_tbl <- tibble(headers, checkpoint_data)
   row <- rep(1:(nrow(mia_tbl) / 5), each = 5)
   
-  MIA_transform <- mia_tbl |> 
-    cbind(row) |> 
-    pivot_wider(names_from = headers, values_from = checkpoint_data) |>  
-    select(-row) |> 
-    mutate(General = case_when(str_detect(General, pattern = " / ") ~ str_remove_all(str_split_i(General, pattern = "/", 2), "\\D"), 
+  MIA_transform <- mia_tbl |>
+    cbind(row) |>
+    pivot_wider(names_from = headers, values_from = checkpoint_data) |>
+    select(-row) |>
+    mutate(Checkpoint = str_squish(Checkpoint)) |>
+    mutate(General = case_when(str_detect(General, pattern = " / ") ~ str_remove_all(str_split_i(General, pattern = "/", 2), "\\D"),
                                 (General == "Closed" ~ "NA"),
                                 (General == "N/A" ~ "NA"),
                                 TRUE ~ General), 

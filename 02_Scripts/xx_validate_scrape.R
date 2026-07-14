@@ -92,19 +92,30 @@ cat(glue("******-- Start validation run {yesterday} ",
 tryCatch({
   
   # Pull Raw Data ----
-  
+
+  # Checkpoint names are free-text scraped from airport sites and have shifted
+  # format before (e.g. PDX 2026-07-12: embedded "\n" collapsed to a space).
+  # Collapsing whitespace here means a pure formatting change in a scraper
+  # doesn't register as one checkpoint disappearing and a new one appearing —
+  # Check 3 compares checkpoint strings across days and would otherwise treat
+  # that as a full drop-off. Applied once at pull time so every check below
+  # sees the same normalized value.
+  normalize_checkpoint <- function(x) trimws(gsub("\\s+", " ", x))
+
   # Yesterday's rows
   yesterday_data <- tbl(con, "tsa_wait_times") |>
     filter(date == !!as.character(yesterday)) |>
     select(airport, checkpoint, date, wait_time, wait_time_pre_check, wait_time_clear) |>
-    collect()
-  
+    collect() |>
+    mutate(checkpoint = normalize_checkpoint(checkpoint))
+
   # Prior 7 days rows (baseline window, excludes yesterday)
   baseline_data <- tbl(con, "tsa_wait_times") |>
     filter(date >= !!as.character(yesterday - 7),
            date <  !!as.character(yesterday)) |>
     select(airport, checkpoint, date, wait_time, wait_time_pre_check, wait_time_clear) |>
-    collect()
+    collect() |>
+    mutate(checkpoint = normalize_checkpoint(checkpoint))
   
   cat(glue("{nrow(yesterday_data)} rows found for {yesterday}"), "\n")
   cat(glue("{nrow(baseline_data)} rows found in 7-day baseline window"), "\n")
@@ -408,7 +419,8 @@ tryCatch({
   suppressWarnings(
     rm(list = intersect(
       ls(),
-      c("yesterday_data", "baseline_data", "known_airports", "yesterday_airports",
+      c("yesterday_data", "baseline_data", "normalize_checkpoint",
+        "known_airports", "yesterday_airports",
         "missing_airports", "baseline_avg", "yesterday_counts", "row_count_check",
         "baseline_checkpoint_presence", "yesterday_checkpoints", "missing_checkpoints",
         "baseline_days_observed", "implausible", "all_na_airports", "issues",

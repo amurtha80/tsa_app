@@ -75,7 +75,7 @@ scrape_tsa_data_iah <- function() {
   ) |>
     mutate(
       lane_type  = word(checkpoint_full, -1),              # "Standard", "PreCheck", "Premier"
-      checkpoint = str_remove(checkpoint_full, " (Standard|PreCheck|Premier)$")
+      checkpoint = str_squish(str_remove(checkpoint_full, " (Standard|PreCheck|Premier)$"))
     )
   
   # Pivot wide: one row per physical checkpoint, separate columns per lane type

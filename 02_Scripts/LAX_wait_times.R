@@ -46,7 +46,7 @@ scrape_tsa_data_lax <- function() {
   # below doesn't assume that -- it reshapes whatever rows are present.
   mine <- purrr::map_dfr(table_rows, function(r) {
     cells <- r |> rvest::html_elements("td") |> rvest::html_text2()
-    tibble::tibble(checkpoint = cells[1], boarding_type = cells[2], wait_text = cells[3])
+    tibble::tibble(checkpoint = stringr::str_squish(cells[1]), boarding_type = cells[2], wait_text = cells[3])
   }) |>
     dplyr::mutate(
       lane_type = dplyr::case_when(

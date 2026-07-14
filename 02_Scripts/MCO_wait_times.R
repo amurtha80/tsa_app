@@ -72,11 +72,12 @@ scrape_tsa_data_mco <- function() {
     }
 
 
-    gates <- h |> 
+    gates <- h |>
       # h5.css-1osfado-headings-H5-WidgetContainer-WidgetTitle-SecurityWaitTimesCard-SWTCardTitle.e1v0x5ca2
       html_elements("h5.css-1osfado-headings-H5-WidgetContainer-WidgetTitle-SecurityWaitTimesCard-SWTCardTitle.e1v0x5ca3") |>
-      html_text2() |> 
-        magrittr::extract(c(1:3))
+      html_text2() |>
+        magrittr::extract(c(1:3)) |>
+        stringr::str_squish()
 
 
       wait_time <- h |> 

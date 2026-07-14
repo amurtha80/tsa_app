@@ -78,7 +78,7 @@ scrape_tsa_data_ewr <- function() {
       wait_time_clear    = NA_real_
     ) |>
     mutate(
-      checkpoint = if_else(Gates == "All Gates", Terminal, paste(Terminal, Gates))
+      checkpoint = stringr::str_squish(if_else(Gates == "All Gates", Terminal, paste(Terminal, Gates)))
     ) |>
     select(airport, checkpoint, datetime, date, time, timezone,
            wait_time, wait_time_priority, wait_time_pre_check, wait_time_clear) 

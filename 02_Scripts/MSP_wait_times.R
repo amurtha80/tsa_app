@@ -34,10 +34,10 @@ scrape_tsa_data_msp <- function() {
   page <- read_html(url)
 
   
-  checkpoints <- page |> 
-    rvest::html_elements("div.security-wait-time__checkpoint-name") |> 
-    rvest::html_text() |> 
-    stringr::str_trim()
+  checkpoints <- page |>
+    rvest::html_elements("div.security-wait-time__checkpoint-name") |>
+    rvest::html_text() |>
+    stringr::str_squish()
 
   
   chkpnt_type <- page |> 

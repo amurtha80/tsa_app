@@ -3,6 +3,24 @@ FlyASAP — Airport Security Advance Planning
 
 ---
 
+## 2026-07-14
+
+### Fix — Checkpoint Whitespace Normalization (Validator False-Positive + Scraper Hardening)
+- Root-caused a scrape validation alert for PDX (2 checkpoints flagged as dropped on
+  2026-07-13): a prior formatting fix had changed the stored checkpoint string from an
+  embedded literal newline to a plain space. Data collection never actually stopped —
+  the validator's day-over-day exact string match just saw it as one checkpoint
+  vanishing and a new one appearing.
+- Hardened `xx_validate_scrape.R`: checkpoint names are now whitespace-normalized once
+  at read time, so a pure scraper formatting change no longer trips a false drop-off
+  alert.
+- Audited all `*_wait_times.R` scrapers for the same class of risk and added
+  whitespace normalization to the 13 that were missing it (all except PDX, which
+  already had it, and DFW/PHL, which are immune by construction). Each was verified
+  with a live scratchpad dry-run against the real site/API before being applied to
+  the production file, then confirmed clean in a full live orchestrator cycle and a
+  follow-up DB query (zero rows with embedded/irregular whitespace).
+
 ## 2026-07-13 (3)
 
 ### New Airport — SEA (Seattle-Tacoma) Scraper Live

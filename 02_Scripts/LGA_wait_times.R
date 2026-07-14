@@ -77,6 +77,7 @@ scrape_tsa_data_lga <- function() {
       wait_time_clear    = NA_real_
     ) |>
     rename(checkpoint = Terminal) |>
+    mutate(checkpoint = stringr::str_squish(checkpoint)) |>
     select(airport, checkpoint, datetime, date, time, timezone,
            wait_time, wait_time_priority, wait_time_pre_check, wait_time_clear)
   
