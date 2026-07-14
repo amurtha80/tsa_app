@@ -1,16 +1,13 @@
-# install.packages(c("DBI", "polite", "rvest", "tidyverse", "duckdb", 
-#  "lubridate", "magrittr", glue", "here", "chromote"))
+# install.packages(c("DBI", "httr2", "tidyverse", "duckdb",
+#  "lubridate", "glue", "here"))
 
-# library(polite, verbose = FALSE, warn.conflicts = FALSE)
-# library(rvest, verbose = FALSE, warn.conflicts = FALSE)
+# library(httr2, verbose = FALSE, warn.conflicts = FALSE)
 # library(duckdb, verbose = FALSE, warn.conflicts = FALSE)
 # library(lubridate, verbose = FALSE, warn.conflicts = FALSE)
-# library(magrittr, verbose = FALSE, warn.conflicts = FALSE)
 # library(glue, verbose = FALSE, warn.conflicts = FALSE)
 # library(DBI, verbose = FALSE, warn.conflicts = FALSE)
 # library(tidyverse, verbose = FALSE, warn.conflicts = FALSE)
 # library(here, verbose = FALSE, warn.conflicts = FALSE)
-# library(chromote, verbose = FALSE, warn.conflicts = FALSE)
 
 # here::here()
 
@@ -21,86 +18,77 @@
 
 # Script Function ----
 
-# Function to scrape and store TSA checkpoint wait times
 scrape_tsa_data_dca <- function() {
-  
+
   print(glue("kickoff DCA scrape ", format(Sys.time(), "%a %b %d %X %Y")))
-  
-  
-  url <- 'https://www.flyreagan.com/travel-information/security-information' # Update with the actual URL
-  
-  session <- polite::bow(url)
-  options(chromote.headless = "new")
-  
-  # Initialize a new Chrome session with the latest stable version of Chrome 
-  # and specify the binary for chrome-headless-shell
-  chromote::local_chrome_version(version = "latest-stable", binary = "chrome-headless-shell")
-  
-  # Scrape and parse data
-  # page <- polite::scrape(session)
-  page <- safe_read_html_live(url)
-  Sys.sleep(2.0) # Polite delay to ensure page is fully loaded
-  
-  # Scrape ----
-  # Pull every row div, then within each row grab the 4 table-body-cell divs
-  # by position: [1] checkpoint name, [2] General time, [3] TSA Pre time, [4] Directions (ignored)
-  rows <- page |>
-  rvest::html_elements(".resp-table-row")
-  
-  if (length(rows) == 0) {
-    stop("DCA: no .resp-table-row elements found — page may not have loaded fully")
-  }
-  
-  parse_cell <- function(row, position) {
-    row |>
-      rvest::html_elements(".table-body-cell") |>
-      magrittr::extract(position) |>
-      rvest::html_text2() |>
-      stringr::str_squish()
-  }
-  
-  checkpoints <- purrr::map_chr(rows, \(r) parse_cell(r, 1))
-  
-  raw_general <- purrr::map_chr(rows, \(r) {
-    cells <- r |> rvest::html_elements(".table-body-cell")
-    if (length(cells) < 2) return(NA_character_)
-    cells[[2]] |> rvest::html_text2() |> stringr::str_trim()
-  })
-  
-  raw_pre <- purrr::map_chr(rows, \(r) {
-    cells <- r |> rvest::html_elements(".table-body-cell")
-    if (length(cells) < 3) return(NA_character_)
-    cells[[3]] |> rvest::html_text2() |> stringr::str_trim()
-  })
-  
-  # Parse time values ----
-  # Values arrive as "< 5 mins", "12 mins", or empty string (no service at that checkpoint)
-  # Extract the numeric portion; "< 5" becomes 5 (ceiling of the stated bound)
-  parse_time <- function(x) {
-    dplyr::case_when(
-      is.na(x) | x == ""          ~ NA_real_,
-      stringr::str_detect(x, "^<") ~ readr::parse_number(x, na = c("", "N/A")),
-      TRUE                          ~ readr::parse_number(x, na = c("", "N/A"))
+
+  # API endpoint ----
+  api_url <- "https://www.flyreagan.com/security-wait-times"
+
+  # 1. Initialize the request
+  req <- request(api_url)
+
+  # 2. Build the exact browser mimic layer
+  req <- req |>
+    req_headers(
+      `accept`           = "*/*",
+      `accept-language`  = "en-US,en;q=0.9",
+      `referer`          = "https://www.flyreagan.com/travel-information/security-information",
+      `user-agent`       = "Mozilla/5.0 (Linux; Android 15; Pixel 9) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Mobile Safari/537.36",
+      `x-requested-with` = "XMLHttpRequest"
     )
+
+  # 3. Perform the request safely
+  response <- req_perform(req)
+
+  # 4. Check results
+  status <- resp_status(response)
+  # print(paste("HTTP Status Code:", status))
+
+  # Parse checkpoints ----
+
+  parsed_data <- resp_body_json(response)
+  res_list <- parsed_data$response$res
+
+  # Values arrive as "< 5 mins", "12 mins", or occasionally a range like "6-9
+  # mins". Extract every number present and take the largest -- conservative
+  # choice so a range never understates the wait.
+  parse_time <- function(x) {
+    purrr::map_dbl(x, function(val) {
+      if (is.na(val) || val == "") return(NA_real_)
+      nums <- stringr::str_extract_all(val, "[0-9]+(\\.[0-9]+)?")[[1]]
+      if (length(nums) == 0) return(NA_real_)
+      max(as.numeric(nums))
+    })
   }
-  
-  wait_time           <- parse_time(raw_general)
-  wait_time_pre_check <- parse_time(raw_pre)
 
-  # Guard: an occasional row on this page renders with a blank checkpoint name
-  # (a divider/empty row, not a real checkpoint) -- drop it rather than write a
-  # row that can never join against airport_checkpoint_hours
-  keep <- !is.na(checkpoints) & stringr::str_trim(checkpoints) != ""
-  checkpoints         <- checkpoints[keep]
-  wait_time           <- wait_time[keep]
-  wait_time_pre_check <- wait_time_pre_check[keep]
+  # Checkpoint naming must match the existing tsa_wait_times convention
+  # ("Terminal 1 ( A Gates)", "Terminal 2 North ( B, C, D, E Gates)", etc.) --
+  # verified 1:1 against the rendered security-information page and the DB's
+  # existing DCA rows. isDisabled/pre_disabled flag a lane as unavailable
+  # regardless of any stale waittime/pre string still present in the payload.
+  mine <- purrr::map_dfr(res_list, function(cp) {
+    checkpoint <- stringr::str_squish(paste(cp$location, cp$gates))
 
-  # Guard: flyreagan.com does not clear its displayed wait time when a checkpoint
-  # closes -- the last real reading (settling around 4-5 min) is left on the page
-  # indefinitely, so the scraper would otherwise faithfully record a stale non-NA
-  # value all night. Gate against airport_checkpoint_hours (time-of-day only, no
-  # DCA checkpoint's published window wraps midnight) rather than a hardcoded
-  # clock literal -- same pattern as the PHL Terminal A-West 1 fix.
+    gen_wait <- parse_time(cp$waittime %||% NA_character_)
+    if (isTRUE(cp$isDisabled == 1)) gen_wait <- NA_real_
+
+    pre_disabled <- isTRUE(cp$pre_disabled == 1) || is.null(cp$pre)
+    pre_wait <- if (pre_disabled) NA_real_ else parse_time(cp$pre)
+
+    tibble::tibble(
+      checkpoint = checkpoint,
+      wait_time = gen_wait,
+      wait_time_pre_check = pre_wait,
+      wait_time_clear = NA_real_
+    )
+  })
+
+  # Guard: flyreagan.com does not always clear a checkpoint's displayed wait
+  # time when it closes for the night -- gate against airport_checkpoint_hours
+  # (time-of-day only, no DCA checkpoint's published window wraps midnight)
+  # rather than relying solely on the API's isDisabled flag, same pattern as
+  # the PHL Terminal A-West 1 fix.
   dca_hours <- dbGetQuery(con_write, "
     SELECT checkpoint, open_time_gen, close_time_gen
     FROM airport_checkpoint_hours
@@ -119,104 +107,85 @@ scrape_tsa_data_dca <- function() {
       now_minutes_of_day <= tod_minutes(hrs$close_time_gen[1])
   }
 
-  open_now <- purrr::map_lgl(checkpoints, is_checkpoint_open)
-  wait_time[!open_now]           <- NA_real_
-  wait_time_pre_check[!open_now] <- NA_real_
+  open_now <- purrr::map_lgl(mine$checkpoint, is_checkpoint_open)
+  mine$wait_time[!open_now]           <- NA_real_
+  mine$wait_time_pre_check[!open_now] <- NA_real_
 
-
-  # Build output tibble ----
+  # Create tibble for data insertion ----
   if (!exists("DCA_data", envir = .GlobalEnv)) {
-    DCA_data <- tibble(
-      airport             = character(),
-      checkpoint          = character(),
-      datetime            = lubridate::ymd_hms(tz = "America/New_York"),
-      date                = lubridate::ymd(character()),
-      time                = lubridate::POSIXct(tz = "America/New_York"),
-      timezone            = character(),
-      wait_time           = numeric(),
-      wait_time_priority  = numeric(),
-      wait_time_pre_check = numeric(),
-      wait_time_clear     = numeric()
-    )
+    DCA_data <- tibble::tibble(airport = character(),
+                               checkpoint = character(),
+                               datetime = lubridate::ymd_hms(tz = 'America/New_York'),
+                               date = lubridate::ymd(),
+                               time = lubridate::POSIXct(tz = 'America/New_York'),
+                               timezone = character(),
+                               wait_time = numeric(),
+                               wait_time_priority = numeric(),
+                               wait_time_pre_check = numeric(),
+                               wait_time_clear = numeric())
   } else {
     DCA_data <- get("DCA_data", envir = .GlobalEnv)
   }
-  
-  DCA_data <- rows_append(DCA_data, tibble(
-    airport             = "DCA",
-    checkpoint          = checkpoints,
-    datetime            = lubridate::now(tzone = "America/New_York"),
-    date                = lubridate::today(),
-    time                = Sys.time() |>
-      with_tz(tzone = "America/New_York") |>
-      floor_date(unit = "minute"),
-    timezone            = "America/New_York",
-    wait_time           = wait_time,
-    wait_time_priority  = NA_real_,
-    wait_time_pre_check = wait_time_pre_check,
-    wait_time_clear     = NA_real_
-  ))
-  
-  
-  assign("DCA_data", DCA_data, envir = .GlobalEnv)  
-  
+
+  # Insert airport data into tibble
+  DCA_data <- mine |>
+    dplyr::mutate(
+      airport = "DCA",
+      datetime = lubridate::now(tzone = 'America/New_York'),
+      date = lubridate::today(tzone = 'America/New_York'),
+      time = Sys.time() |>
+        lubridate::with_tz(tzone = "America/New_York") |>
+        lubridate::floor_date(unit = "minute"),
+      timezone = "America/New_York",
+      wait_time_priority = NA_real_
+    ) |>
+    dplyr::select(airport, checkpoint, datetime, date, time, timezone,
+                  wait_time, wait_time_priority, wait_time_pre_check, wait_time_clear) |>
+    dplyr::rows_append(x = DCA_data, y = _)
+
+  assign("DCA_data", DCA_data, envir = .GlobalEnv)
+
+  # Write to database ----
   dbAppendTable(con_write, name = "tsa_wait_times", value = DCA_data)
-  
-  # print(glue("session has run successfully ", format(Sys.time(), "%a %b %d %X %Y")))
+
   print(glue("{nrow(DCA_data)} appended to tsa_wait_times at ", format(Sys.time(), "%a %b %d %X %Y")))
-  
-  
+
+
   # Cleanup ----
-  rm(rows, checkpoints, raw_general, raw_pre, wait_time, wait_time_pre_check, parse_cell, parse_time,
-     dca_hours, now_et, now_minutes_of_day, tod_minutes, is_checkpoint_open, open_now)
+  rm(api_url)
+  rm(status)
+  rm(req)
+  rm(response)
+  rm(parsed_data)
+  rm(res_list)
+  rm(mine)
+  rm(dca_hours, now_et, now_minutes_of_day, tod_minutes, is_checkpoint_open, open_now)
   rm(DCA_data, envir = .GlobalEnv)
-  
-  
-  tryCatch({
-    page$session$close()
-    page$session$parent$close(wait = 2)
-    if (chromote::has_default_chromote_object()) {
-      chromote::set_default_chromote_object(NULL)
-    }
-  }, error = function(e) {
-    message(Sys.time(), " | DCA teardown warning (non-fatal): ", e$message)
-  }, finally = {
-    rm(page)
-    rm(session)
-    rm(url)
-  })
-  
-  # gc()
+
 }
+
+# Testing ----
+
+# scrape_tsa_data_dca()
 
 
 # Test Loop ----
 # i <- 1
-# 
-# for (i in 1:24) {
+#
+# for (i in 1:5) {
 #   p1 <- lubridate::ceiling_date(Sys.time(), unit = "minute")
-# 
 #   print(glue(i, "  ", format(Sys.time())))
-# 
 #   scrape_tsa_data_dca()
-# 
 #   theDelay <- as.numeric(difftime(p1,Sys.time(),unit="secs"))
-# 
+#   Sys.sleep(max(0, theDelay))
+#
 #   i <- i + 1
-# 
-#   if(i == 25) {
-#     break()
-#   } else {
-#     Sys.sleep(max(0, theDelay))
-#   }
-# 
 # }
-
 
 # Cleanup ----
 # rm(i)
 # rm(p1)
 # rm(theDelay)
-# dbDisconnect(con)
-# rm(con)
+# dbDisconnect(con_write)
+# rm(con_write)
 # rm(scrape_tsa_data_dca)
