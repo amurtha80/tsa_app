@@ -3,6 +3,39 @@ FlyASAP — Airport Security Advance Planning
 
 ---
 
+## 2026-07-14 (4)
+
+### Refactor — PDX Scraper Migrated from Chromote to JSON API
+- Replaced `PDX_wait_times.R`'s chromote/rvest scrape of the flypdx.com rendered
+  page with a plain `httr2` GET against `flypdx.com/TSAWaitTimesRefresh`
+  (cache-busting `_` query param, `Referer`/`X-Requested-With` headers) — endpoint
+  confirmed via the user-supplied `PDX_in_progress.R` stub. Old chromote version
+  archived to `02_Scripts/archive/PDX_scrape_v1.R` (first archive for PDX).
+- The API returns one `WaitTimes` entry per `North|South` × `General|Precheck`
+  counter plus live per-checkpoint `NorthCheckpointClosed`/`SouthCheckpointClosed`
+  booleans and open/close timestamps. `North` maps to `"Security checkpoint for
+  gates DE"`, `South` to `"Security checkpoint for gates BC"` — matches the DB's
+  existing checkpoint-naming convention exactly. No CLEAR field, `wait_time_clear`
+  stays NA as before.
+- Primary gate is the API's own live `Closed` booleans per checkpoint; the
+  existing `airport_checkpoint_hours` time-of-day backstop gate was kept
+  alongside it (unproven reliability of the new flag over time), same reasoning
+  as the DCA/IAH migrations.
+- Cross-referencing the JSON's live open/close times against `airport_checkpoint_hours`
+  found `Security checkpoint for gates BC`'s `close_time_gen` stale (22:00 -> 21:00)
+  and `Security checkpoint for gates DE`'s general hours entirely unpopulated
+  (added: 03:00 -> 21:30). Corrected via a direct (non-Quack) connection, anchored
+  off `open_time_gen`/`open_time_prechk`'s date per the IAH lesson. Required
+  stopping/restarting `tsa_app_quack_server`.
+- Verified end-to-end: scratchpad dry-run (write disabled) matched the live API
+  response exactly for both checkpoints' General/PreCheck values; confirmed live
+  in the 1:55 PM orchestrator cycle with correct rows landing for both checkpoints.
+- Note: the Quack server restart took longer than the usual single scrape gap
+  (a `Start-ScheduledTask` restart attempt silently failed, and a manual Git-Bash
+  launch picked up the wrong token per the known `.Renviron`-under-Git-Bash gotcha)
+  — caused ~6 missed 5-minute scrape cycles (~1:20-1:50 PM) across all 16 airports
+  before the server came back up correctly. No lasting effect once fixed.
+
 ## 2026-07-14 (3)
 
 ### Refactor — IAH Scraper Migrated from Chromote to JSON API
