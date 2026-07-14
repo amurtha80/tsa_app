@@ -3,6 +3,38 @@ FlyASAP — Airport Security Advance Planning
 
 ---
 
+## 2026-07-14 (2)
+
+### Refactor — DCA Scraper Migrated from Chromote to JSON API
+- Replaced `DCA_wait_times.R`'s chromote/rvest HTML scrape with a plain `httr2` GET
+  against `flyreagan.com/security-wait-times` — discovered via browser network
+  inspection of the rendered security-information page (the old file's approach was
+  chromote-based; no JSON endpoint had been identified before this session). Old
+  chromote version archived to `02_Scripts/archive/DCA_scrape_v2.R` (v1 was already
+  archived from an earlier iteration).
+- The API returns one flat object per checkpoint (keyed `A`/`B`/`D`, not stable
+  airport-side identifiers) with `location`, `gates`, `waittime` (General), `pre`
+  (TSA PreCheck), `isDisabled`, and `pre_disabled` — no CLEAR data, and no per-lane
+  or per-checkpoint timestamp field (the "Last updated" shown on the rendered page is
+  a page-render artifact, not part of the API payload). Checkpoint name is built as
+  `str_squish(paste(location, gates))`, which reproduces the existing DB convention
+  exactly (`"Terminal 1 ( A Gates)"`, etc.) with no transformation needed.
+- Occasionally the API returns a wait-time range (e.g. `"4-7 mins"`) instead of a
+  single value. Parsing now extracts every number present and takes the max —
+  a conservative choice so a range never understates the wait. Validated live: the
+  page showed `"4-7 mins"` for Terminal 2 North during testing and the scraper
+  correctly recorded 7.
+- Kept the pre-existing `airport_checkpoint_hours` time-of-day gate (forces NA
+  outside published hours) in addition to honoring `isDisabled`/`pre_disabled` from
+  the API — the original file's gate exists because flyreagan.com doesn't reliably
+  clear a stale reading after a checkpoint closes for the night, and that risk isn't
+  known to be fully covered by the new API's own disabled flags yet.
+- Verified end-to-end: scratchpad dry-run against the live API (write disabled,
+  full tibble printed and cross-checked against the rendered page) before promoting
+  the file, then confirmed the very next live orchestrator cycle (10:25 AM) picked up
+  the renamed file automatically and appended clean rows for all 3 checkpoints with
+  no errors, confirmed via a Quack read-only query.
+
 ## 2026-07-14
 
 ### Fix — Checkpoint Whitespace Normalization (Validator False-Positive + Scraper Hardening)
