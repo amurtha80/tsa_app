@@ -53,6 +53,18 @@ RShiny Mobile App TSA Historical Wait Times
   finding. Revisit both the Terminal B early-open and the Terminal A gap using ~1
   month of fresh `tsa_wait_times` scraping data (by 2026-08-12)
 
+#### Data Quality — IAH Terminal D Split-Shift Hours Not Representable in Schema
+- 2026-07-14: IAH's own page shows Terminal D running a split shift 4 of 7 days
+  (e.g. 7:00a-11:30a + 4:30p-8:00p Sun/Mon/Wed/Fri; continuous 7:00a-8:00p
+  Tue/Thu/Sat) — see the "IAH Terminal D TSA checkpoint hours" section of
+  `fly2houston.com/iah/security/`. `airport_checkpoint_hours` only stores one
+  open/close pair per checkpoint with no day-of-week dimension, so it can't model
+  the midday gap. `close_time_gen` was corrected to the outer bound (22:30, from
+  20:00) as part of the JSON scraper migration to fix a real evening-data-loss bug,
+  but this doesn't and can't fix the midday gap — the live `isOpen`/`isDisplayable`
+  flags from the new JSON API are what actually protect against that now. Revisit
+  if the schema ever needs day-of-week-aware hours (not just IAH D).
+
 #### Data Quality — Checkpoint Name Cleanup
 - **CLT checkpoint rename** — historical rows (Nov 2024 – Apr 2025) store `"Checkpoint 1"` for what is physically Checkpoint 2; new scraper (Jul 2026) writes correct names going forward; once sufficient fresh data has accumulated, run `UPDATE tsa_wait_times SET checkpoint = 'Checkpoint 2' WHERE airport = 'CLT' AND checkpoint = 'Checkpoint 1'` to canonicalize historical data, then rebuild parquet
 

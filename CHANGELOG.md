@@ -3,6 +3,45 @@ FlyASAP — Airport Security Advance Planning
 
 ---
 
+## 2026-07-14 (3)
+
+### Refactor — IAH Scraper Migrated from Chromote to JSON API
+- Replaced `IAH_wait_times.R`'s chromote/rvest scrape of `fly2houston.com/iah/security/`
+  with a plain `httr2` GET against `api.houstonairports.mobi/wait-times/checkpoint/iah`
+  (`api-key`/`api-version`/`Origin`/`Referer` headers) — endpoint discovered via browser
+  network inspection. Old chromote version archived to `02_Scripts/archive/IAH_scrape_v2.R`
+  (v1 was already archived from an earlier iteration).
+- The API returns one object per checkpoint-lane with `name` ("IAH Terminal A North
+  Standard"), `openTime`/`closeTime`, `isOpen`, `isDisplayable`, `waitSeconds`, and
+  `min`/`maxWaitSeconds`. Physical checkpoint = `name` with the trailing
+  `Standard`/`PreCheck`/`Premier` token stripped, same 6-checkpoint convention already in
+  the DB. `wait_time_clear` remains NA — no CLEAR-specific field exists in the payload.
+- The payload also includes an `"Int'l Arrivals Customs Checkpoint"` (FIS/CBP) entry.
+  Confirmed via the live rendered page that it was never part of what this scraper
+  collects (only the 9 TSA lane-cards render there) — excluded per explicit instruction
+  to change *how* the data is fetched, not *what* is fetched.
+- Primary gate is now the API's own live per-lane `isOpen`/`isDisplayable` flags; the
+  existing `airport_checkpoint_hours` time-of-day backstop gate (scoped to `IAH Terminal
+  A South`'s Standard lane, for the known overnight stale-reading issue) was kept
+  alongside it, not removed.
+- Cross-referencing the JSON's live `openTime`/`closeTime` against both the existing
+  `airport_checkpoint_hours` table and the live page's own "Hours:" text found 3 stale
+  rows and corrected them via a direct (non-Quack) connection: `IAH Terminal A South`
+  `close_time_gen` 00:00 -> 23:00, `IAH Terminal D` `close_time_gen` 20:00 -> 22:30 (was
+  incorrectly nulling real evening wait data), `IAH Terminal E` `close_time_prechk` 20:00
+  -> 19:30. Required stopping/restarting `tsa_app_quack_server` since Quack clients can't
+  run `UPDATE`. A first-pass UPDATE for A South anchored the new close time off the old
+  (already midnight-rolled) date instead of `open_time_gen`'s date, producing a one-day-off
+  timestamp; caught before restarting the server and corrected with a second UPDATE.
+- Terminal D's published hours actually run a split shift 4 of 7 days (see
+  `todo_list.txt`) — the single open/close pair can't represent that gap, so the live
+  `isOpen`/`isDisplayable` flags (not the hours table) are what protect against it now.
+- Verified end-to-end: scratchpad dry-run (write disabled) matched the live page exactly
+  across all 9 lane readings; promoted between orchestrator cycles; multiple consecutive
+  live cycles (12:25 PM - 12:45 PM) confirmed via Quack with all 6 expected checkpoint
+  names and plausible values; `airport_checkpoint_hours` corrections confirmed via
+  before/after `SELECT`s and a final Quack read-only check post-restart.
+
 ## 2026-07-14 (2)
 
 ### Refactor — DCA Scraper Migrated from Chromote to JSON API
