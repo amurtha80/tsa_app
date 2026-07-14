@@ -3,6 +3,36 @@ FlyASAP — Airport Security Advance Planning
 
 ---
 
+## 2026-07-14 (5)
+
+### Refactor — MCO Scraper Migrated from RSelenium/Chromote to JSON API
+- Replaced `MCO_wait_times.R`'s RSelenium/Firefox headless-browser scrape of the
+  flymco.com rendered page with a plain `httr2` GET against
+  `api.goaa.aero/wait-times/checkpoint/MCO` (`api-key`/`api-version`/`Origin`/
+  `Referer` headers) — endpoint confirmed via the user-supplied
+  `MCO_in_progress.R` stub and a live curl fetch. Old RSelenium version archived
+  to `02_Scripts/archive/MCO_scrape_v1.R` (first archive for MCO).
+- The API returns one per-lane object per `South|West|East` × `Standard|
+  PreCheck` lane, with live `isOpen`/`isDisplayable` flags, `waitSeconds`/
+  `minWaitSeconds`/`maxWaitSeconds`, and `attributes.minGate`/`maxGate`.
+  Checkpoint naming is derived from each lane's own gate range as `"Gates
+  {min} - {max}"` rather than the `Side` label — reproduces the DB's existing
+  3-checkpoint convention exactly (`Gates 1 - 59`, `Gates 70 - 129`, `Gates
+  C230 - C254`). No CLEAR lane in the payload, `wait_time_clear` stays NA as
+  before.
+- Conservative wait parsing reused verbatim from `IAH_wait_times.R`: prefer
+  `max(waitSeconds, maxWaitSeconds)` over the bare `waitSeconds` value.
+- Primary gate is the API's own live per-lane `isOpen`/`isDisplayable` flags.
+  Unlike IAH/PDX, this API never populates `openTime`/`closeTime` (null on
+  every lane observed), so the pre-existing `airport_checkpoint_hours`
+  time-of-day gate (already correct from the 2026-07-12 MCO hours fix, no
+  changes needed this time) serves as the sole backstop — no live Quack-server
+  restart was required for this migration.
+- Verified end-to-end: scratchpad dry-run (write disabled, full tibble
+  printed) matched a same-moment raw JSON fetch exactly (6/5, 13/3, 13/4
+  minutes across South/West/East General/PreCheck) before promoting the file
+  between live orchestrator cycles.
+
 ## 2026-07-14 (4)
 
 ### Refactor — PDX Scraper Migrated from Chromote to JSON API
