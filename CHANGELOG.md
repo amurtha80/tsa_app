@@ -3,6 +3,29 @@ FlyASAP — Airport Security Advance Planning
 
 ---
 
+## 2026-07-15 (1)
+
+### Data Fix — MIA Checkpoint 8 Implausible Wait-Time Row Nulled
+- `xx_validate_scrape.R` Check 4 alerted on a single MIA checkpoint 8 row
+  from 2026-07-14 with `wait_time = 141` (ceiling 120). Diagnosed via direct
+  Quack query: an isolated single-poll spike (`wait_time = 141`,
+  `wait_time_priority = 55`) at 08:05:12, the very first reading after the
+  checkpoint transitioned from closed (NA) to open, self-corrected to normal
+  (15 min) by the next 5-min poll. No scraper parsing bug found in
+  `MIA_wait_times.R`'s `parse_minutes()` — most likely the airport's live
+  SITA queue-estimate API returning an inflated value right at the open
+  transition, not a scraper defect.
+- Nulled `wait_time` and `wait_time_priority` for that one row via a direct
+  (non-Quack) write: stopped `tsa_app_quack_server`, verified exact 1-row
+  match with a SELECT using the identical `UPDATE` WHERE clause, ran the
+  `UPDATE`, verified post-write, restarted the Quack server.
+  `wait_time_pre_check`/`wait_time_clear` were already normal (3/3) and
+  untouched.
+- Found two new Quack-restart gotchas during recovery (stray manual server
+  process colliding with `Start-ScheduledTask`'s own launch; `Start-Job`
+  processes dying when the launching shell session ends) — logged in memory
+  for future Quack server restarts.
+
 ## 2026-07-14 (6)
 
 ### Refactor — MIA Scraper Migrated from RSelenium/Chromote to JSON API
