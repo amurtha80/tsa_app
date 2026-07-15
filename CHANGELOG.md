@@ -3,6 +3,29 @@ FlyASAP — Airport Security Advance Planning
 
 ---
 
+## 2026-07-15 (2)
+
+### Data Fix — EWR `airport_checkpoint_hours` Rows Added for the 3 Split Terminal B Checkpoints
+- Closed the gap left by the 2026-07-13 Terminal B scraper fix: `tsa_wait_times`
+  had 3 real checkpoints (`Terminal B 40-49`/`51-57`/`60-68`) but
+  `airport_checkpoint_hours` still only had one old collapsed `"Terminal B"` row,
+  so `xx_build_summary_DB.R`'s exact-name join left all 3 unmatched — silently
+  disabling hours-based filtering for each (unmatched lookup = "no restriction").
+- Queried live via a read-only Quack client to confirm current state before
+  writing: EWR's existing Terminal A/B/C rows, per-checkpoint row counts in
+  `tsa_wait_times` (105,099 each, consistent), and PreCheck non-NA rate for the 3
+  splits (40-49: 99.5%, 51-57/60-68: 0.0% — confirms only 40-49 has a real
+  PreCheck lane).
+- Inserted 3 new rows via a normal Quack client `INSERT` (append, no schema
+  change — Quack clients can run INSERT, so no need to stop
+  `tsa_app_quack_server`): general hours (04:30-19:30) carried forward unchanged
+  from the old collapsed row for all 3; PreCheck (04:00-20:00) set only on
+  40-49, left NULL on 51-57/60-68; CLEAR left NULL (no CLEAR lane data at EWR).
+  Verified with a `SELECT ... WHERE airport='EWR' AND checkpoint LIKE 'Terminal
+  B%'` showing all 3 new rows with the newest `entry_timestamp`.
+- No code changes required — `xx_build_summary_DB.R`'s join/lookup logic is
+  generic and will pick up the new rows on the next nightly build.
+
 ## 2026-07-15 (1)
 
 ### Data Fix — MIA Checkpoint 8 Implausible Wait-Time Row Nulled
