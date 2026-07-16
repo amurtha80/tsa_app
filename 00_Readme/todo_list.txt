@@ -21,23 +21,6 @@ RShiny Mobile App TSA Historical Wait Times
 
 ### Medium Priority — Post-Launch Fixes
 
-#### Data Quality — EWR Saturday CLEAR Hours Not Representable (schema has no day-of-week)
-- 2026-07-16: user personally researched current EWR General/CLEAR/PreCheck hours
-  (Twitter + airport CLEAR+ listings) and they're now live in `airport_checkpoint_hours`.
-  Terminal A/C general close set to 12AM (Twitter-sourced); confirmed consistent with a
-  90-day data pull (near-zero but real traffic through 22:00-02:00, small NA blips right
-  at midnight for Terminal C). Terminal B (all 3 splits) general hours set to 24hr —
-  90-day pull showed zero NA readings at any hour, so "closes based on flight schedule"
-  reads as "no fixed close," not a schema gap.
-- CLEAR hours have a Sun-Fri vs. Sat split (Terminal A: 8pm vs 7pm close; Terminal B:
-  7:30pm vs 6pm close) that the schema can't store (single open/close pair, no
-  day-of-week dimension — same limitation as the IAH Terminal D item above). Stored the
-  wider Sun-Fri window for both; Saturday will show hours slightly wider than actual.
-  No CLEAR data currently flows through the EWR scraper at all (0 non-NA
-  `wait_time_clear` rows in history) — hours recorded for future use, not yet
-  independently verifiable against real readings. Revisit if/when EWR CLEAR scraping is
-  ever added, or if the schema gains a day-of-week dimension.
-
 #### Data Quality — JFK Terminal 1 24-Hour PreCheck Assumption Needs Recheck (by 2026-08-12)
 - 2026-07-12: TSA's schedule tool shows JFK Terminal 1 PreCheck closing twice overnight
   (1-4am, 6-8am), but the checkpoint's own general hours (04:00-23:00, from
