@@ -56,6 +56,16 @@ checkpoints_by_airport <- summ_data |>
   tibble::deframe()
 
 
+# Airport-level coverage notes ----
+# Static UI facts about live-data coverage gaps, keyed by IATA code.
+# To disable a note: delete/comment its entry. To add one for another
+# airport: add a new named element — no other code changes needed.
+
+airport_coverage_notes <- c(
+  LAX = "flyLAX currently publishes live wait times for the TBIT (International) checkpoint only. LAX has additional checkpoints at most other terminals that are not yet available here."
+)
+
+
 # Derived UI inputs ----
 
 airport_choices <- sort(unique(summ_data$airport))
@@ -372,6 +382,20 @@ app_css <- glue("
     border-radius: 2px;
   }}
 
+  /* ── Airport coverage note ─────────────────────── */
+  .asap-coverage-note {{
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 0.78rem;
+    color: {text_dark};
+    background-color: rgba(24,188,156,0.08);
+    border-left: 3px solid {accent_teal};
+    border-radius: 6px;
+    padding: 8px 10px;
+    margin-bottom: 14px;
+  }}
+
   /* ── Hero responsive sizing ────────────────────── */
   @media (min-width: 768px) {{
     #asap-hero {{ padding: 28px 40px 24px 40px; }}
@@ -435,7 +459,9 @@ ui <- page_fillable(
           selectize = FALSE,
           width    = "100%"
         ),
-        
+
+        uiOutput("airport_coverage_note"),
+
         selectInput(
           inputId = "select_checkpoint",
           label   = "Checkpoint",
@@ -526,8 +552,26 @@ server <- function(input, output, session) {
                       choices  = checkpoints_for_airport,
                       selected = checkpoints_for_airport[1])
   })
-  
-  
+
+
+  # Airport-level coverage note ----
+  # Shows a banner when the selected airport has a known live-data
+  # coverage gap (see airport_coverage_notes). Purely reactive lookup,
+  # no runtime filtering of summ_data.
+
+  output$airport_coverage_note <- renderUI({
+    req(input$select_airport)
+    note <- airport_coverage_notes[input$select_airport]
+    if (is.na(note)) return(NULL)
+
+    tags$div(
+      class = "asap-coverage-note",
+      icon("circle-info"),
+      tags$span(unname(note))
+    )
+  })
+
+
   # Reactive: filtered ±1-hour window ----
   
   filtered_data <- reactive({

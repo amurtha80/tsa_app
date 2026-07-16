@@ -5,6 +5,55 @@ FlyASAP — Airport Security Advance Planning
 
 ## 2026-07-16
 
+### App — LAX Partial-Coverage UI Banner
+- Closed the `todo_list.txt` "LAX coverage note in app UI" item. flylax.com/wait-times
+  only publishes live wait times for the TBIT (International) checkpoint, even though
+  LAX has its own security checkpoint at nearly every terminal — without a note, the
+  app's checkpoint list (TBIT-only) reads as "LAX has one checkpoint" rather than "we
+  only have live data for one of LAX's checkpoints."
+- Added `airport_coverage_notes` (`03_App/tsa_wait_time_app/app.R`), a named-vector
+  lookup keyed by IATA code, built once at startup alongside the existing
+  `checkpoints_by_airport` lookup. A `renderUI` reactive on `input$select_airport`
+  shows a small teal-accented banner (`.asap-coverage-note` CSS class, styled with the
+  app's existing navy/teal palette) between the Airport and Checkpoint dropdowns
+  whenever the selected airport has an entry; disappears otherwise.
+- Deliberately kept as a static in-app UI constant rather than a DB column/table — this
+  is a fact about data coverage, not scraped checkpoint data, so it doesn't belong in
+  `airport_checkpoint_hours` or the summary parquet pipeline. Adding/removing an
+  airport's note is a one-line edit to the named vector, no other code changes needed.
+- Verified locally (`Rscript -e "shiny::runApp(...)"`, browser-driven): LAX shows the
+  banner and auto-selects TBIT; JFK (and other airports without an entry) shows no
+  banner, with charts and checkpoint list rendering normally.
+
+### Data — CLT Checkpoint Rename (Historical "Checkpoint 1" → "Checkpoint 2")
+- Closed the `todo_list.txt` "CLT checkpoint rename" item. Historical rows
+  from the old (frozen) `checkpoint-queues/current` endpoint stored
+  `"Checkpoint 1"` for what is physically Checkpoint 2 on CLT's site — see
+  CHANGELOG 2026-07-03 and
+  `transcripts/clt-checkpoint-names-and-wait-times-mismatch-api.md` for the
+  full diagnosis. The 2026-07-03 scraper rebuild writes correct names going
+  forward; this entry canonicalizes the historical rows.
+- Confirmed via Quack read client that `checkpoint = 'Checkpoint 1'` held two
+  disjoint eras with a clean 14-month gap between them: 36,245 rows from
+  `2024-11-27 15:14:51` to `2025-04-19 04:55:34` (old endpoint, mislabeled)
+  and a separate post-2026-07-03 block (correctly labeled by the new
+  scraper). No rows existed in the gap, so `date < '2026-07-03'` was a safe,
+  unambiguous boundary.
+- Stopped the `tsa_app_quack_server` scheduled task, direct-connected, and
+  ran: `UPDATE tsa_wait_times SET checkpoint = 'Checkpoint 2' WHERE airport =
+  'CLT' AND checkpoint = 'Checkpoint 1' AND date < '2026-07-03';` — matched
+  and updated exactly 36,245 rows, verified against a same-turn `SELECT`
+  before writing. The unscoped `UPDATE` originally sketched in the todo item
+  would have also renamed the fresh, correctly-labeled post-2026-07-03 rows —
+  the date filter was required to avoid that.
+- Restarted `tsa_app_quack_server`, manually re-ran `xx_build_summary_DB.R`
+  to rebuild `tsa_app_summ.parquet` and push to S3 immediately rather than
+  waiting for the 2 AM nightly job (52,066 rows aggregated).
+- CLT's `Checkpoint 2` series now spans a continuous history from
+  `2024-11-27` to present; `Checkpoint 1` correctly reflects only the new
+  scraper's July 2026-onward data; `Checkpoint 3` was already correctly
+  labeled across both eras and untouched.
+
 ### Data Update — EWR General/CLEAR/PreCheck Hours Refreshed from User Research
 - Closed the `todo_list.txt` "EWR General Hours Still Unverified" item: user
   personally researched current EWR hours (Newark Airport Twitter for General

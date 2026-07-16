@@ -40,12 +40,8 @@ RShiny Mobile App TSA Historical Wait Times
   finding. Revisit both the Terminal B early-open and the Terminal A gap using ~1
   month of fresh `tsa_wait_times` scraping data (by 2026-08-12)
 
-#### Data Quality — Checkpoint Name Cleanup
-- **CLT checkpoint rename** — historical rows (Nov 2024 – Apr 2025) store `"Checkpoint 1"` for what is physically Checkpoint 2; new scraper (Jul 2026) writes correct names going forward; once sufficient fresh data has accumulated, run `UPDATE tsa_wait_times SET checkpoint = 'Checkpoint 2' WHERE airport = 'CLT' AND checkpoint = 'Checkpoint 1'` to canonicalize historical data, then rebuild parquet
-
 #### Deployment
 - Add third chart for CLEAR lane wait times for airports that have CLEAR data (MIA; others TBD) — chart should only render when data exists for the selected airport/checkpoint combination
-- **LAX coverage note in app UI** — flylax.com/wait-times only publishes wait times for TBIT (the International Terminal), even though LAX physically has its own security checkpoint at nearly every terminal (1–8, with T8 sharing T7's). When a user selects LAX in the app, show a message stating that only TBIT wait times are currently available, so it's not misread as "LAX has one checkpoint total"
 
 ### Active Script Bugs
 - **WebSocket warning** — suppress `"got non-close frame while closing"` warning during chromote teardown across all chromote scripts
@@ -71,6 +67,22 @@ RShiny Mobile App TSA Historical Wait Times
 - Scoping first: confirm what data/endpoint backs it, what airports/checkpoints it covers,
   and whether it's scrapable before committing to build anything against it
   
+#### No-Coverage Airport Banner — ORD, TPA, and Future "No Live Data" Airports (Low Priority)
+- 2026-07-16: LAX's `airport_coverage_notes` banner (see CHANGELOG 2026-07-16 "App —
+  LAX Partial-Coverage UI Banner") currently handles *partial* coverage (an airport has
+  some scraped checkpoints, but not all). ORD and TPA are a different case: no scraper
+  exists for them at all, so they don't appear in the Airport dropdown today
+  (`airport_choices` is derived from `sort(unique(summ_data$airport))` in app.R, which
+  only lists airports with existing rows in the summary parquet).
+- Before building this out: decide (a) whether to decouple the dropdown from
+  `summ_data` so no-data airports can be selected with an empty-chart + warning-banner
+  state, and (b) whether to give this a visually distinct "warning" tier separate from
+  LAX's "info" styling — both were explicitly punted on 2026-07-16 as lower priority,
+  not urgent.
+- Related to the existing "TSA's Own Android/Mobile Wait-Times App as a Backup Feed"
+  item below — if that fallback source ever gets wired in for ORD/TPA, this banner
+  would need to flip off (or reword) for those airports rather than staying permanent.
+
 #### LGA Terminal A: Monitor for Reactivation (Spirit Airlines Shutdown)
 - 2026-07-13: Spirit Airlines ceased all operations at 3:00 AM ET on 2026-05-02,
   vacating LGA's Marine Air Terminal (Terminal A). Marked `is_active = FALSE` in
