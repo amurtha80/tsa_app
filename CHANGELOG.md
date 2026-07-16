@@ -3,6 +3,39 @@ FlyASAP — Airport Security Advance Planning
 
 ---
 
+## 2026-07-16
+
+### Data Update — EWR General/CLEAR/PreCheck Hours Refreshed from User Research
+- Closed the `todo_list.txt` "EWR General Hours Still Unverified" item: user
+  personally researched current EWR hours (Newark Airport Twitter for General
+  open/close, CLEAR+ site listings for CLEAR, airport-published TSA PreCheck
+  hours) for all 5 EWR checkpoints (Terminal A, Terminal B 40-49/51-57/60-68,
+  Terminal C).
+- Pulled a 90-day hourly NA-rate/mean-wait profile from `tsa_wait_times` via
+  Quack before writing, per project convention: confirmed Terminal A/C's
+  Twitter-sourced ~12AM general close is consistent with the data (near-zero
+  but real traffic through 22:00-02:00, small NA blips at Terminal C right at
+  midnight). For Terminal B (all 3 splits), the data showed **zero NA readings
+  at any hour across 90 days** — real traffic even at 2-4am — so "closes based
+  on flight schedule" was resolved as "no fixed close": set to 24hr general
+  hours (`00:00`-next-day-`00:00`, the existing JFK T1/SEA convention), not a
+  synthesized close time.
+- New values: Terminal A/C general 04:00-24:00 (unchanged open, close moved to
+  midnight); Terminal A/C PreCheck 06:00-20:00 (was 04:00-20:00); Terminal
+  A/B/C CLEAR added for the first time (Terminal A/C 04:30-20:00, Terminal B
+  04:30-19:30) — CLEAR hours have a Sun-Fri vs. Sat split the schema can't
+  store, so the wider Sun-Fri window was kept for all 7 days (see `todo_list.txt`).
+  Terminal B 40-49 PreCheck (04:00-20:00) and 51-57/60-68 (NULL, no PreCheck
+  lane) carried forward unchanged — no new PreCheck info was provided for
+  Terminal B.
+- Written as a plain append-only `INSERT` via the normal Quack client
+  connection (`entry_timestamp`-based most-recent-row convention) — no schema
+  change, so `tsa_app_quack_server` was never stopped; verified the next 2
+  scraper cycles kept writing normally (`tsa_wait_times` row counts advanced)
+  throughout.
+
+---
+
 ## 2026-07-15 (2)
 
 ### Data Fix — EWR `airport_checkpoint_hours` Rows Added for the 3 Split Terminal B Checkpoints
