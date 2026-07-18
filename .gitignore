@@ -32,6 +32,7 @@ runlog_appdata_xfer.txt
 runlog_validate.txt
 runlog.txt
 runlog_quack_test.txt
+runlog_watchdog.txt
 
 04_Assets/
 transcripts/

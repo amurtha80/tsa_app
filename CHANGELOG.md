@@ -3,6 +3,39 @@ FlyASAP — Airport Security Advance Planning
 
 ---
 
+## 2026-07-18
+
+### Ops — 2026-07-17 Scraper Outage Root Cause + Fast-Detection Watchdog
+- The 7/18 2:18 AM `xx_validate_scrape.R` alert flagged 16 of ~17 airports at
+  30-39% of their 7-day baseline row count for 2026-07-17. The near-identical
+  drop percentage across nearly every airport was the tell that this was one
+  shared systemic outage, not per-scraper bugs.
+- Root cause, confirmed via `runlog.txt` and the Windows
+  `Microsoft-Windows-TaskScheduler/Operational` event log: `tsa_app_scraper`'s
+  stored Task Scheduler credential (logon type "Password") failed to
+  authenticate (`LogonUserExEx` / `ERROR_LOGON_FAILURE`, 0x8007052E) on every
+  5-minute attempt from 6:40 AM to 10:40 PM (192 consecutive failures), then
+  self-recovered with no visible remediating event. The R script never
+  launched — not a scraper code bug, not a reboot/sleep (no such system events
+  in that window), and not related to intermittent gaming sessions that day
+  (ruled out — those were sporadic, the failure was continuous).
+- Immediate fix: re-saved the stored password for `tsa_app_scraper` and
+  `tsa_app_quack_server` to clear the stale/corrupted credential.
+- Added `02_Scripts/xx_watchdog_check.R`, scheduled as `tsa_app_watchdog` every
+  30 minutes: checks `runlog.txt` for a recent scraper "Start Run" and pings
+  the Quack server for liveness, sending an immediate `blastula` email alert
+  (reusing the existing SMTP setup) if either looks stalled. Logs to new
+  `runlog_watchdog.txt`. Cuts detection time for a recurrence of this failure
+  mode from ~20 hours (next nightly validation run) down to under an hour.
+- Also nulled a single MIA checkpoint-8 implausible `wait_time` value (130 min
+  at 2026-07-17 08:05:09, the checkpoint's first reading after opening —
+  same opening-spike artifact pattern as the prior MIA checkpoint-8 fix).
+  Quack's remote ATTACH only supports SELECT/INSERT, not UPDATE, so this
+  required a direct (non-Quack) write: stopped `tsa_app_quack_server` in the
+  safe post-cycle window, wrote directly against
+  `01_Data/tsa_app.duckdb`, verified, and restarted immediately — confirmed
+  clean with the next scraper cycle completing successfully.
+
 ## 2026-07-16
 
 ### App — LAX Partial-Coverage UI Banner
