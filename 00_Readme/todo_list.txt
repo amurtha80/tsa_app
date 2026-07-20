@@ -40,6 +40,22 @@ RShiny Mobile App TSA Historical Wait Times
   finding. Revisit both the Terminal B early-open and the Terminal A gap using ~1
   month of fresh `tsa_wait_times` scraping data (by 2026-08-12)
 
+#### Data Quality — BOS Checkpoint Hours Need to Be Set From Live Monitor Data (by 2026-08-10)
+- 2026-07-20: No source (massport.com, CLEAR's page, TSA schedule tool, general web
+  search) gives concrete per-checkpoint open/close times for BOS — everything punts to
+  "checkpoints open ~2 hours before first departure, close after last scheduled
+  departure, check with your airline." Rather than guess, `tsa_app_bos_hours_monitor`
+  (Task Scheduler, every 15min offset :03/:18/:33/:48) polls Zensors' live `open` flag
+  per checkpoint/lane straight into a temporary `bos_hours_monitor` DuckDB table
+  (created via a direct Quack CREATE TABLE — Quack's remote ATTACH does support
+  CREATE TABLE/INSERT, it just doesn't show up in `duckdb_tables()` introspection).
+  Once ~2-4 weeks of data has accumulated, derive `airport_checkpoint_hours` rows for
+  all 7 BOS checkpoints from the open/closed distribution per checkpoint (same
+  approach as EWR Terminal B's 90-day NA-rate call), then **DROP TABLE
+  bos_hours_monitor**, delete `02_Scripts/xx_bos_hours_monitor.R`, and remove the
+  `tsa_app_bos_hours_monitor` scheduled task — none of this is meant to be permanent
+  infrastructure.
+
 #### Deployment
 - Add third chart for CLEAR lane wait times for airports that have CLEAR data (MIA; others TBD) — chart should only render when data exists for the selected airport/checkpoint combination
 
@@ -47,7 +63,10 @@ RShiny Mobile App TSA Historical Wait Times
 - **WebSocket warning** — suppress `"got non-close frame while closing"` warning during chromote teardown across all chromote scripts
 
 ### New Airports (Lower Priority — Post MVP)
-- **BOS** — `BOS_wait_times.R` drafted; needs test run to confirm Zensors API Origin allowlist check passes from R; fallback is chromote approach if 403 persists
+- **BOS** — `BOS_wait_times.R` built and dry-run tested 2026-07-20 (JSON API confirmed no
+  server-side Origin allowlist via bare `curl`, no chromote needed). Ready for
+  `scrape_data_automate.R` auto-discovery on its next cycle — no manual wiring needed.
+  Checkpoint hours still pending, see the BOS hours item above.
 - **SLC** — `slcairport.com`; JS-rendered widget, investigate for API endpoint before falling back to chromote
 - **DTW** — `metroairport.com`; Angular/Vue app, likely REST API behind it; inspect via DevTools before building script
 - **LAS** - `harryreidairport.com/security-wait-times`; will be interesting data can show up in JSON but almost after you interact with wait time dropdown selection
