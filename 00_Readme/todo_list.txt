@@ -63,10 +63,6 @@ RShiny Mobile App TSA Historical Wait Times
 - **WebSocket warning** — suppress `"got non-close frame while closing"` warning during chromote teardown across all chromote scripts
 
 ### New Airports (Lower Priority — Post MVP)
-- **BOS** — `BOS_wait_times.R` built and dry-run tested 2026-07-20 (JSON API confirmed no
-  server-side Origin allowlist via bare `curl`, no chromote needed). Ready for
-  `scrape_data_automate.R` auto-discovery on its next cycle — no manual wiring needed.
-  Checkpoint hours still pending, see the BOS hours item above.
 - **SLC** — `slcairport.com`; JS-rendered widget, investigate for API endpoint before falling back to chromote
 - **DTW** — `metroairport.com`; Angular/Vue app, likely REST API behind it; inspect via DevTools before building script
 - **LAS** - `harryreidairport.com/security-wait-times`; will be interesting data can show up in JSON but almost after you interact with wait time dropdown selection
