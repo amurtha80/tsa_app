@@ -38,6 +38,34 @@ FlyASAP — Airport Security Advance Planning
   stubbed to print) against the live endpoint: 2 rows, correct checkpoint
   names, correct duplicated wait values, correct Denver-local timestamps.
 
+### New Scraper — DTW (Detroit Metropolitan)
+- Added `02_Scripts/DTW_wait_times.R`, a brand-new airport (no prior scraper
+  or `airport_checkpoint_hours` rows existed). Endpoint found via browser
+  DevTools: `GET https://proxy.metroairport.com/SkyFiiTSAProxy.ashx`, plain
+  JSON, correctly labeled `content-type: application/json` (no `check_type`
+  override needed). No query params or auth required.
+- Response is `[{"Name":"Evans","WaitTime":21},{"Name":"McNamara","WaitTime":5}]`
+  — one wait-time reading per terminal/checkpoint, no live open/closed flag,
+  no separate PreCheck figure. Per user decision, the single reading is
+  mirrored into both `wait_time` and `wait_time_pre_check` (same "duplicate
+  the only number that exists" convention as SLC). `wait_time_clear` is NA
+  (no CLEAR signal). Timezone: `America/Detroit`.
+- No `airport_checkpoint_hours` rows added yet (no live open/closed signal to
+  gate against) — added to `todo_list.txt` to populate once enough live data
+  has accumulated to confirm checkpoint hours from metroairport.com's own
+  posted hours (same deferred pattern as BOS).
+- No orchestrator wiring needed (auto-discovered by the `*_wait_times.R`
+  glob, built under a dev filename and renamed only after a passing live
+  test); no `app.R` changes needed (airport dropdown derives from the DB).
+- Verified via a live run of the sourced script against the real Quack
+  connection and endpoint: 2 rows appended, correct checkpoint names (`Evans`,
+  `McNamara`), correctly mirrored wait values, correct Detroit-local
+  timestamps — confirmed via `SELECT * FROM tsa_wait_times WHERE airport =
+  'DTW' ORDER BY datetime DESC LIMIT 5`.
+- Also added a `todo_list.txt` item flagging `DEN_wait_times.R` as the one
+  remaining active scraper still on legacy `httr` (all others, including
+  DTW, use `httr2`) — refactor queued as low priority, not done this session.
+
 ### Housekeeping — Removed Stale S3 TODO Comment in xx_build_summary_DB.R
 - Removed `# TODO: replace bucket name and key path before deploying.` above the
   S3 push block. The bucket (`flyasap-app-data`) and key (`tsa_app_summ.parquet`)

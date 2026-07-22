@@ -59,14 +59,31 @@ RShiny Mobile App TSA Historical Wait Times
 #### Deployment
 - Add third chart for CLEAR lane wait times for airports that have CLEAR data (MIA; others TBD) — chart should only render when data exists for the selected airport/checkpoint combination
 
+#### Data Quality — SLC Checkpoint Hours Need to Be Populated in the Database
+- 2026-07-22: SLC shipped 2026-07-22 with its single-airport-wide-reading judgment call
+  (see `SLC_wait_times.R`) but no `airport_checkpoint_hours` backstop rows were ever
+  added. Needs the same "harvest `SELECT DISTINCT checkpoint` from live data,
+  cross-reference the airport's own hours page" treatment already applied to PHL/MCO/etc.
+
+#### Data Quality — DTW Checkpoint Hours Need to Be Populated in the Database
+- 2026-07-22: DTW scraper (`DTW_wait_times.R`) shipped with no live open/closed signal
+  in its payload and no `airport_checkpoint_hours` backstop rows. Once live for long
+  enough, harvest the exact checkpoint name strings it writes (`Evans` / `McNamara`)
+  and set hours from metroairport.com's own posted hours — same deferred pattern used
+  for BOS's hours-monitor approach.
+
 ### New Airports (Lower Priority — Post MVP)
-- **DTW** — `metroairport.com`; Angular/Vue app, likely REST API behind it; inspect via DevTools before building script
 - **LAS** - `harryreidairport.com/security-wait-times`; will be interesting data can show up in JSON but almost after you interact with wait time dropdown selection
 - **SFO** - `www.flysfo.com/passengers/flight-info/security-wait-times`; could be similar to ATL, don't see JSON or API looks like simple table
 - **BWI** - `bwiairport.com/`; https://bwiairport.com/wp-content/themes/bwitheme/ajaxcall.php?action=get_waitTimes_data
 - **PHX** - `skyharbor.com`; https://api.phx.aero/avn-wait-times/raw?Key=4f85fe2ef5a240d59809b63de94ef536
 
 ### Longer Term Updates | Fixes | Enhancements
+
+#### Refactor Remaining `httr`-Based Scraper to `httr2`
+- 2026-07-22: All current scrapers use `httr2` except `DEN_wait_times.R`, which still
+  uses the legacy `httr` package (confirmed via project-wide grep). Low priority —
+  refactor to `httr2` for consistency once other higher-priority work is clear.
 
 #### Data Source — Investigate TSA's Own Android/Mobile Wait-Times App as a Backup Feed
 - TSA's own Android app publishes checkpoint wait time data on its site, discovered while
