@@ -5,6 +5,39 @@ FlyASAP — Airport Security Advance Planning
 
 ## 2026-07-22
 
+### New Scraper — SLC (Salt Lake City International)
+- Added `02_Scripts/SLC_wait_times.R`, a brand-new airport (no prior scraper
+  or `airport_checkpoint_hours` rows existed). Endpoint found via browser
+  DevTools: `GET https://slcairport.com/ajaxtsa/waittimes`, plain JSON (server
+  mislabels the response as `text/html`, so `resp_body_json(check_type =
+  FALSE)` is required).
+- The API gives one **airport-wide** current wait ("rightnow", minutes) and a
+  live per-checkpoint Open/Closed flag under `precheck_checkpoints` — but no
+  distinct measured PreCheck wait time, just an airport-level boolean that
+  PreCheck exists. Per user decision, the single "rightnow" value is
+  duplicated into both `wait_time` and `wait_time_pre_check` for each
+  checkpoint currently marked Open (gated independently per checkpoint); a
+  Closed checkpoint gets `NA` for both. No CLEAR lane.
+- Only one terminal exists (`Terminal 1`), so checkpoints are stored bare as
+  `Checkpoint 1` / `Checkpoint 2` (no terminal prefix), per the BOS/PHL
+  "only disambiguate on actual collision" convention. Timezone:
+  `America/Denver`.
+- No `airport_checkpoint_hours` rows added — the live Open/Closed flag is
+  used as the sole gate for now; a backstop can be added later if a
+  stale-data failure mode is observed (same reasoning as IAH/PDX at launch).
+- **Found during testing:** `slcairport.com`'s TLS certificate genuinely
+  expired 2026-07-21 05:20 GMT on a subset of their load-balanced edge nodes
+  — roughly 1 in 5 requests hits the stale node and fails with
+  `SEC_E_CERT_EXPIRED`, the rest succeed normally against a renewed cert.
+  This is a site-side infrastructure issue, not a scraper bug — no special
+  handling was added since `scrape_data_automate.R`'s existing per-function
+  try/retry pass already covers a single transient failure.
+- No orchestrator wiring needed (auto-discovered by the `*_wait_times.R`
+  glob); no `app.R` changes needed (airport dropdown derives from the DB).
+- Verified via a scratchpad dry-run of the real sourced script (`dbAppendTable`
+  stubbed to print) against the live endpoint: 2 rows, correct checkpoint
+  names, correct duplicated wait values, correct Denver-local timestamps.
+
 ### Housekeeping — Removed Stale S3 TODO Comment in xx_build_summary_DB.R
 - Removed `# TODO: replace bucket name and key path before deploying.` above the
   S3 push block. The bucket (`flyasap-app-data`) and key (`tsa_app_summ.parquet`)

@@ -60,7 +60,6 @@ RShiny Mobile App TSA Historical Wait Times
 - Add third chart for CLEAR lane wait times for airports that have CLEAR data (MIA; others TBD) — chart should only render when data exists for the selected airport/checkpoint combination
 
 ### New Airports (Lower Priority — Post MVP)
-- **SLC** — `slcairport.com`; JS-rendered widget, investigate for API endpoint before falling back to chromote
 - **DTW** — `metroairport.com`; Angular/Vue app, likely REST API behind it; inspect via DevTools before building script
 - **LAS** - `harryreidairport.com/security-wait-times`; will be interesting data can show up in JSON but almost after you interact with wait time dropdown selection
 - **SFO** - `www.flysfo.com/passengers/flight-info/security-wait-times`; could be similar to ATL, don't see JSON or API looks like simple table
