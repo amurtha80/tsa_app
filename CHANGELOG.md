@@ -3,6 +3,13 @@ FlyASAP — Airport Security Advance Planning
 
 ---
 
+## 2026-07-22
+
+### Housekeeping — Removed Stale S3 TODO Comment in xx_build_summary_DB.R
+- Removed `# TODO: replace bucket name and key path before deploying.` above the
+  S3 push block. The bucket (`flyasap-app-data`) and key (`tsa_app_summ.parquet`)
+  are the real, already-deployed values — the comment was stale from before launch.
+
 ## 2026-07-18
 
 ### Ops — 2026-07-17 Scraper Outage Root Cause + Fast-Detection Watchdog

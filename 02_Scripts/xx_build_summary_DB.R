@@ -181,7 +181,6 @@ print(glue("{nrow(tsa_wait_time_summ)} rows written to tsa_app_summ.parquet at "
 
 
 # S3 Push ----
-# TODO: replace bucket name and key path before deploying.
 # AWS credentials must be configured on this machine (IAM role, env vars,
 # or ~/.aws/credentials). paws picks them up automatically.
 # paws is installed here rather than via foo() above to avoid a known

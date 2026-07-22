@@ -59,9 +59,6 @@ RShiny Mobile App TSA Historical Wait Times
 #### Deployment
 - Add third chart for CLEAR lane wait times for airports that have CLEAR data (MIA; others TBD) — chart should only render when data exists for the selected airport/checkpoint combination
 
-### Active Script Bugs
-- **WebSocket warning** — suppress `"got non-close frame while closing"` warning during chromote teardown across all chromote scripts
-
 ### New Airports (Lower Priority — Post MVP)
 - **SLC** — `slcairport.com`; JS-rendered widget, investigate for API endpoint before falling back to chromote
 - **DTW** — `metroairport.com`; Angular/Vue app, likely REST API behind it; inspect via DevTools before building script
@@ -111,4 +108,3 @@ RShiny Mobile App TSA Historical Wait Times
 ### Housekeeping
 - Update and format README for GitHub
 - Standardize scraping function naming convention
-- Remove stale `# TODO: replace bucket name` comment from `xx_build_summary_DB.R` line 109
