@@ -59,6 +59,30 @@ RShiny Mobile App TSA Historical Wait Times
 #### Deployment
 - Add third chart for CLEAR lane wait times for airports that have CLEAR data (MIA; others TBD) — chart should only render when data exists for the selected airport/checkpoint combination
 
+#### Data Quality — LAS Checkpoint Hours Need to Be Set From Live Monitor Data (by 2026-08-19)
+- 2026-07-22: No source (harryreidairport.com, CLEAR's page, TSA schedule tool, general web
+  search) gives concrete per-checkpoint open/close times for LAS — same situation as BOS.
+  `tsa_app_las_hours_monitor` (Task Scheduler, every 15min offset :05/:20/:35/:50) polls
+  Zensors' live `open` flag per checkpoint/lane straight into a temporary `las_hours_monitor`
+  DuckDB table (created via a direct Quack CREATE TABLE). Once ~2-4 weeks of data has
+  accumulated, derive `airport_checkpoint_hours` rows for all 4 LAS checkpoints from the
+  open/closed distribution per checkpoint (same approach as BOS/EWR Terminal B), then
+  **DROP TABLE las_hours_monitor**, delete `02_Scripts/xx_las_hours_monitor.R`, and remove
+  the `tsa_app_las_hours_monitor` scheduled task — none of this is meant to be permanent
+  infrastructure.
+
+#### Task Scheduler — tsa_app_las_hours_monitor Needs LogonType Switched to Password
+- 2026-07-22: Registered via PowerShell with `LogonType Interactive` because the tool shell
+  used to create it wasn't admin-elevated (`Register-ScheduledTask` with `RunLevel Highest`
+  or a `Password` logon type both returned "Access is denied" non-interactively). This means
+  it will get torn down ~30s after any non-logon-event manual start (see
+  project_windows_task_scheduler_gotchas item 3) and won't survive being started outside a
+  real interactive logon. Open Task Scheduler GUI → this task's Properties → General tab →
+  select "Run whether user is logged on or not" and enter the account password (matches
+  tsa_app_scraper/tsa_app_bos_hours_monitor's existing Password logon type) — can't be done
+  non-interactively since it requires the Windows password, which should never be requested
+  in chat.
+
 #### Data Quality — SLC Checkpoint Hours Need to Be Populated in the Database
 - 2026-07-22: SLC shipped 2026-07-22 with its single-airport-wide-reading judgment call
   (see `SLC_wait_times.R`) but no `airport_checkpoint_hours` backstop rows were ever
@@ -73,7 +97,6 @@ RShiny Mobile App TSA Historical Wait Times
   for BOS's hours-monitor approach.
 
 ### New Airports (Lower Priority — Post MVP)
-- **LAS** - `harryreidairport.com/security-wait-times`; will be interesting data can show up in JSON but almost after you interact with wait time dropdown selection
 - **SFO** - `www.flysfo.com/passengers/flight-info/security-wait-times`; could be similar to ATL, don't see JSON or API looks like simple table
 - **BWI** - `bwiairport.com/`; https://bwiairport.com/wp-content/themes/bwitheme/ajaxcall.php?action=get_waitTimes_data
 - **PHX** - `skyharbor.com`; https://api.phx.aero/avn-wait-times/raw?Key=4f85fe2ef5a240d59809b63de94ef536

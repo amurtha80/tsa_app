@@ -5,6 +5,33 @@ FlyASAP — Airport Security Advance Planning
 
 ## 2026-07-22
 
+### New Scraper — LAS (Harry Reid International)
+- Added `02_Scripts/LAS_wait_times.R`, a brand-new airport (no prior scraper
+  or `airport_checkpoint_hours` rows existed). Same Zensors JSON-widget vendor
+  as BOS — confirmed via a `chromote` network sniff of
+  `harryreidairport.com/security-wait-times` (todo item speculated the data
+  only appears after a dropdown interaction; in practice `waitTimeExplorer.init`
+  fires on initial page load and returns all 4 checkpoints directly, same
+  discovery as BOS, no browser needed for the production scraper itself).
+- 4 checkpoints (T1 - A/B Gates, T1 - C Gates, T1 - C/D Gates, T3 - D/E Gates),
+  all with both `standard` and `precheck` paths — no PreCheck-only/Standard-only
+  edge cases like BOS, and no naming collisions requiring a disambiguating
+  prefix. No CLEAR data. Timezone: `America/Los_Angeles`.
+- No `airport_checkpoint_hours` rows added yet — no source gives concrete
+  per-checkpoint hours (same as BOS). A temporary `tsa_app_las_hours_monitor`
+  Task Scheduler job (every 15min, offset :05/:20/:35/:50) polls the live
+  `open` flag into a new `las_hours_monitor` DuckDB table (direct Quack
+  `CREATE TABLE`); see `todo_list.txt` for the ~2026-08-19 teardown plan.
+  That task was registered with `LogonType Interactive` (not `Password`)
+  because the tool shell used to create it wasn't admin-elevated — needs a
+  one-time manual GUI switch, also tracked in `todo_list.txt`.
+- No orchestrator wiring needed (auto-discovered by the `*_wait_times.R`
+  glob, confirmed picked up on the very next cycle after rename); no `app.R`
+  changes needed (airport dropdown derives from the DB).
+- Verified via a live single-cycle write test against `tsa_wait_times`: 4
+  rows landed with sane per-checkpoint values and correct
+  `America/Los_Angeles` timestamps.
+
 ### New Scraper — SLC (Salt Lake City International)
 - Added `02_Scripts/SLC_wait_times.R`, a brand-new airport (no prior scraper
   or `airport_checkpoint_hours` rows existed). Endpoint found via browser

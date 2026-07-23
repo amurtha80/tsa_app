@@ -34,6 +34,7 @@ runlog.txt
 runlog_quack_test.txt
 runlog_watchdog.txt
 runlog_bos_hours_monitor.txt
+runlog_las_hours_monitor.txt
 
 04_Assets/
 transcripts/
