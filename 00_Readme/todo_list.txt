@@ -98,7 +98,6 @@ RShiny Mobile App TSA Historical Wait Times
 
 ### New Airports (Lower Priority — Post MVP)
 - **BWI** - `bwiairport.com/`; https://bwiairport.com/wp-content/themes/bwitheme/ajaxcall.php?action=get_waitTimes_data
-- **PHX** - `skyharbor.com`; https://api.phx.aero/avn-wait-times/raw?Key=4f85fe2ef5a240d59809b63de94ef536
 - **CVG** - `cvgairport.com` Zensors
 - **PIT** - `flypittsburg.com` Zensors
 - **YYZ** - `https://www.torontopearson.com/en` Zensors

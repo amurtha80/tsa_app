@@ -5,6 +5,31 @@ FlyASAP — Airport Security Advance Planning
 
 ## 2026-07-22
 
+### New Scraper — PHX (Phoenix Sky Harbor International)
+- Added `02_Scripts/PHX_wait_times.R`, a brand-new airport (no prior scraper
+  or `airport_checkpoint_hours` rows existed). Plain JSON API confirmed via
+  browser DevTools: `GET api.phx.aero/avn-wait-times/raw?Key=...` — no
+  chromote needed. Envelope reports `success: false` even when `current`
+  holds valid live readings; gated on the array being non-empty instead.
+- 5 checkpoints (T3, T4 Checkpoint A/B/C/D). `projectedWaitTime` is in
+  seconds (confirmed by cross-check against the payload's own min/max-minute
+  fields: 360s/60=6=avg(4,8), 420s/60=7=avg(5,9)), converted to minutes for
+  `wait_time`. No live open/closed flag and no distinct PreCheck field in the
+  payload, so the single reading is mirrored into `wait_time_pre_check`, same
+  "duplicate the only number that exists" convention as SLC/DTW. No CLEAR
+  data. Timezone: `America/Phoenix` (no DST).
+- `airport_checkpoint_hours` populated immediately from user-supplied
+  skyharbor.com hours (same as SFO/LAS): T3 and T4 Checkpoint A are 24hr
+  (NULL/NULL); T4 Checkpoint B 4:15a-8:30p; T4 Checkpoint C 3:15a-12:30a
+  (wraps past midnight); T4 Checkpoint D 3:15a-7:30p. General and PreCheck
+  columns set identically since it's a mirrored reading, not two live
+  signals.
+- No orchestrator wiring needed (auto-discovered by the `*_wait_times.R`
+  glob); no `app.R` changes needed.
+- Verified via two live single-cycle write tests against `tsa_wait_times`:
+  5 rows landed each run with sane per-checkpoint values and correct
+  `America/Phoenix` timestamps.
+
 ### New Scraper — LAS (Harry Reid International)
 - Added `02_Scripts/LAS_wait_times.R`, a brand-new airport (no prior scraper
   or `airport_checkpoint_hours` rows existed). Same Zensors JSON-widget vendor
