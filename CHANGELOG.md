@@ -93,6 +93,33 @@ FlyASAP — Airport Security Advance Planning
   remaining active scraper still on legacy `httr` (all others, including
   DTW, use `httr2`) — refactor queued as low priority, not done this session.
 
+### New Scraper — SFO (San Francisco International)
+- Added `02_Scripts/SFO_wait_times.R`, a brand-new airport (no prior scraper
+  or `airport_checkpoint_hours` rows existed). Todo note guessed it might be
+  similar to ATL's JS-rendered page, but a raw fetch (`curl` with a browser
+  UA) confirmed `flysfo.com/passengers/flight-info/security-wait-times` is
+  static, server-rendered HTML — closer to LAX's pattern. Table
+  (`table.flysfo-checkpoints-table`) has real `<thead>`/`<th>` headers
+  (Checkpoint / General / TSA PreCheck), so General and PreCheck are already
+  separate `<td>`s per row — simpler than LAX, no long-to-wide pivot needed.
+- 6 checkpoints (A, B, B - Mezzanine Level, D, F, G). No CLEAR lane, no
+  priority lane. `readr::parse_number()` treats "Not Available" as the
+  closed/no-data sentinel. Timezone: `America/Los_Angeles`.
+- Added all 6 `airport_checkpoint_hours` rows immediately (unlike SLC/DTW's
+  deferred approach) since the user supplied concrete hours from SFO's own
+  site. Source data gives one open/close window per checkpoint, not split by
+  lane — `open_time_prechk`/`close_time_prechk` set to match
+  `open_time_gen`/`close_time_gen` as a judgment call (same convention as
+  MCO), not a verified split-hours finding.
+- No orchestrator wiring needed (auto-discovered by the `*_wait_times.R`
+  glob, built under a dev filename and renamed only after a passing live
+  test); no `app.R` changes needed (airport dropdown derives from the DB).
+- Verified via a live run of the sourced script against the real Quack
+  connection: 6 rows appended, correct checkpoint names matching the live
+  page, correct NA handling, correct Pacific-local timestamps — confirmed via
+  `SELECT * FROM tsa_wait_times WHERE airport = 'SFO' ORDER BY datetime DESC
+  LIMIT 10`.
+
 ### Housekeeping — Removed Stale S3 TODO Comment in xx_build_summary_DB.R
 - Removed `# TODO: replace bucket name and key path before deploying.` above the
   S3 push block. The bucket (`flyasap-app-data`) and key (`tsa_app_summ.parquet`)

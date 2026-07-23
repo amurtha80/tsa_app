@@ -242,6 +242,26 @@ print(glue::glue("quack server started on tsa_app.duckdb at ",
 # rm(con_write)
 
 
+# Populate SFO checkpoint hours ----
+# Open/close times sourced directly from the user's own research of
+# flysfo.com/passengers/flight-info/security-wait-times. Single open/close
+# window per checkpoint (not split by General/PreCheck) -- open_time_prechk/
+# close_time_prechk set to match open_time_gen/close_time_gen as a judgment
+# call (same convention as MCO). Inserted live via Quack, no server pause
+# needed (plain INSERT). Executed 2026-07-22.
+# dbExecute(con_write, "
+#   INSERT INTO airport_checkpoint_hours
+#     (airport, timezone, checkpoint, open_time_gen, close_time_gen, open_time_prechk, close_time_prechk, entry_timestamp)
+#   VALUES
+#     ('SFO', 'America/Los_Angeles', 'Checkpoint A', '2026-07-22 04:15:00', '2026-07-23 02:00:00', '2026-07-22 04:15:00', '2026-07-23 02:00:00', CURRENT_TIMESTAMP),
+#     ('SFO', 'America/Los_Angeles', 'Checkpoint B', '2026-07-22 03:15:00', '2026-07-23 00:30:00', '2026-07-22 03:15:00', '2026-07-23 00:30:00', CURRENT_TIMESTAMP),
+#     ('SFO', 'America/Los_Angeles', 'Checkpoint B - Mezzanine Level', '2026-07-22 04:00:00', '2026-07-22 23:00:00', '2026-07-22 04:00:00', '2026-07-22 23:00:00', CURRENT_TIMESTAMP),
+#     ('SFO', 'America/Los_Angeles', 'Checkpoint D', '2026-07-22 03:15:00', '2026-07-23 00:30:00', '2026-07-22 03:15:00', '2026-07-23 00:30:00', CURRENT_TIMESTAMP),
+#     ('SFO', 'America/Los_Angeles', 'Checkpoint F', '2026-07-22 03:15:00', '2026-07-23 00:30:00', '2026-07-22 03:15:00', '2026-07-23 00:30:00', CURRENT_TIMESTAMP),
+#     ('SFO', 'America/Los_Angeles', 'Checkpoint G', '2026-07-22 04:30:00', '2026-07-23 02:00:00', '2026-07-22 04:30:00', '2026-07-23 02:00:00', CURRENT_TIMESTAMP);
+# ")
+
+
 ## View tables ----
 dbGetQuery(con_write, "SHOW TABLES;")
 dbListTables(con_write)

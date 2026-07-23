@@ -97,9 +97,11 @@ RShiny Mobile App TSA Historical Wait Times
   for BOS's hours-monitor approach.
 
 ### New Airports (Lower Priority — Post MVP)
-- **SFO** - `www.flysfo.com/passengers/flight-info/security-wait-times`; could be similar to ATL, don't see JSON or API looks like simple table
 - **BWI** - `bwiairport.com/`; https://bwiairport.com/wp-content/themes/bwitheme/ajaxcall.php?action=get_waitTimes_data
 - **PHX** - `skyharbor.com`; https://api.phx.aero/avn-wait-times/raw?Key=4f85fe2ef5a240d59809b63de94ef536
+- **CVG** - `cvgairport.com` Zensors
+- **PIT** - `flypittsburg.com` Zensors
+- **YYZ** - `https://www.torontopearson.com/en` Zensors
 
 ### Longer Term Updates | Fixes | Enhancements
 
