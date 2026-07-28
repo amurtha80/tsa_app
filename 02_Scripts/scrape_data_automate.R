@@ -40,6 +40,16 @@ print("packages loaded")
 
 files <- list.files(path = "C:/Users/james/Documents/R/tsa_app/02_Scripts") |>
   stringr::str_subset("_wait_times.R")
+
+## Host-aware scraper filter -- SCRAPER_MODE unset/"all" runs every scraper
+## (unchanged desktop behavior). Pi sets non_chromote; desktop (once split)
+## sets chromote_only. See project_pi_nas_migration.
+CHROMOTE_SCRAPERS <- c("ATL_wait_times.R", "EWR_wait_times.R",
+                       "JFK_wait_times.R", "LGA_wait_times.R")
+scraper_mode <- Sys.getenv("SCRAPER_MODE", "all")
+if (scraper_mode == "non_chromote") files <- setdiff(files, CHROMOTE_SCRAPERS)
+if (scraper_mode == "chromote_only") files <- intersect(files, CHROMOTE_SCRAPERS)
+
 print("files object works")
 
 
