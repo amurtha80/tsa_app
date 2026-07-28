@@ -71,18 +71,6 @@ RShiny Mobile App TSA Historical Wait Times
   the `tsa_app_las_hours_monitor` scheduled task — none of this is meant to be permanent
   infrastructure.
 
-#### Task Scheduler — tsa_app_las_hours_monitor Needs LogonType Switched to Password
-- 2026-07-22: Registered via PowerShell with `LogonType Interactive` because the tool shell
-  used to create it wasn't admin-elevated (`Register-ScheduledTask` with `RunLevel Highest`
-  or a `Password` logon type both returned "Access is denied" non-interactively). This means
-  it will get torn down ~30s after any non-logon-event manual start (see
-  project_windows_task_scheduler_gotchas item 3) and won't survive being started outside a
-  real interactive logon. Open Task Scheduler GUI → this task's Properties → General tab →
-  select "Run whether user is logged on or not" and enter the account password (matches
-  tsa_app_scraper/tsa_app_bos_hours_monitor's existing Password logon type) — can't be done
-  non-interactively since it requires the Windows password, which should never be requested
-  in chat.
-
 #### Data Quality — SLC Checkpoint Hours Need to Be Populated in the Database
 - 2026-07-22: SLC shipped 2026-07-22 with its single-airport-wide-reading judgment call
   (see `SLC_wait_times.R`) but no `airport_checkpoint_hours` backstop rows were ever
