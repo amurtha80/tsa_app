@@ -3,6 +3,18 @@ FlyASAP — Airport Security Advance Planning
 
 ---
 
+## 2026-08-08
+
+### Investigation — LAX Scraper 0-Row Outage
+- LAX returned 0 rows on 2026-08-07. Investigated `LAX_wait_times.R`'s source
+  URL (`https://www.flylax.com/wait-times`) directly: page now returns HTTP
+  403 with a genuine Drupal "Access denied" body, and is no longer listed in
+  flylax.com's `sitemap.xml`. Ruled out bot-blocking (LAX homepage loads fine
+  from the same client/UA) and ruled out a scraper-side issue (user
+  independently confirmed "not authorized" visiting the page on their phone).
+  Conclusion: LAX pulled/unpublished the page; no code fix applies. Logged as
+  an outstanding outage to periodically recheck — see `todo_list.txt`.
+
 ## 2026-07-22
 
 ### New Scraper — PHX (Phoenix Sky Harbor International)

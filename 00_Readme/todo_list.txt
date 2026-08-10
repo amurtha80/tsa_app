@@ -7,6 +7,21 @@ RShiny Mobile App TSA Historical Wait Times
 
 ### High Priority — Post-Launch Fixes
 
+#### Outage — LAX `wait-times` Page Returning "Access Denied" (0 rows since 2026-08-07)
+- 2026-08-08: LAX scraper (`LAX_wait_times.R`) returned 0 rows the day prior.
+  Confirmed via `curl` that `https://www.flylax.com/wait-times` now returns
+  HTTP 403 with a real Drupal "Access denied — you are not authorized to
+  access this page" body (not a Cloudflare/bot block — the LAX homepage
+  itself loads fine with the same client). The URL is also absent from
+  flylax.com's own `sitemap.xml` (previously not checked/needed). User
+  independently confirmed "not authorized" visiting the page manually on
+  phone, ruling out a scraper-side/bot-detection issue. No replacement URL
+  found on the homepage or sitemap. Scraper code is not at fault — it will
+  keep failing until LAX republishes the page (at this URL or elsewhere).
+  Action: periodically recheck `https://www.flylax.com/wait-times` for
+  200/table-restored; if LAX moves the page, update `page_url` in
+  `LAX_wait_times.R` accordingly.
+
 #### Data Quality — IAH Terminal D Split-Shift Hours Not Representable in Schema
 - 2026-07-14: IAH's own page shows Terminal D running a split shift 4 of 7 days
   (e.g. 7:00a-11:30a + 4:30p-8:00p Sun/Mon/Wed/Fri; continuous 7:00a-8:00p
