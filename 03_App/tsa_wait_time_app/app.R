@@ -34,6 +34,14 @@ library(lubridate,   verbose = FALSE, warn.conflicts = FALSE)
 library(glue,        verbose = FALSE, warn.conflicts = FALSE)
 library(here,        verbose = FALSE, warn.conflicts = FALSE)
 
+# here::i_am() pins the project root explicitly. Without it, here() walks
+# upward from cwd and stops at the first directory matching ANY of its
+# sentinel criteria (.git, DESCRIPTION, renv.lock, etc) -- if this app
+# directory ever contains its own renv.lock (e.g. a nested renv project,
+# as on EC2), here() resolves to here itself instead of the repo root,
+# breaking the relative path to 01_Data below.
+here::i_am("03_App/tsa_wait_time_app/app.R")
+
 
 # Data ----
 # Read once at startup — all users share this in-memory data frame.
