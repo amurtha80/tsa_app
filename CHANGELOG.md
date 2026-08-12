@@ -3,6 +3,46 @@ FlyASAP — Airport Security Advance Planning
 
 ---
 
+## 2026-08-12
+
+### renv Step 6 — EC2 Rollout Complete
+- EC2's app-scoped renv library (`03_App/tsa_wait_time_app/renv/`) is now
+  functional and reproducible. Root cause of the prior day's stalled rollout
+  wasn't resource exhaustion as first suspected — it was a permissions bug:
+  renv had symlinked most packages into `/home/ubuntu/.cache/R/renv/cache/`,
+  but Shiny Server runs the app as the `shiny` OS user, which had no
+  traversal permission into `/home/ubuntu`. Fixed with a scoped `chmod`
+  (execute-only traversal + read down the cache path). Also fixed
+  `app_cache/sass` ownership (was `ubuntu:ubuntu`, blocking `shiny` from
+  writing its own font cache).
+- Generated the app-dir's first real `renv.lock` via `renv::snapshot()`
+  (previously the nested project had a populated library but no lockfile —
+  not reproducible). Snapshotted twice: once for `app.R`'s actual runtime
+  deps, again with `type="all"` after installing `duckdb` and
+  `paws.analytics` ahead of planned ads/login-freemium work, so the whole
+  library (91 packages) is now pinned.
+- Installed `duckdb` (prebuilt binary unavailable on Posit Package Manager
+  for this snapshot; compiled from source successfully, ~50 min, stable
+  memory/disk throughout — EC2's resources were not actually the blocker
+  once the permissions bug was separately fixed) and `paws.analytics`
+  (hung indefinitely on R's byte-compiler — a known pathology with its huge
+  generated AWS SDK code; resolved with `--no-byte-compile`, completed in
+  seconds).
+- **Found and fixed a related bug**: the app-dir's new `renv.lock` caused
+  `here::here()` to stop its upward root search at the app directory
+  instead of the repo root (newer `{here}` versions treat a directory
+  containing `renv.lock` as a valid project root), breaking the relative
+  path to `01_Data/tsa_app_summ.parquet` and 500ing the live site. Fixed
+  properly in `03_App/tsa_wait_time_app/app.R` via `here::i_am()`, which
+  pins the root explicitly regardless of any other sentinel file —
+  committed, pushed, and pulled onto EC2 rather than patched locally.
+- Cleaned ~2.8GB of orphaned `/tmp/Rtmp*` directories left over from the
+  prior day's failed compile attempts, plus a stray zero-byte artifact
+  file. Removed a broken `paws.analytics` leftover directory (missing
+  DESCRIPTION) before the fresh install.
+- Verified end-to-end in-browser: site loads, chart renders live wait-time
+  data, no console errors.
+
 ## 2026-08-08
 
 ### Investigation — LAX Scraper 0-Row Outage
