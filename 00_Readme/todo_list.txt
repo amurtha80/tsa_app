@@ -22,6 +22,19 @@ RShiny Mobile App TSA Historical Wait Times
   200/table-restored; if LAX moves the page, update `page_url` in
   `LAX_wait_times.R` accordingly.
 
+#### Data Quality — Duplicate Rows in `tsa_wait_times` (Both Desktop and Pi Copies)
+- 2026-08-13: While verifying the Pi migration's seed copy for data loss, found
+  10,649 duplicate groups (21,333 rows) in the desktop's live `tsa_wait_times`
+  table, keyed on (airport, checkpoint, datetime) — confirmed pre-existing, not
+  introduced by the migration (the Pi's copy has the exact same duplicates,
+  faithfully replicated via the seed copy/delta push). Earliest dupes found
+  dated 2026-06-06/06-09, so this has likely been accumulating since near
+  project start. Needs: (1) root-cause investigation (which scraper(s)/retry
+  logic double-write), (2) a dedup pass on both the desktop's `tsa_app.duckdb`
+  and the Pi's `tsa_app.duckdb` (now the live copy) — see
+  `project_pi_nas_migration` memory for current desktop/Pi cutover status
+  before assuming which copy is authoritative at cleanup time.
+
 #### Data Quality — IAH Terminal D Split-Shift Hours Not Representable in Schema
 - 2026-07-14: IAH's own page shows Terminal D running a split shift 4 of 7 days
   (e.g. 7:00a-11:30a + 4:30p-8:00p Sun/Mon/Wed/Fri; continuous 7:00a-8:00p

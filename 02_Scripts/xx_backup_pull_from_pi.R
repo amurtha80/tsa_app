@@ -61,13 +61,18 @@ backup_db_path <- "C:/Users/james/Documents/R/tsa_app/01_Data/tsa_app_backup.duc
 pi_quack_host <- Sys.getenv("PI_QUACK_HOST", "192.168.1.207")
 quack_token   <- Sys.getenv("DUCKDB_QUACK_TOKEN")
 
-# Tables to sync, and the watermark column used to find "new since last pull"
-# rows on each. tsa_wait_times has no entry_timestamp column (unlike
-# airport_checkpoint_hours) -- datetime is the real per-row observation time
-# and rows are append-only/immutable, so it's a safe watermark.
+# Tables to sync. tsa_wait_times: datetime is a reliable per-row watermark --
+# every row has one, rows are append-only/immutable. airport_checkpoint_hours:
+# NOT append-only-safe -- entry_timestamp was added after some rows already
+# existed, so 17 of 113 rows have entry_timestamp IS NULL (confirmed
+# 2026-08-13). `WHERE entry_timestamp > watermark` silently and permanently
+# excludes NULL rows on every future run (NULL > anything is NULL, not TRUE),
+# so this small table uses a full-replace snapshot instead of a watermark --
+# cheap at 113 rows, and correctness matters more than incremental efficiency
+# here.
 sync_tables <- list(
-  list(table = "tsa_wait_times",          watermark_col = "datetime"),
-  list(table = "airport_checkpoint_hours", watermark_col = "entry_timestamp")
+  list(table = "tsa_wait_times",          mode = "watermark", watermark_col = "datetime"),
+  list(table = "airport_checkpoint_hours", mode = "full_replace")
 )
 
 
@@ -96,7 +101,19 @@ tryCatch({
   for (tbl in sync_tables) {
 
     table_name <- tbl$table
-    wm_col     <- tbl$watermark_col
+
+    if (tbl$mode == "full_replace") {
+      ## Small, not append-only-safe tables: just re-copy the whole thing.
+      ## CREATE OR REPLACE avoids any watermark/NULL edge cases entirely.
+      dbExecute(con_backup, glue(
+        "CREATE OR REPLACE TABLE {table_name} AS SELECT * FROM remote_pi.{table_name}"
+      ))
+      n <- dbGetQuery(con_backup, glue("SELECT COUNT(*) AS n FROM {table_name}"))$n
+      cat(glue("{table_name}: full-replace snapshot, {n} row(s) at ", format(Sys.time(), "%a %b %d %X %Y")), "\n")
+      next
+    }
+
+    wm_col <- tbl$watermark_col
 
     ## Create the local backup table on first run (schema only, no rows) ----
     dbExecute(con_backup, glue(
