@@ -1,7 +1,10 @@
 {
   "bioconductor.enabled": true,
   "bioconductor.version": null,
-  "external.libraries": [],
+  "external.libraries": [
+    "C:/Users/james/AppData/Local/R/win-library/4.5",
+    "C:/Program Files/R/R-4.5.1/library"
+  ],
   "ignored.packages": [],
   "lockfile.sanitize": true,
   "package.dependency.fields": [
