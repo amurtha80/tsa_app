@@ -61,10 +61,18 @@ dbExecute(con_write, "SET checkpoint_threshold='5MB';")
 # re-verifying against a real Task Scheduler launch first.
 Sys.sleep(1)
 
-# FORCE INSTALL (not plain INSTALL) -- a plain INSTALL can silently reuse a
-# stale/cached extension and leave quack_serve unregistered even though
-# INSTALL/LOAD report no error.
-dbExecute(con_write, "FORCE INSTALL quack; LOAD quack;")
+# Only INSTALL if not already installed on disk -- avoids FORCE INSTALL's file
+# overwrite on every server startup, which is a source of contention/crash
+# risk if another duckdb/quack process is running or mid-launch at the same
+# moment (see project_20260813_quack_server_restart_outage memory). LOAD
+# always runs -- it's cheap and per-process (a fresh R process never has it
+# loaded yet, regardless of prior runs).
+quack_status <- dbGetQuery(con_write,
+  "SELECT extension_name, loaded, installed FROM duckdb_extensions() WHERE extension_name = 'quack';")
+if (nrow(quack_status) == 0 || !isTRUE(quack_status$installed)) {
+  dbExecute(con_write, "INSTALL quack;")
+}
+dbExecute(con_write, "LOAD quack;")
 Sys.sleep(1)
 
 quack_status <- dbGetQuery(con_write,
