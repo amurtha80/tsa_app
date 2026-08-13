@@ -40,10 +40,14 @@ print(engine_version)
 # days behind the .wal; that 3-day window only accumulated ~9.4MB, so even
 # 10MB wouldn't meaningfully shrink the gap). Lowered to 5MB so checkpoints
 # happen roughly every ~1.5 days at current write volume instead of every
-# ~3, shrinking the max data-loss window on an unclean shutdown/crash. This
-# is a GLOBAL instance-level setting, so it also takes effect live via any
-# Quack client connection (confirmed 2026-08-13) -- set here too so it
-# persists across every future server restart, not just the current process.
+# ~3, shrinking the max data-loss window on an unclean shutdown/crash.
+# NOTE: this must run on the server's own con_write connection (here) to take
+# effect -- issuing the same SET from a separate Quack client only changes
+# that client's own local ephemeral instance, not this server's, and won't
+# show up in this server's current_setting() (confirmed 2026-08-13, see
+# project_quack_checkpoint_not_supported memory). Only takes effect on
+# process start, so a running server must be restarted to pick up any change
+# made here.
 dbExecute(con_write, "SET checkpoint_threshold='5MB';")
 
 # FORCE INSTALL (not plain INSTALL) -- a plain INSTALL can silently reuse a
