@@ -12,7 +12,7 @@ foo <- function(x) {
       install.packages(i, dependencies = TRUE, verbose = FALSE, quiet = TRUE,
                        repos = "https://cloud.r-project.org/")
       # load package after installing
-      require(i, character.only = TRUE, verbose = FALSE, warn.conflicts = FALSE, quietly = TRUE)
+      require(i, character.only = TRUE, warn.conflicts = FALSE, quietly = TRUE)
     }
     ))
     }
