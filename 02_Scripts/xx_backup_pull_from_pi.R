@@ -1,0 +1,148 @@
+sink("C:/Users/james/Documents/R/tsa_app/runlog_backup_pull.txt", append = TRUE, type = "output")
+cat(paste0("******-- xx_backup_pull_from_pi.R started at ", format(Sys.time(), "%a %b %d %X %Y"), " --******"), "\n")
+
+# xx_backup_pull_from_pi.R ----
+# Passive backup of the Pi's live tsa_app.duckdb onto the desktop, added ahead
+# of the Phase 1 Pi migration (see project_pi_nas_migration memory) once the
+# Pi's SSD becomes the sole host of the live production DB. Avoids AWS
+# storage/egress costs entirely by reusing the same Quack protocol/token
+# already used everywhere else in this project (see zz_database.R) -- just
+# ATTACHing to a remote host instead of localhost.
+#
+# Desktop is intentionally powered off most nights, so this is NOT scheduled
+# for a fixed nightly time (it would just get skipped). Task Scheduler is set
+# up with an "At log on" trigger, so a pull runs shortly after every boot,
+# whether the last pull was 12 hours or several days ago -- the WHERE >
+# watermark logic below always catches up to exactly whatever's missing,
+# nothing more.
+#
+# Backup file: 01_Data/tsa_app_backup.duckdb -- a SEPARATE file from
+# production, direct (non-Quack) connection, since this desktop file has
+# exactly one writer (this script) and no concurrent readers to arbitrate.
+#
+# Schedule: Windows Task Scheduler, trigger "At log on"
+# Runtime: seconds to low minutes, depending on catch-up size
+# Inputs:  remote Pi Quack server (read-only queries), local backup DB
+# Outputs: 01_Data/tsa_app_backup.duckdb (append-only), runlog_backup_pull.txt
+
+
+# Package Management ----
+
+foo <- function(x) {
+  for (i in x) {
+    suppressWarnings(suppressPackageStartupMessages(
+      if (!require(i, character.only = TRUE, warn.conflicts = FALSE, quietly = TRUE)) {
+        cat(paste0("WARNING: package '", i, "' not found — attempting install at ",
+                   format(Sys.time(), "%a %b %d %X %Y")), "\n")
+        install.packages(i, dependencies = TRUE, verbose = FALSE, quiet = TRUE,
+                         repos = "https://cloud.r-project.org/")
+        require(i, character.only = TRUE, warn.conflicts = FALSE, quietly = TRUE)
+      }
+    ))
+  }
+}
+
+foo(c("duckdb", "DBI", "glue"))
+
+rm(foo)
+cat(glue("packages loaded at ", format(Sys.time(), "%a %b %d %X %Y")), "\n")
+
+
+# Config ----
+
+backup_db_path <- "C:/Users/james/Documents/R/tsa_app/01_Data/tsa_app_backup.duckdb"
+
+# Pi hostname -- same one the SSH config alias `tsa-pi` resolves (see
+# reference_pi_ssh_access memory). Overridable via PI_QUACK_HOST in .Renviron
+# if the Pi ever moves to a Tailscale hostname/IP instead of local LAN
+# resolution. NOT YET END-TO-END TESTED as of this script's creation --
+# first live run should be treated as a real connectivity test, not assumed
+# to work just because SSH to the same host works (different port/protocol).
+pi_quack_host <- Sys.getenv("PI_QUACK_HOST", "unbuntuserverpi")
+quack_token   <- Sys.getenv("DUCKDB_QUACK_TOKEN")
+
+# Tables to sync, and the watermark column used to find "new since last pull"
+# rows on each. tsa_wait_times has no entry_timestamp column (unlike
+# airport_checkpoint_hours) -- datetime is the real per-row observation time
+# and rows are append-only/immutable, so it's a safe watermark.
+sync_tables <- list(
+  list(table = "tsa_wait_times",          watermark_col = "datetime"),
+  list(table = "airport_checkpoint_hours", watermark_col = "entry_timestamp")
+)
+
+
+tryCatch({
+
+  if (quack_token == "") {
+    stop("DUCKDB_QUACK_TOKEN missing from .Renviron -- cannot authenticate to the Pi's Quack server")
+  }
+
+  ## Connect to local backup file (direct, not Quack -- single writer) ----
+  con_backup <- dbConnect(duckdb::duckdb(), dbdir = backup_db_path, read_only = FALSE)
+
+  ## Attach remote Pi Quack server (read-only use) ----
+  dbExecute(con_backup, "INSTALL quack; LOAD quack;")
+  dbExecute(con_backup, glue(
+    "ATTACH 'quack:{pi_quack_host}' AS remote_pi (TYPE quack, TOKEN '{quack_token}')"
+  ))
+  cat(glue("Connected to remote Pi Quack server at {pi_quack_host}"), "\n")
+
+  for (tbl in sync_tables) {
+
+    table_name <- tbl$table
+    wm_col     <- tbl$watermark_col
+
+    ## Create the local backup table on first run (schema only, no rows) ----
+    dbExecute(con_backup, glue(
+      "CREATE TABLE IF NOT EXISTS {table_name} AS SELECT * FROM remote_pi.{table_name} WHERE 1 = 0"
+    ))
+
+    ## Watermark = latest row already in the backup. COALESCE handles a
+    ## still-empty table on first run so nothing is skipped.
+    local_max <- dbGetQuery(con_backup, glue(
+      "SELECT COALESCE(MAX({wm_col}), TIMESTAMP '1900-01-01') AS wm FROM {table_name}"
+    ))$wm
+
+    new_row_count <- dbGetQuery(con_backup, glue(
+      "SELECT COUNT(*) AS n FROM remote_pi.{table_name} WHERE {wm_col} > TIMESTAMP '{local_max}'"
+    ))$n
+
+    cat(glue("{table_name}: local watermark {local_max}, {new_row_count} new row(s) on the Pi"), "\n")
+
+    if (new_row_count > 0) {
+      dbExecute(con_backup, glue(
+        "INSERT INTO {table_name}
+         SELECT * FROM remote_pi.{table_name}
+         WHERE {wm_col} > TIMESTAMP '{local_max}'"
+      ))
+      cat(glue("{table_name}: pulled {new_row_count} new row(s) at ", format(Sys.time(), "%a %b %d %X %Y")), "\n")
+    } else {
+      cat(glue("{table_name}: already up to date"), "\n")
+    }
+  }
+
+}, error = function(e) {
+  cat(glue("ERROR at ", format(Sys.time(), "%a %b %d %X %Y"), " — ", conditionMessage(e)), "\n")
+}, finally = {
+
+  cat(glue("******-- Backup pull complete ", format(Sys.time(), "%a %b %d %X %Y"), " --******"), "\n")
+
+  suppressWarnings(
+    if (exists("con_backup")) {
+      tryCatch(dbExecute(con_backup, "DETACH remote_pi"), error = function(e) NULL)
+      dbDisconnect(con_backup, shutdown = TRUE)
+    }
+  )
+
+  suppressWarnings(
+    rm(list = intersect(
+      ls(),
+      c("backup_db_path", "pi_quack_host", "quack_token", "sync_tables", "tbl",
+        "table_name", "wm_col", "local_max", "new_row_count", "con_backup")
+    ))
+  )
+
+  sink()
+  gc()
+
+})
