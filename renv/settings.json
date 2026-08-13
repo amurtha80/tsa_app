@@ -3,7 +3,10 @@
   "bioconductor.version": null,
   "external.libraries": [
     "C:/Users/james/AppData/Local/R/win-library/4.5",
-    "C:/Program Files/R/R-4.5.1/library"
+    "C:/Program Files/R/R-4.5.1/library",
+    "/mnt/ssd/R/library",
+    "/usr/local/lib/R/site-library",
+    "/usr/lib/R/site-library"
   ],
   "ignored.packages": [],
   "lockfile.sanitize": true,
