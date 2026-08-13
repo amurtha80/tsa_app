@@ -3,6 +3,75 @@ FlyASAP — Airport Security Advance Planning
 
 ---
 
+## 2026-08-13
+
+### Quack Server — Task Scheduler Restart Outage Resolved
+- `tsa_app_quack_server` restart (to pick up a lowered WAL `checkpoint_threshold`,
+  5MB from 16MB default) triggered a multi-hour outage: an embedded-quote
+  corruption in the task's Action fields (fixed via GUI retype), followed by a
+  `STATUS_ACCESS_VIOLATION` (`0xC0000005`) crash on every launch attempt —
+  Task Scheduler, direct launch, any filename, any port, with or without the
+  quack extension involved. Root cause: the task's `Arguments` field held a
+  bare relative script filename instead of a fully-qualified absolute path.
+  Fixed by setting `Arguments` to the absolute path
+  (`C:\Users\james\Documents\R\tsa_app\02_Scripts\zz_database.R`); confirmed
+  stable across multiple scraper cycles afterward.
+- `02_Scripts/zz_database.R` no longer runs `FORCE INSTALL quack` on every
+  startup — now checks `duckdb_extensions()` and only installs if not already
+  present, always `LOAD`s. Removes an unnecessary file-overwrite on every
+  server start.
+
+### Pi Migration — Systemd Units, Live Cutover, Backup Pull
+- Added `02_Scripts/systemd/` unit files (service + timer) mirroring the
+  desktop's Task Scheduler triggers for the Quack server, scraper (every
+  5min), nightly summary build (02:03), and validate (02:18). Only the Quack
+  server and scraper units were actually enabled/tested on the Pi today;
+  build/validate/watchdog remain desktop-only for now.
+- Fixed `zz_database.R`'s `quack_serve()` call: was bound to `localhost`,
+  which can never accept remote connections regardless of hostname/DNS —
+  changed to `0.0.0.0` with `allow_other_hostname := true` (Quack refuses
+  non-localhost binds otherwise). Client connections from the desktop also
+  need `DISABLE_SSL true` — Quack's HTTPS client fails TLS verification when
+  connecting by raw LAN IP instead of a matching hostname cert. Traffic stays
+  on the private home LAN, not the public internet, so plaintext (token auth
+  still applies) is an accepted tradeoff here. Client should target the Pi's
+  LAN IP directly (`192.168.1.207`, DHCP), not the `unbuntuserverpi` hostname
+  — that resolves via Tailscale MagicDNS on the desktop, and this traffic is
+  meant to stay on-LAN rather than depend on Tailscale being up.
+- Executed the live DB cutover to the Pi (Phase 1 step 7): checkpointed the
+  desktop's WAL, built a seed copy via the live Quack client (a raw file copy
+  was blocked by DuckDB's OS-level exclusive lock — Quack's TCP protocol
+  bypasses that), transferred to `/mnt/ssd/tsa_app/01_Data/` on the Pi
+  (MD5-verified), ran delta-push convergence, then flipped: disabled the
+  desktop's `tsa_app_scraper`, ran a final delta push (desktop/Pi matched
+  exactly: 5,882,073 rows), and started the Pi's own scraper timer.
+- Found `tidyverse` was never actually installed on the Pi — the scraper's
+  auto-install fallback (`foo()`) triggered under `bspm`/D-Bus (r2u's binary
+  package manager), which fails non-interactively under systemd (no session
+  bus). Installed via a real interactive SSH session instead (succeeded,
+  binary via r2u, no source compile). Also fixed hardcoded Windows paths
+  (`sink()`, `list.files()`, `here::here()` calls) in `scrape_data_automate.R`
+  and the runlog paths in `xx_build_summary_DB.R`/`xx_validate_scrape.R`/
+  `xx_watchdog_check.R` — applied Pi-locally only (uncommitted, matching the
+  existing SMTP `creds_envvar()` precedent), since the desktop's copies must
+  stay hardcoded per the Phase 1 plan.
+- Verified post-cutover: zero data loss (full anti-join, desktop's frozen
+  5,882,073 rows all present on Pi), zero *new* duplicates from the migration
+  itself — found 10,649 pre-existing duplicate groups (21,333 rows) in
+  `tsa_wait_times`, confirmed present identically on both desktop and Pi
+  (not introduced today), logged to `todo_list.txt` for cleanup. Pi ran 5+
+  consecutive unattended 5-minute cycles cleanly after the fixes.
+- Real-world tested `xx_backup_pull_from_pi.R` for the first time (previously
+  drafted but unverified) and found/fixed a bug: `airport_checkpoint_hours`
+  isn't append-only-safe like `tsa_wait_times` — 17 of 113 rows predate the
+  `entry_timestamp` column and are `NULL`, which a `> watermark` comparison
+  silently and permanently excludes. Switched that table to a full-replace
+  snapshot each run instead. Scheduled via new Task Scheduler job
+  `tsa_app_backup_pull_from_pi` ("At log on" trigger).
+- Desktop's `tsa_app_scraper` was re-enabled by user request for a parallel
+  comparison day (through 2026-08-14) before deciding desktop's final role
+  (backup-only vs. fully retired) as part of the duplicate cleanup.
+
 ## 2026-08-12
 
 ### renv Step 6 — EC2 Rollout Complete
