@@ -30,10 +30,12 @@ scrape_tsa_data_ewr <- function() {
   session <- polite::bow(url)
   options(chromote.headless = "new")
   
-  # Initialize a new Chrome session with the latest stable version of Chrome 
-  # and specify the binary for chrome-headless-shell
-  chromote::local_chrome_version(version = "latest-stable", binary = "chrome-headless-shell")
-  
+  # Chrome binary: let chromote auto-detect an installed browser (matches
+  # ATL_wait_times.R's existing pattern). Do NOT pin via
+  # chromote::local_chrome_version(binary = "chrome-headless-shell") -- Google
+  # does not publish Chrome-for-Testing builds for linux-arm64 (Pi), so that
+  # call fails there. See project_pi_chromote_arm64_binary_fix memory.
+
   # Access Page
   page <- safe_read_html_live(url)
   Sys.sleep(1.2)
