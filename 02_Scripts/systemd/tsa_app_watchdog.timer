@@ -1,0 +1,10 @@
+[Unit]
+Description=Run FlyASAP watchdog every 30 minutes (mirrors desktop tsa_app_watchdog trigger)
+
+[Timer]
+OnCalendar=*:0/30
+AccuracySec=1min
+Persistent=false
+
+[Install]
+WantedBy=timers.target

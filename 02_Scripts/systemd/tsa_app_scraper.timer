@@ -1,0 +1,10 @@
+[Unit]
+Description=Run FlyASAP scraper every 5 minutes (mirrors desktop tsa_app_scraper trigger)
+
+[Timer]
+OnCalendar=*:0/5
+AccuracySec=5s
+Persistent=false
+
+[Install]
+WantedBy=timers.target

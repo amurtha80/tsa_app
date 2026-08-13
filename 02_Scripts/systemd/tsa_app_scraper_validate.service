@@ -1,0 +1,12 @@
+[Unit]
+Description=FlyASAP nightly scrape validation (xx_validate_scrape.R)
+After=tsa_app_quack_server.service network-online.target
+Wants=tsa_app_quack_server.service network-online.target
+
+[Service]
+Type=oneshot
+User=jmurtha80
+Group=jmurtha80
+WorkingDirectory=/mnt/ssd/tsa_app
+Environment=HOME=/home/jmurtha80
+ExecStart=/usr/bin/Rscript /mnt/ssd/tsa_app/02_Scripts/xx_validate_scrape.R

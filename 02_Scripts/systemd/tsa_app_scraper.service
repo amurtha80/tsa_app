@@ -1,0 +1,12 @@
+[Unit]
+Description=FlyASAP scraper orchestrator (one cycle, all airports)
+After=tsa_app_quack_server.service
+Wants=tsa_app_quack_server.service
+
+[Service]
+Type=oneshot
+User=jmurtha80
+Group=jmurtha80
+WorkingDirectory=/mnt/ssd/tsa_app
+Environment=HOME=/home/jmurtha80
+ExecStart=/usr/bin/Rscript /mnt/ssd/tsa_app/02_Scripts/scrape_data_automate.R

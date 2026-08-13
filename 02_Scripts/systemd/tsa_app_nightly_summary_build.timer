@@ -1,0 +1,10 @@
+[Unit]
+Description=Run FlyASAP nightly summary build daily at 02:03 (mirrors desktop trigger)
+
+[Timer]
+OnCalendar=*-*-* 02:03:00
+AccuracySec=1min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

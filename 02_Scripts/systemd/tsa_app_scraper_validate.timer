@@ -1,0 +1,10 @@
+[Unit]
+Description=Run FlyASAP scrape validation daily at 02:18 (mirrors desktop trigger)
+
+[Timer]
+OnCalendar=*-*-* 02:18:00
+AccuracySec=1min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
