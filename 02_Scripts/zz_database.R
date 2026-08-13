@@ -50,10 +50,22 @@ print(engine_version)
 # made here.
 dbExecute(con_write, "SET checkpoint_threshold='5MB';")
 
+# Brief pause between back-to-back native duckdb/quack calls -- added
+# 2026-08-13 while chasing a STATUS_ACCESS_VIOLATION crash on this script.
+# NOTE: these sleeps alone did NOT fix it -- the crash reproduced consistently
+# on every Task Scheduler launch even with these in place. What actually
+# worked was launching the process directly (outside Task Scheduler) via
+# .NET Process.Start; the real root cause is still unresolved (see
+# project_20260813_quack_server_restart_outage memory). Left in as a harmless
+# precaution, not a proven fix -- don't cite this as "the fix" without
+# re-verifying against a real Task Scheduler launch first.
+Sys.sleep(1)
+
 # FORCE INSTALL (not plain INSTALL) -- a plain INSTALL can silently reuse a
 # stale/cached extension and leave quack_serve unregistered even though
 # INSTALL/LOAD report no error.
 dbExecute(con_write, "FORCE INSTALL quack; LOAD quack;")
+Sys.sleep(1)
 
 quack_status <- dbGetQuery(con_write,
   "SELECT extension_name, loaded, installed FROM duckdb_extensions() WHERE extension_name = 'quack';")
@@ -64,6 +76,7 @@ if (nrow(quack_status) == 0 || !isTRUE(quack_status$loaded)) {
 
 quack_token <- Sys.getenv("DUCKDB_QUACK_TOKEN", "flyasap_quack_test_token")
 
+Sys.sleep(1)
 # Start Quack background listener (non-blocking -- returns immediately)
 dbExecute(con_write, glue::glue(
   "CALL quack_serve('quack:localhost', token := '{quack_token}')"
