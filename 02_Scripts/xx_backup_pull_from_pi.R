@@ -81,9 +81,15 @@ tryCatch({
   con_backup <- dbConnect(duckdb::duckdb(), dbdir = backup_db_path, read_only = FALSE)
 
   ## Attach remote Pi Quack server (read-only use) ----
+  ## DISABLE_SSL: Quack's HTTPS client expects a cert matching the exact
+  ## hostname it connects to; connecting by raw LAN IP fails TLS verification
+  ## outright ("SSL connect error"), confirmed 2026-08-13. Traffic stays on
+  ## the private home LAN, not the public internet, so plaintext (token still
+  ## required) is an accepted tradeoff here -- see zz_database.R's matching
+  ## comment on the server side.
   dbExecute(con_backup, "INSTALL quack; LOAD quack;")
   dbExecute(con_backup, glue(
-    "ATTACH 'quack:{pi_quack_host}' AS remote_pi (TYPE quack, TOKEN '{quack_token}')"
+    "ATTACH 'quack:{pi_quack_host}' AS remote_pi (TYPE quack, TOKEN '{quack_token}', DISABLE_SSL true)"
   ))
   cat(glue("Connected to remote Pi Quack server at {pi_quack_host}"), "\n")
 
