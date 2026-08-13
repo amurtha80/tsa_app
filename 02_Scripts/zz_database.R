@@ -88,10 +88,14 @@ Sys.sleep(1)
 # Start Quack background listener (non-blocking -- returns immediately).
 # Bind 0.0.0.0, not localhost -- Pi migration (see project_pi_nas_migration
 # memory) needs this reachable from remote clients (desktop backup pull,
-# eventually all production scrapers) over Tailscale, not just same-host.
-# Still serves local/loopback clients fine.
+# eventually all production scrapers) over the local LAN, not just
+# same-host. Still serves local/loopback clients fine. allow_other_hostname
+# is required for any non-localhost bind -- Quack refuses otherwise by
+# default. Traffic stays inside the private home LAN (not the public
+# internet), so skipping Quack's reverse-proxy/TLS recommendation is
+# acceptable here.
 dbExecute(con_write, glue::glue(
-  "CALL quack_serve('quack:0.0.0.0', token := '{quack_token}')"
+  "CALL quack_serve('quack:0.0.0.0', token := '{quack_token}', allow_other_hostname := true)"
 ))
 
 print(glue::glue("quack server started on tsa_app.duckdb at ",

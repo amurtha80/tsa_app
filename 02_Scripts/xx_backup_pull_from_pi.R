@@ -52,13 +52,13 @@ cat(glue("packages loaded at ", format(Sys.time(), "%a %b %d %X %Y")), "\n")
 
 backup_db_path <- "C:/Users/james/Documents/R/tsa_app/01_Data/tsa_app_backup.duckdb"
 
-# Pi hostname -- same one the SSH config alias `tsa-pi` resolves (see
-# reference_pi_ssh_access memory). Overridable via PI_QUACK_HOST in .Renviron
-# if the Pi ever moves to a Tailscale hostname/IP instead of local LAN
-# resolution. NOT YET END-TO-END TESTED as of this script's creation --
-# first live run should be treated as a real connectivity test, not assumed
-# to work just because SSH to the same host works (different port/protocol).
-pi_quack_host <- Sys.getenv("PI_QUACK_HOST", "unbuntuserverpi")
+# Pi's local LAN IP (DHCP-assigned, confirmed 2026-08-13: 192.168.1.207 on
+# eth0). Deliberately NOT the "unbuntuserverpi" hostname -- that resolves via
+# Tailscale MagicDNS on this desktop, and Quack traffic is meant to stay on
+# the local LAN, not depend on Tailscale being up. Overridable via
+# PI_QUACK_HOST in .Renviron if the IP ever changes (a DHCP reservation on
+# the router would prevent that, not yet set up).
+pi_quack_host <- Sys.getenv("PI_QUACK_HOST", "192.168.1.207")
 quack_token   <- Sys.getenv("DUCKDB_QUACK_TOKEN")
 
 # Tables to sync, and the watermark column used to find "new since last pull"
