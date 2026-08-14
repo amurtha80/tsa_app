@@ -21,7 +21,28 @@
 scrape_tsa_data_jfk <- function() {
 
   print(glue("kickoff JFK scrape ", format(Sys.time(), "%a %b %d %X %Y")))
-  
+
+  # Always tear down the default chromote object on exit, success or failure.
+  # Previously this only happened at the bottom of the function, which
+  # safe_read_html_live()'s stop() (on a failed page load) skips entirely --
+  # leaving an orphaned/broken default chromote session that the NEXT
+  # chromote airport script in this cycle (ATL/EWR/LGA) would try to reuse,
+  # producing cascading "Chromote has been closed" / port errors that look
+  # like site outages but are actually caused by this script's own failure.
+  on.exit({
+    tryCatch({
+      if (exists("page", inherits = FALSE) && !is.null(page)) {
+        try(page$session$close(), silent = TRUE)
+        try(page$session$parent$close(wait = 2), silent = TRUE)
+      }
+      if (chromote::has_default_chromote_object()) {
+        chromote::set_default_chromote_object(NULL)
+      }
+    }, error = function(e) {
+      message(Sys.time(), " | JFK teardown warning (non-fatal): ", e$message)
+    })
+  }, add = TRUE)
+
   url <- "https://www.jfkairport.com"
   
   session <- polite::bow(url)
@@ -99,26 +120,12 @@ scrape_tsa_data_jfk <- function() {
   
   rm(results)
   rm(JFK_data, envir = .GlobalEnv)
-  
-  # page$session$close() - Quit using April 2026, only closes tab not entire session
-  # page$parent$close()
-  
-  tryCatch({
-    page$session$close()
-    page$session$parent$close(wait = 2)
-    if (chromote::has_default_chromote_object()) {
-      chromote::set_default_chromote_object(NULL)
-    }
-  }, error = function(e) {
-    message(Sys.time(), " | JFK teardown warning (non-fatal): ", e$message)
-  }, finally = {
-    rm(page)
-    rm(session)
-    rm(url)
-  })
+
+  # Chromote teardown now handled by the on.exit() registered at the top of
+  # this function, so it runs on both success and failure paths.
 
   # gc()
-  
+
 }
 
 ####  --------------------------------------------------------------------- ####

@@ -19,7 +19,12 @@ foo <- function(x) {
 }
 
 ## Then install/load packages...
-foo(c('rvest', 'httr', 'httr2',  'RSelenium', 'jsonlite', 'duckdb', 'glue', 'DBI', 'netstat',
+## RSelenium and netstat removed 2026-08-14 -- no active scraper uses them
+## (only retired 02_Scripts/archive/*_scrape_v1.R versions do). Loading them
+## every 5-minute cycle was pure overhead right before the chromote scrapers
+## run, on a resource-constrained Pi where that overhead has measurably
+## contributed to chromote launch flakiness under full load.
+foo(c('rvest', 'httr', 'httr2', 'jsonlite', 'duckdb', 'glue', 'DBI',
       'fs', 'chromote', 'here', 'polite', 'tidyverse'))
 
 # Sys.time()

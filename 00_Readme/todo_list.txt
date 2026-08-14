@@ -7,6 +7,52 @@ RShiny Mobile App TSA Historical Wait Times
 
 ### High Priority — Post-Launch Fixes
 
+#### Pi Cutover — Backfill Missing ATL/EWR/JFK/LGA Data (2026-08-13 15:50 to 2026-08-14 fix time)
+- 2026-08-14: The `quit()`-cascade bug (see CHANGELOG 2026-08-14) left the Pi's
+  `tsa_wait_times` with zero ATL/EWR/JFK/LGA rows and undercounted rows for its
+  other 17 airports for this window. Desktop has full data for the same window
+  (it wasn't affected — its chromote scrapers weren't hitting the same
+  failures). Needs a decision + execution: (1) delta-push the desktop's rows
+  for this window into the Pi's copy, or (2) wipe the Pi's `tsa_wait_times` and
+  re-seed a fresh full copy from desktop now that the crash bug is fixed. Follow
+  the Verified-Facts Gate before any DELETE/re-seed — confirm row counts on both
+  sides with a live SELECT first.
+
+#### Pi Cutover — "Chromote has been closed" During Retry Pass (FIXED 2026-08-14)
+- 2026-08-14: Found while verifying the `quit()`-cascade fix above. Root cause:
+  ATL/EWR/JFK/LGA all only closed their chromote session/default-object in a
+  teardown block at the *bottom* of their function — which `safe_read_html_live()`'s
+  `stop()` (added by the `quit()` fix) skips entirely on a failed page load,
+  leaving an orphaned/broken default chromote object that the next chromote
+  airport script in the same shared R session could reuse, producing cascading
+  "Chromote has been closed" / port errors that look like site outages but are
+  actually caused by our own teardown gap. Fixed by moving the teardown into an
+  `on.exit()` registered at the top of each of the 4 chromote scripts, so it
+  always runs regardless of success or failure. Verified live: with JFK's URL
+  deliberately broken to force permanent failure, ATL/EWR/LGA all continued to
+  scrape and write successfully across multiple cycles in the same run.
+- Also removed `RSelenium` and `netstat` from the orchestrator's per-cycle
+  package load (`scrape_data_automate.R`) — confirmed via grep that no active
+  scraper uses either (only retired `archive/*_scrape_v1.R` versions do), so
+  they were pure overhead loaded every 5 minutes right before the chromote
+  scrapers run.
+
+#### Pi Cutover — Full Chromote-on-Pi Reliability Under Full 21-Scraper Load
+- 2026-08-14: Chromote ran clean 3/3 times on the Pi in isolation
+  (`SCRAPER_MODE=chromote_only`), but failed on both attempts twice when run as
+  part of the full 21-scraper cycle (`SCRAPER_MODE=all`/unset) — once with
+  "Cannot find an available port", once with "Chromote: timed out waiting for
+  event Page.loadEventFired". Root cause not nailed down (RAM had 5.8GB free
+  during the failing run, so not a hard OOM) — leading theory is resource/CPU
+  contention from running RSelenium + chromote + 19 other scrapers concurrently
+  on the Pi's 4-core CPU. The `quit()` fix above stops this from cascading into
+  a full data-loss event, but the underlying chromote flakiness under full load
+  is still unresolved. A host-aware `SCRAPER_MODE` split (Pi=non_chromote,
+  desktop=chromote_only against the Pi's Quack server) already exists in the
+  code but is unused — worth reconsidering as a permanent fix if chromote
+  reliability under full load doesn't improve, rather than chasing pure
+  chromote fixes indefinitely.
+
 #### Outage — LAX `wait-times` Page Returning "Access Denied" (0 rows since 2026-08-07)
 - 2026-08-08: LAX scraper (`LAX_wait_times.R`) returned 0 rows the day prior.
   Confirmed via `curl` that `https://www.flylax.com/wait-times` now returns

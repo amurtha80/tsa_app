@@ -3,6 +3,54 @@ FlyASAP — Airport Security Advance Planning
 
 ---
 
+## 2026-08-14
+
+### Pi Scraper — Found and Fixed a 24+ Hour Silent Data-Loss Bug (ATL/EWR/JFK/LGA)
+- While checking the Pi vs. desktop parallel-run comparison ahead of a planned
+  full cutover, found the Pi's `tsa_wait_times` had **zero rows for ATL/EWR/JFK/LGA
+  since 2026-08-13 15:50** (~24h, ~289 cycles) and was also running at roughly
+  1/5 the expected row volume for its other 17 airports.
+- Root cause: `safe_read_html_live()` in `scrape_data_automate.R` called
+  `quit(save="no", status=0)` when a page failed to load twice. Since all 21
+  airport scripts run in one shared R session (not subprocesses), this killed
+  the *entire* orchestrator mid-cycle, not just the failing airport — so
+  whichever of the 4 chromote airports got randomly drawn first (execution
+  order is shuffled each cycle) and hit a chromote hiccup would silently
+  truncate every airport scheduled after it for that cycle. Reproduced live on
+  the Pi under full 21-scraper load (chromote alone in isolation ran cleanly
+  3/3 times; under full load it failed both attempts and killed the process
+  twice in a row with two different underlying chromote error messages).
+- Fix: replaced the `quit()` call with `stop()`, which the orchestrator's
+  existing `tryCatch`/retry-pass logic already handles per-airport. Verified
+  live against the Pi's production DB — a failing ATL now logs an error and
+  the cycle continues normally for every other airport, retry pass included.
+  Applied to both the desktop's committed copy and the Pi's local copy
+  (which also carries its own uncommitted `here::here()` path fixes).
+- Also discovered a smaller follow-up during the retry-pass run: ATL's failed
+  session appears to close a chromote object shared with JFK's retry
+  (`Chromote has been closed`), causing JFK's retry-pass attempt to fail too.
+  Not yet root-caused or fixed — tracked in `todo_list.txt`.
+- The Pi's missing 24h window for ATL/EWR/JFK/LGA (and the undercounted rows
+  for the other 17 airports during that stretch) has **not** been backfilled
+  yet — desktop has full data for the same window. Backfill approach (delta
+  vs. full re-seed) tracked in `todo_list.txt`, pending a decision.
+
+### Pi Scraper — Fixed "Chromote has been closed" Cross-Contamination Between Airports
+- Root cause: ATL/EWR/JFK/LGA all only tore down their chromote session in a
+  block at the *bottom* of their function, which the `quit()`-to-`stop()` fix
+  above causes to be skipped entirely on a failed page load — leaving an
+  orphaned default chromote object that the next chromote airport in the same
+  shared R session could pick up broken, cascading into further failures that
+  looked like site outages but were actually caused by our own teardown gap.
+  Fixed by moving teardown into `on.exit()` at the top of each of the 4
+  scripts, so it always runs. Verified live: with JFK's URL deliberately
+  broken to force permanent failure, ATL/EWR/LGA all continued scraping and
+  writing successfully across multiple cycles in the same run.
+- Also removed `RSelenium` and `netstat` from the orchestrator's per-cycle
+  package load — no active scraper uses either (confirmed via grep; only
+  retired `archive/*_scrape_v1.R` versions do), so both were pure overhead on
+  every 5-minute cycle right before the chromote scrapers run.
+
 ## 2026-08-13
 
 ### Quack Server — Task Scheduler Restart Outage Resolved
