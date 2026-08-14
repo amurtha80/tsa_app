@@ -124,11 +124,16 @@ safe_read_html_live <- function(url, wait = 2, exit_on_fail = TRUE) {
   if (is.null(page)) {
     message("Unable to read page after two attempts.")
     if (exit_on_fail) {
-      message("Exiting script safely.")
-      quit(save = "no", status = 0)
+      # NOTE: was previously quit(save = "no", status = 0), which kills the
+      # entire orchestrator process (not just this airport's function) since
+      # all airport scripts run in one shared R session. That let a single
+      # flaky chromote airport silently truncate the rest of that cycle for
+      # every other airport. stop() is catchable by run_all_functions()'s own
+      # tryCatch/retry-pass logic, so only this airport's function fails.
+      stop("Unable to read page after two attempts. Exiting function safely.")
     }
   }
-  
+
   return(page)
 }
 
