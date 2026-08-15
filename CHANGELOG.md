@@ -3,6 +3,42 @@ FlyASAP — Airport Security Advance Planning
 
 ---
 
+## 2026-08-15
+
+### Pi Cutover — Enabled Remaining Timers, Fixed Merge-Introduced Production Regression
+- Enabled all 5 Pi systemd timers (`quack_server`, `scraper`, `watchdog`,
+  `scraper_validate`, `nightly_summary_build`), all confirmed clean.
+- Committed the `paws.storage::s3()` fix + 8 archived diagnostic scripts from
+  the prior session; reconciling desktop/Pi git histories to do so required a
+  merge with conflict resolution.
+- A `git checkout --theirs` resolution during that merge silently clobbered 3
+  Pi-specific portable-path fixes in `scrape_data_automate.R` (reverted to
+  hardcoded Windows paths), breaking `tsa_app_scraper.service` on the Pi for
+  every 5-min cycle starting 08:10 EDT. Root-caused via diff against the Pi's
+  pre-merge commit, restored the 3 fixes, verified via 2 consecutive clean
+  live scrape cycles.
+- The same merge pulled the Pi's env-var-based SMTP credential lookup onto
+  desktop, which would have silently broken desktop's watchdog/validate email
+  alerts (desktop's `.Renviron` has no `SMTP_PASSWORD` — it uses the Windows
+  keyring instead). Fixed by branching credential lookup by `Sys.info()`
+  sysname in `xx_watchdog_check.R` and `xx_validate_scrape.R`, so each
+  platform uses its own working method from the same shared script.
+- Set up SSH-key GitHub auth on the Pi (`~/.ssh/github_pi`, ed25519) since
+  HTTPS password auth is disabled by GitHub and no PAT was available.
+
+### Pi Temp-File Cleanup — Moved to a Systemd Timer
+- `zz_delete_temp_files.R` was desktop-only manual scratch (gitignored, no
+  scheduled trigger). Made it OS-aware (`Sys.info()` branch: Windows keeps
+  the `HeadlessChrome|Rtmp` pattern under `AppData/Local/Temp`; Linux targets
+  `/tmp` with just `Rtmp` — chromote nests its logs inside R's own `Rtmp*`
+  session dir on the Pi, no separate `HeadlessChrome*` dirs exist there),
+  untracked the `.gitignore` exclusion so it syncs via git, and added
+  `tsa_app_delete_temp_files.service`/`.timer` (daily 03:15, after the
+  nightly summary build). Verified via manual run: 32 items deleted, 0
+  failed.
+
+---
+
 ## 2026-08-14
 
 ### Pi Scraper — Found and Fixed a 24+ Hour Silent Data-Loss Bug (ATL/EWR/JFK/LGA)

@@ -19,36 +19,34 @@ See `project_pi_nas_migration` memory for full history across all sessions.
 (headless, freed ~600MB); 31,744-row historical gap backfilled from desktop
 (2026-08-13 00:00 → 2026-08-14 21:00 window); `paws::s3()` →
 `paws.storage::s3()` fix (was forcing a 14-package from-source rebuild via
-renv on every nightly-build run — see CHANGELOG 2026-08-14).
+renv on every nightly-build run — see CHANGELOG 2026-08-14); all 5 Pi
+systemd timers enabled and verified clean (quack_server, scraper, watchdog,
+scraper_validate, nightly_summary_build); paws.storage fix + 8 archived
+diagnostic scripts committed; a live production regression from that merge
+(3 clobbered portable-path fixes + a desktop SMTP credential gap) found and
+fixed same-session (see CHANGELOG 2026-08-15); `zz_delete_temp_files.R`
+made OS-aware and moved to a Pi systemd timer (daily 03:15), verified clean.
 
 **Outstanding, in rough order:**
-1. Finish testing + `sudo systemctl enable --now` the three remaining Pi
-   systemd timers: `tsa_app_watchdog.timer`, `tsa_app_scraper_validate.timer`,
-   `tsa_app_nightly_summary_build.timer` (watchdog + validate confirmed clean;
-   nightly-build confirmed clean after the paws fix, not yet enabled as a timer).
-2. Commit the uncommitted `paws.storage` fix + the 8 archived diagnostic
-   scripts under `02_Scripts/archive/xx_20260814_*.R`.
-3. Observe several days of stable Pi-only operation (all 5 systemd jobs)
+1. Observe several days of stable Pi-only operation (all 5 systemd jobs)
    before fully trusting it.
-4. Move `zz_delete_temp_files.R` to a Pi systemd timer (plan step 8 — never
-   done, no draft unit exists yet).
-5. Stop desktop's `tsa_app_scraper` (the parallel comparison run) — wait for
-   #3 first.
-6. Review `xx_backup_pull_from_pi.R` — confirm exactly what it does today
+2. Stop desktop's `tsa_app_scraper` (the parallel comparison run) — wait for
+   #1 first.
+3. Review `xx_backup_pull_from_pi.R` — confirm exactly what it does today
    (pulls Pi→desktop into a local backup file) and whether desktop's own
    `tsa_app_quack_server` task is still needed once desktop stops scraping.
    Nobody has actually read this script yet this round.
-7. Change `tsa_app_backup_pull_from_pi` Task Scheduler trigger from "At log
+4. Change `tsa_app_backup_pull_from_pi` Task Scheduler trigger from "At log
    on" to "At startup" — needs elevated Windows access not available to
    Claude Code's shell.
-8. Permanently retire `tsa_app_bos_hours_monitor` and
+5. Permanently retire `tsa_app_bos_hours_monitor` and
    `tsa_app_las_hours_monitor` — needs elevated Task Scheduler access;
    reconfirm the LAS decision deadline (2026-08-19, not yet passed) before
    pulling that one.
-9. Once desktop is backup-only, decide its final footprint (likely just the
-   backup-pull task) — depends on #6's findings.
-10. Update `DEVELOPMENT.md` to reflect Pi-as-primary architecture once cutover
-    is final (per CLAUDE.md, prompt for review before editing).
+6. Once desktop is backup-only, decide its final footprint (likely just the
+   backup-pull task) — depends on #3's findings.
+7. Update `DEVELOPMENT.md` to reflect Pi-as-primary architecture once cutover
+   is final (per CLAUDE.md, prompt for review before editing).
 
 **Separate, unrelated pre-existing tech debt (not part of cutover):** the
 10,649 duplicate-row groups in `tsa_wait_times` (see below), and `renv.lock`
