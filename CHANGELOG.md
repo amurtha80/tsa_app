@@ -3,6 +3,183 @@ FlyASAP — Airport Security Advance Planning
 
 ---
 
+## 2026-08-14
+
+### Pi Scraper — Found and Fixed a 24+ Hour Silent Data-Loss Bug (ATL/EWR/JFK/LGA)
+- While checking the Pi vs. desktop parallel-run comparison ahead of a planned
+  full cutover, found the Pi's `tsa_wait_times` had **zero rows for ATL/EWR/JFK/LGA
+  since 2026-08-13 15:50** (~24h, ~289 cycles) and was also running at roughly
+  1/5 the expected row volume for its other 17 airports.
+- Root cause: `safe_read_html_live()` in `scrape_data_automate.R` called
+  `quit(save="no", status=0)` when a page failed to load twice. Since all 21
+  airport scripts run in one shared R session (not subprocesses), this killed
+  the *entire* orchestrator mid-cycle, not just the failing airport — so
+  whichever of the 4 chromote airports got randomly drawn first (execution
+  order is shuffled each cycle) and hit a chromote hiccup would silently
+  truncate every airport scheduled after it for that cycle. Reproduced live on
+  the Pi under full 21-scraper load (chromote alone in isolation ran cleanly
+  3/3 times; under full load it failed both attempts and killed the process
+  twice in a row with two different underlying chromote error messages).
+- Fix: replaced the `quit()` call with `stop()`, which the orchestrator's
+  existing `tryCatch`/retry-pass logic already handles per-airport. Verified
+  live against the Pi's production DB — a failing ATL now logs an error and
+  the cycle continues normally for every other airport, retry pass included.
+  Applied to both the desktop's committed copy and the Pi's local copy
+  (which also carries its own uncommitted `here::here()` path fixes).
+- Also discovered a smaller follow-up during the retry-pass run: ATL's failed
+  session appears to close a chromote object shared with JFK's retry
+  (`Chromote has been closed`), causing JFK's retry-pass attempt to fail too.
+  Not yet root-caused or fixed — tracked in `todo_list.txt`.
+- The Pi's missing 24h window for ATL/EWR/JFK/LGA (and the undercounted rows
+  for the other 17 airports during that stretch) has **not** been backfilled
+  yet — desktop has full data for the same window. Backfill approach (delta
+  vs. full re-seed) tracked in `todo_list.txt`, pending a decision.
+
+### Pi Scraper — Fixed "Chromote has been closed" Cross-Contamination Between Airports
+- Root cause: ATL/EWR/JFK/LGA all only tore down their chromote session in a
+  block at the *bottom* of their function, which the `quit()`-to-`stop()` fix
+  above causes to be skipped entirely on a failed page load — leaving an
+  orphaned default chromote object that the next chromote airport in the same
+  shared R session could pick up broken, cascading into further failures that
+  looked like site outages but were actually caused by our own teardown gap.
+  Fixed by moving teardown into `on.exit()` at the top of each of the 4
+  scripts, so it always runs. Verified live: with JFK's URL deliberately
+  broken to force permanent failure, ATL/EWR/LGA all continued scraping and
+  writing successfully across multiple cycles in the same run.
+- Also removed `RSelenium` and `netstat` from the orchestrator's per-cycle
+  package load — no active scraper uses either (confirmed via grep; only
+  retired `archive/*_scrape_v1.R` versions do), so both were pure overhead on
+  every 5-minute cycle right before the chromote scrapers run.
+
+### Pi Scraper — Root-Caused the Widespread Silent Per-Cycle Gaps as the Same `quit()` Bug
+- After the fixes above, a full audit of all 21 non-LAX airports' scrape
+  history on the Pi found dozens of 20-210 minute gaps per airport, scattered
+  across the whole cutover window, almost none with a matching `ERROR in`/
+  `RETRY FAILED` runlog line. Confirmed this is the historical impact of the
+  now-fixed `quit()`-cascade bug rather than a new or Linux/Pi-specific issue:
+  per-airport kickoff rate across the full runlog history was ~30-40%, but
+  97-100% (38-40/39 cycles) in the stabilized post-fix window. Also confirmed
+  via a write/readback roundtrip test that duckdb's R driver writes a naive
+  `TIMESTAMP` column's absolute UTC instant regardless of the value's display
+  tzone — identical behavior on Windows and Linux — so an initial finding that
+  looked like a Pi-specific 4-hour timestamp anomaly was this same known,
+  already-handled convention (see `project_utc_timezone_storage_issue`), not a
+  bug.
+
+### Pi Scraper — Backfilled the 2026-08-13/14 Data Gap From the Desktop's Parallel Copy
+- The desktop's parallel-run copy for the same window was independently
+  confirmed clean (zero gaps >15 min across all 21 non-LAX airports, 287-288 of
+  a possible 288 cycles each over the trailing 24h) — it was not affected by
+  the `quit()` bug at any meaningful scale, so it was safe to use as the
+  backfill source instead of a full wipe-and-reseed.
+- Ran a dual-ATTACH anti-join (local `quack:localhost` for the desktop's own
+  DB, remote `quack:192.168.1.207` for the Pi's) matched on
+  `(airport, checkpoint, datetime)` for the window 2026-08-13 00:00 through
+  2026-08-14 21:00. Quack can't stream a cross-remote `INSERT...SELECT` in one
+  statement ("Multiple streaming scans... not currently supported") — worked
+  around by materializing the anti-join result into an R dataframe via
+  `dbGetQuery()`, then `dbAppendTable()`-ing it into the Pi.
+- **31,744 rows inserted** across all 21 affected airports (LAX excluded — no
+  data on either side, matches its known ongoing 403 outage). Verified from an
+  independent connection: row counts matched the pre-write count exactly, zero
+  duplicate `(airport, checkpoint, datetime)` groups introduced.
+- Diagnostic/backfill scripts archived at `02_Scripts/archive/xx_20260814_*.R`
+  for reference (gap-detection queries, tz roundtrip repro, anti-join count/
+  spot-check/insert/verify).
+
+### Nightly Summary Build — Fixed a `paws` Meta-Package renv Trap on the Pi
+- `xx_build_summary_DB.R`'s S3 push called `paws::s3()` (the bare `paws`
+  meta-package, which re-exports every AWS service's constructor). Loading its
+  namespace requires R to resolve *all* of `paws`'s `Imports:` — all ~14 AWS
+  service sub-packages — even though only S3 is ever used.
+- On the Pi, this silently triggered a from-source rebuild of all 14 packages
+  via renv on `tsa_app_nightly_summary_build`'s very first manual test run,
+  even though `paws.storage`/`paws.common` (all that's actually needed) were
+  already sitting in `/mnt/ssd/R/library` — renv's project-private library
+  just didn't know about them, since they were never installed *through* renv.
+  Matches the documented paws-meta-package trap from the Phase 0 spike
+  (`feedback_pi_prefer_prebuilt_packages`), just triggered by a different
+  script this time.
+- Fixed by switching to `paws.storage::s3()` (exports `s3()` directly, only
+  depends on `paws.common`) in both the desktop's committed copy and the Pi's
+  local copy. `renv::hydrate()` then linked `paws.storage` in from the
+  existing system library in 0.17 seconds — no compile needed.
+- `tsa_app_watchdog.service` and `tsa_app_scraper_validate.service` (drafted
+  earlier during the 2026-08-13 cutover but never enabled) were manually
+  tested clean on the Pi — validate even confirmed it can send a real email
+  from the Pi. `tsa_app_nightly_summary_build.service` confirmed clean after
+  the paws fix. None of the three timers are enabled yet — tracked in
+  `todo_list.txt`.
+
+## 2026-08-13
+
+### Quack Server — Task Scheduler Restart Outage Resolved
+- `tsa_app_quack_server` restart (to pick up a lowered WAL `checkpoint_threshold`,
+  5MB from 16MB default) triggered a multi-hour outage: an embedded-quote
+  corruption in the task's Action fields (fixed via GUI retype), followed by a
+  `STATUS_ACCESS_VIOLATION` (`0xC0000005`) crash on every launch attempt —
+  Task Scheduler, direct launch, any filename, any port, with or without the
+  quack extension involved. Root cause: the task's `Arguments` field held a
+  bare relative script filename instead of a fully-qualified absolute path.
+  Fixed by setting `Arguments` to the absolute path
+  (`C:\Users\james\Documents\R\tsa_app\02_Scripts\zz_database.R`); confirmed
+  stable across multiple scraper cycles afterward.
+- `02_Scripts/zz_database.R` no longer runs `FORCE INSTALL quack` on every
+  startup — now checks `duckdb_extensions()` and only installs if not already
+  present, always `LOAD`s. Removes an unnecessary file-overwrite on every
+  server start.
+
+### Pi Migration — Systemd Units, Live Cutover, Backup Pull
+- Added `02_Scripts/systemd/` unit files (service + timer) mirroring the
+  desktop's Task Scheduler triggers for the Quack server, scraper (every
+  5min), nightly summary build (02:03), and validate (02:18). Only the Quack
+  server and scraper units were actually enabled/tested on the Pi today;
+  build/validate/watchdog remain desktop-only for now.
+- Fixed `zz_database.R`'s `quack_serve()` call: was bound to `localhost`,
+  which can never accept remote connections regardless of hostname/DNS —
+  changed to `0.0.0.0` with `allow_other_hostname := true` (Quack refuses
+  non-localhost binds otherwise). Client connections from the desktop also
+  need `DISABLE_SSL true` — Quack's HTTPS client fails TLS verification when
+  connecting by raw LAN IP instead of a matching hostname cert. Traffic stays
+  on the private home LAN, not the public internet, so plaintext (token auth
+  still applies) is an accepted tradeoff here. Client should target the Pi's
+  LAN IP directly (`192.168.1.207`, DHCP), not the `unbuntuserverpi` hostname
+  — that resolves via Tailscale MagicDNS on the desktop, and this traffic is
+  meant to stay on-LAN rather than depend on Tailscale being up.
+- Executed the live DB cutover to the Pi (Phase 1 step 7): checkpointed the
+  desktop's WAL, built a seed copy via the live Quack client (a raw file copy
+  was blocked by DuckDB's OS-level exclusive lock — Quack's TCP protocol
+  bypasses that), transferred to `/mnt/ssd/tsa_app/01_Data/` on the Pi
+  (MD5-verified), ran delta-push convergence, then flipped: disabled the
+  desktop's `tsa_app_scraper`, ran a final delta push (desktop/Pi matched
+  exactly: 5,882,073 rows), and started the Pi's own scraper timer.
+- Found `tidyverse` was never actually installed on the Pi — the scraper's
+  auto-install fallback (`foo()`) triggered under `bspm`/D-Bus (r2u's binary
+  package manager), which fails non-interactively under systemd (no session
+  bus). Installed via a real interactive SSH session instead (succeeded,
+  binary via r2u, no source compile). Also fixed hardcoded Windows paths
+  (`sink()`, `list.files()`, `here::here()` calls) in `scrape_data_automate.R`
+  and the runlog paths in `xx_build_summary_DB.R`/`xx_validate_scrape.R`/
+  `xx_watchdog_check.R` — applied Pi-locally only (uncommitted, matching the
+  existing SMTP `creds_envvar()` precedent), since the desktop's copies must
+  stay hardcoded per the Phase 1 plan.
+- Verified post-cutover: zero data loss (full anti-join, desktop's frozen
+  5,882,073 rows all present on Pi), zero *new* duplicates from the migration
+  itself — found 10,649 pre-existing duplicate groups (21,333 rows) in
+  `tsa_wait_times`, confirmed present identically on both desktop and Pi
+  (not introduced today), logged to `todo_list.txt` for cleanup. Pi ran 5+
+  consecutive unattended 5-minute cycles cleanly after the fixes.
+- Real-world tested `xx_backup_pull_from_pi.R` for the first time (previously
+  drafted but unverified) and found/fixed a bug: `airport_checkpoint_hours`
+  isn't append-only-safe like `tsa_wait_times` — 17 of 113 rows predate the
+  `entry_timestamp` column and are `NULL`, which a `> watermark` comparison
+  silently and permanently excludes. Switched that table to a full-replace
+  snapshot each run instead. Scheduled via new Task Scheduler job
+  `tsa_app_backup_pull_from_pi` ("At log on" trigger).
+- Desktop's `tsa_app_scraper` was re-enabled by user request for a parallel
+  comparison day (through 2026-08-14) before deciding desktop's final role
+  (backup-only vs. fully retired) as part of the duplicate cleanup.
+
 ## 2026-08-12
 
 ### renv Step 6 — EC2 Rollout Complete

@@ -1,4 +1,4 @@
-sink(here::here("runlog.txt"), append = TRUE, type = "output")
+sink("C:/Users/james/Documents/R/tsa_app/runlog.txt", append = TRUE, type = "output")
 
 # Package Management ----
 
@@ -19,6 +19,11 @@ foo <- function(x) {
 }
 
 ## Then install/load packages...
+## RSelenium and netstat removed 2026-08-14 -- no active scraper uses them
+## (only retired 02_Scripts/archive/*_scrape_v1.R versions do). Loading them
+## every 5-minute cycle was pure overhead right before the chromote scrapers
+## run, on a resource-constrained Pi where that overhead has measurably
+## contributed to chromote launch flakiness under full load.
 foo(c('rvest', 'httr', 'httr2', 'jsonlite', 'duckdb', 'glue', 'DBI',
       'fs', 'chromote', 'here', 'polite', 'tidyverse'))
 
@@ -38,7 +43,7 @@ print("packages loaded")
  
 
 
-files <- list.files(path = here::here("02_Scripts")) |>
+files <- list.files(path = "C:/Users/james/Documents/R/tsa_app/02_Scripts") |>
   stringr::str_subset("_wait_times.R")
 
 ## Host-aware scraper filter -- SCRAPER_MODE unset/"all" runs every scraper
@@ -55,7 +60,7 @@ print("files object works")
 
 Sys.sleep(0.25)
 funcs <- tryCatch({
-  as.vector(purrr::map(here::here("02_Scripts", files), source))
+  as.vector(purrr::map(here::here("C:/Users/james/Documents/R/tsa_app/02_Scripts", files), source))
 }, error = function(e) {
   writeLines(paste("ERROR in funcs creation:", conditionMessage(e)), log_file, append = TRUE)
   writeLines(paste("Error occurred at:", Sys.time()), log_file, append = TRUE)
@@ -124,10 +129,16 @@ safe_read_html_live <- function(url, wait = 2, exit_on_fail = TRUE) {
   if (is.null(page)) {
     message("Unable to read page after two attempts.")
     if (exit_on_fail) {
+      # NOTE: was previously quit(save = "no", status = 0), which kills the
+      # entire orchestrator process (not just this airport's function) since
+      # all airport scripts run in one shared R session. That let a single
+      # flaky chromote airport silently truncate the rest of that cycle for
+      # every other airport. stop() is catchable by run_all_functions()'s own
+      # tryCatch/retry-pass logic, so only this airport's function fails.
       stop("Unable to read page after two attempts. Exiting function safely.")
     }
   }
-  
+
   return(page)
 }
 
