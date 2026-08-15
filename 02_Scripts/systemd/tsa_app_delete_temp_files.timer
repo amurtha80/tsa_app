@@ -1,0 +1,10 @@
+[Unit]
+Description=Run FlyASAP temp-dir cleanup daily at 03:15 (after nightly summary build)
+
+[Timer]
+OnCalendar=*-*-* 03:15:00
+AccuracySec=1min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
