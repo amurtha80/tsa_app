@@ -5,6 +5,18 @@ FlyASAP — Airport Security Advance Planning
 
 ## 2026-08-15
 
+### Fixed — `tsa_app_watchdog` Action Field Corruption (Blind Since 2026-08-13)
+- Fixed via GUI re-edit (Actions tab → Edit): Arguments had a bled-over
+  duplicate `Files\R\R-4.5.1\bin\Rscript.exe ` prefix ahead of the real
+  quoted script path, and WorkingDirectory had extraneous embedded quotes —
+  same corruption pattern as `project_windows_task_scheduler_gotchas` item
+  19/22, caused by an earlier failed `Set-ScheduledTask` attempt. Verified
+  fixed via raw XML (Command/Arguments/WorkingDirectory now match the
+  healthy pattern used by `tsa_app_scraper`) and a manual
+  `Start-ScheduledTask` test run: `LastTaskResult 0`, runlog shows real
+  fresh output (jumped from a stale 2026-08-11 entry straight to today,
+  both freshness and Quack-liveness checks OK).
+
 ### Pi Cutover — Backup-Pull Task Retimed to "At Startup", Left Disabled
 - User applied the trigger/logon-type change via the Task Scheduler GUI
   (per the corruption risk documented in

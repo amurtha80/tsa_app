@@ -32,14 +32,6 @@ Full cutover-to-Pi / desktop-to-backup-only migration status. See
    backup-pull task).
 6. Update `DEVELOPMENT.md` to reflect Pi-as-primary architecture once cutover
    is final (per CLAUDE.md, prompt for review before editing).
-7. Fix `tsa_app_watchdog`'s Action field — reconfirmed corrupted 2026-08-15
-   (`LastTaskResult 2147942667` / `0x8007010B`, same duplicated-path pattern
-   as `project_windows_task_scheduler_gotchas` item 19/22, first flagged
-   2026-08-13, still not fixed). Desktop's watchdog has been silently blind
-   since then; the Pi's own `tsa_app_watchdog.timer` is healthy and covers
-   the Pi side, so this is lower urgency than it would've been pre-cutover,
-   but still needs a GUI re-edit of Program/script + Arguments (not
-   Set-ScheduledTask, same corruption risk).
 
 **Separate, unrelated pre-existing tech debt (not part of cutover):** the
 10,649 duplicate-row groups in `tsa_wait_times` (see below), and `renv.lock`
