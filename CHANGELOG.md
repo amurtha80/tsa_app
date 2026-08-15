@@ -5,6 +5,17 @@ FlyASAP — Airport Security Advance Planning
 
 ## 2026-08-15
 
+### Pi Cutover — Backup-Pull Task Retimed to "At Startup", Left Disabled
+- User applied the trigger/logon-type change via the Task Scheduler GUI
+  (per the corruption risk documented in
+  `project_20260812_scraper_task_command_corruption_outage`, this was
+  intentionally not scripted): `tsa_app_backup_pull_from_pi` now uses a Boot
+  trigger + `LogonType Password` instead of "At log on" + Interactive,
+  matching the rest of the project's scheduled tasks. Left disabled
+  pending desktop's scraper actually being stopped. Verified via raw task
+  XML: `<BootTrigger />`, `<LogonType>Password</LogonType>`,
+  `<Enabled>false</Enabled>`, Command/Arguments unchanged.
+
 ### Pi Cutover — Backup-Pull Script Reviewed, Confirmed Correct
 - Read `xx_backup_pull_from_pi.R` in full for the first time this round.
   Confirmed it's a correct Pi→desktop delta pull (client to the Pi's Quack

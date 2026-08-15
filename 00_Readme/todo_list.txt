@@ -17,31 +17,22 @@ Full cutover-to-Pi / desktop-to-backup-only migration status. See
    before fully trusting it.
 2. Stop desktop's `tsa_app_scraper` (the parallel comparison run) — wait for
    #1 first.
-3. Change `tsa_app_backup_pull_from_pi`'s trigger from "At log on" to "At
-   startup" AND its logon type from Interactive to Password (to match
-   `tsa_app_scraper`/`tsa_app_nightly_summary_build`/`tsa_app_scraper_validate`'s
-   convention — see `project_windows_task_scheduler_gotchas` item 3), but
-   leave the task **disabled** afterward. Needs the GUI (elevated
-   Set-ScheduledTask calls from Claude Code's shell have twice silently
-   corrupted a task's Action field in the past — see
-   `project_20260812_scraper_task_command_corruption_outage` — so this must
-   be a manual GUI edit, not scripted). Steps: Task Scheduler → find
-   `tsa_app_backup_pull_from_pi` → Properties → Triggers tab: delete "At log
-   on", add new "At startup" → General tab: switch to "Run whether user is
-   logged on or not" (re-enter Windows password when prompted) → confirm the
-   "Enabled" checkbox stays **unchecked** → OK.
-4. Once desktop's scraper is actually stopped (#2), enable
+3. Once desktop's scraper is actually stopped (#2), enable
    `tsa_app_backup_pull_from_pi` (GUI or `Enable-ScheduledTask` from an
    elevated window — this tool's shell can't do it, see gotchas item 21).
-5. Permanently retire `tsa_app_bos_hours_monitor` and
+   Trigger/logon-type already switched to At-startup/Password via GUI
+   2026-08-15, task left disabled pending #2 — verified via raw XML
+   (`<BootTrigger />`, `<LogonType>Password</LogonType>`,
+   `<Enabled>false</Enabled>`, Command/Arguments unchanged/clean).
+4. Permanently retire `tsa_app_bos_hours_monitor` and
    `tsa_app_las_hours_monitor` — needs elevated Task Scheduler access;
    reconfirm the LAS decision deadline (2026-08-19, not yet passed) before
    pulling that one.
-6. Once desktop is backup-only, decide its final footprint (likely just the
+5. Once desktop is backup-only, decide its final footprint (likely just the
    backup-pull task).
-7. Update `DEVELOPMENT.md` to reflect Pi-as-primary architecture once cutover
+6. Update `DEVELOPMENT.md` to reflect Pi-as-primary architecture once cutover
    is final (per CLAUDE.md, prompt for review before editing).
-8. Fix `tsa_app_watchdog`'s Action field — reconfirmed corrupted 2026-08-15
+7. Fix `tsa_app_watchdog`'s Action field — reconfirmed corrupted 2026-08-15
    (`LastTaskResult 2147942667` / `0x8007010B`, same duplicated-path pattern
    as `project_windows_task_scheduler_gotchas` item 19/22, first flagged
    2026-08-13, still not fixed). Desktop's watchdog has been silently blind
