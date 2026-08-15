@@ -5,6 +5,43 @@ FlyASAP — Airport Security Advance Planning
 
 ## 2026-08-15
 
+### Data Quality — `tsa_wait_times` Duplicate Rows Deduped (Desktop + Pi)
+- Root-caused and cleaned up the 10,649 duplicate-row groups (21,333 rows)
+  found 2026-08-13 during Pi migration verification. Two distinct causes:
+  - **ATL (8,900 groups, 2026-06-02 through 06-09 only, exact duplicates):**
+    tied to a chromote teardown regression — commit `136286f` (2026-06-11)
+    stripped ATL's `tryCatch`-wrapped session-close down to a bare
+    `rm(page, session, url)`, and commit `7e4ba81` (2026-06-12) restored safe
+    teardown. Duplicates stop dead on 06-09, the day before the fix window
+    closed, confirming the teardown instability (not an active/ongoing bug)
+    as the cause.
+  - **IAH (1,747 groups, all ~2026-03-09, on the pre-JSON-migration chromote
+    scraper):** 780 of these are *not* duplicate writes — they're two
+    genuinely different `wait_time` readings colliding on the same
+    `datetime` value, with no `entry_timestamp` column to disambiguate which
+    came first. User decision: keep the lower `wait_time` per colliding pair
+    (treated as the accurate live reading vs. a stale/pre-refresh value).
+  - Both root causes are closed — ATL's teardown fix landed 2026-06-12, IAH
+    moved off chromote entirely on 2026-07-14 — so this was a one-time
+    cleanup of historical data, not a symptom of a live bug.
+- Dedup rule (single query, handles both cases): `ROW_NUMBER() OVER
+  (PARTITION BY airport, checkpoint, datetime ORDER BY wait_time ASC NULLS
+  LAST, rowid ASC)`, delete every row after rank 1. Verified against a
+  synthetic test DB before touching production (rowid-based DELETE isn't
+  supported over Quack — `Binder Error: Can only delete from base table` —
+  same restriction as the known UPDATE gap, so this required a direct file
+  connection with each Quack server briefly stopped).
+- Executed on **both** copies per CLAUDE.md's Verified-Facts Gate (SELECT
+  with the DELETE's exact WHERE clause run first, matched count shown before
+  executing, same turn): desktop `01_Data/tsa_app.duckdb` — 10,684 rows
+  deleted (5,942,421 → 5,931,737), 0 dup groups remaining. Pi
+  `/mnt/ssd/tsa_app/01_Data/tsa_app.duckdb` — same 10,684 rows deleted
+  (5,948,002 → 5,937,318; Pi had accumulated the identical dup set via the
+  2026-08-13 seed copy, unchanged since), 0 dup groups remaining. Both Quack
+  servers stopped/restarted around the direct-connection window and verified
+  serving again afterward. Closes the `todo_list.txt` "Data Quality —
+  Duplicate Rows in `tsa_wait_times`" item.
+
 ### Data Quality — IAH Terminal D Split-Shift Hours Written (Multi-Window Schema)
 - Wrote 11 `airport_checkpoint_hours` rows for `IAH Terminal D` General lane
   using the `window_seq`/`day_of_week` schema added earlier today for JFK

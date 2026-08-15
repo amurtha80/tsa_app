@@ -29,11 +29,10 @@ Full cutover-to-Pi / desktop-to-backup-only migration status. See
 5. Update `DEVELOPMENT.md` to reflect Pi-as-primary architecture once cutover
    is final (per CLAUDE.md, prompt for review before editing).
 
-**Separate, unrelated pre-existing tech debt (not part of cutover):** the
-10,649 duplicate-row groups in `tsa_wait_times` (see below), and `renv.lock`
-drift on the Pi (R 4.5.1 in the lockfile vs R 4.6.1 installed, ~48 package
-version mismatches — real fix is a `renv::snapshot()` pass on both machines,
-bigger decision, not urgent).
+**Separate, unrelated pre-existing tech debt (not part of cutover):**
+`renv.lock` drift on the Pi (R 4.5.1 in the lockfile vs R 4.6.1 installed,
+~48 package version mismatches — real fix is a `renv::snapshot()` pass on
+both machines, bigger decision, not urgent).
 
 #### Outage — LAX `wait-times` Page Returning "Access Denied" (0 rows since 2026-08-07)
 - 2026-08-08: LAX scraper (`LAX_wait_times.R`) returned 0 rows the day prior.
@@ -49,19 +48,6 @@ bigger decision, not urgent).
   Action: periodically recheck `https://www.flylax.com/wait-times` for
   200/table-restored; if LAX moves the page, update `page_url` in
   `LAX_wait_times.R` accordingly.
-
-#### Data Quality — Duplicate Rows in `tsa_wait_times` (Both Desktop and Pi Copies)
-- 2026-08-13: While verifying the Pi migration's seed copy for data loss, found
-  10,649 duplicate groups (21,333 rows) in the desktop's live `tsa_wait_times`
-  table, keyed on (airport, checkpoint, datetime) — confirmed pre-existing, not
-  introduced by the migration (the Pi's copy has the exact same duplicates,
-  faithfully replicated via the seed copy/delta push). Earliest dupes found
-  dated 2026-06-06/06-09, so this has likely been accumulating since near
-  project start. Needs: (1) root-cause investigation (which scraper(s)/retry
-  logic double-write), (2) a dedup pass on both the desktop's `tsa_app.duckdb`
-  and the Pi's `tsa_app.duckdb` (now the live copy) — see
-  `project_pi_nas_migration` memory for current desktop/Pi cutover status
-  before assuming which copy is authoritative at cleanup time.
 
 ### Medium Priority — Post-Launch Fixes
 
