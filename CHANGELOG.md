@@ -5,6 +5,42 @@ FlyASAP — Airport Security Advance Planning
 
 ## 2026-08-15
 
+### Data Quality — BOS and LAS Checkpoint Hours Derived From Live Monitor Data, Monitors Retired
+- Neither airport has a published checkpoint-hours schedule anywhere (airport
+  site, TSA's schedule tool, CLEAR, general search) — that's why the
+  `tsa_app_bos_hours_monitor`/`tsa_app_las_hours_monitor` polling
+  infrastructure was built in the first place (see
+  `project_bos_scraper_research`/`project_las_scraper_completion`). Analyzed
+  26 days of BOS data (since 2026-07-20) and 24 days of LAS data (since
+  2026-07-22), 15-min-interval `is_open` polls, aggregated by hour-of-day and
+  cross-checked by day-of-week for consistency.
+- **LAS**: all 4 checkpoints, both general and PreCheck lanes, are 24-hour
+  operations — completely consistent across every day sampled, zero
+  ambiguity. Wrote `airport_checkpoint_hours` rows for all 4 (00:00→+1d
+  00:00).
+- **BOS**: 6 of 7 checkpoints had a clean, repeatable daily pattern (early
+  open, evening close) and got real hours rows, including Checkpoint 1 (real
+  lane is standard-only despite a "precheck" field existing in the
+  monitor data — Checkpoint 2 is the dedicated PreCheck-only checkpoint for
+  the same gate area) and Checkpoint 7 (nearly 24hr, with a genuine ~2hr
+  overnight closure ~01:30-04:30 consistent across all 7 days). **Checkpoint
+  6 (All E Gates) was deliberately left with no hours row** — its open/closed
+  pattern varies wildly by day of week with no repeatable schedule (e.g.
+  Friday spikes to 100% open 16:00-19:00, Wednesday stays near-0% almost all
+  day), which the schema's single open/close-pair-per-lane can't represent
+  without risking hiding real wait-time data behind a wrong guess (same
+  limitation already documented for IAH Terminal D).
+- All 10 rows written via a direct Quack `INSERT` to **both** the desktop and
+  Pi Quack servers (parallel-write, since it wasn't yet confirmed which one
+  is the sole production source), verified identical from an independent
+  connection on each host.
+- Teardown completed per the original plan: both scheduled tasks deleted by
+  the user via Task Scheduler GUI, `bos_hours_monitor` (29,332 rows) and
+  `las_hours_monitor` (17,598 rows) dropped on desktop (never existed on the
+  Pi), `02_Scripts/xx_bos_hours_monitor.R`/`xx_las_hours_monitor.R` deleted
+  from the repo, diagnostic/insert/teardown scripts archived under
+  `02_Scripts/archive/xx_20260815_bos_las_hours_*.R`.
+
 ### Fixed — `tsa_app_watchdog` Action Field Corruption (Blind Since 2026-08-13)
 - Fixed via GUI re-edit (Actions tab → Edit): Arguments had a bled-over
   duplicate `Files\R\R-4.5.1\bin\Rscript.exe ` prefix ahead of the real

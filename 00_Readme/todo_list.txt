@@ -24,13 +24,9 @@ Full cutover-to-Pi / desktop-to-backup-only migration status. See
    2026-08-15, task left disabled pending #2 — verified via raw XML
    (`<BootTrigger />`, `<LogonType>Password</LogonType>`,
    `<Enabled>false</Enabled>`, Command/Arguments unchanged/clean).
-4. Permanently retire `tsa_app_bos_hours_monitor` and
-   `tsa_app_las_hours_monitor` — needs elevated Task Scheduler access;
-   reconfirm the LAS decision deadline (2026-08-19, not yet passed) before
-   pulling that one.
-5. Once desktop is backup-only, decide its final footprint (likely just the
+4. Once desktop is backup-only, decide its final footprint (likely just the
    backup-pull task).
-6. Update `DEVELOPMENT.md` to reflect Pi-as-primary architecture once cutover
+5. Update `DEVELOPMENT.md` to reflect Pi-as-primary architecture once cutover
    is final (per CLAUDE.md, prompt for review before editing).
 
 **Separate, unrelated pre-existing tech debt (not part of cutover):** the
@@ -100,36 +96,8 @@ bigger decision, not urgent).
   finding. Revisit both the Terminal B early-open and the Terminal A gap using ~1
   month of fresh `tsa_wait_times` scraping data (by 2026-08-12)
 
-#### Data Quality — BOS Checkpoint Hours Need to Be Set From Live Monitor Data (by 2026-08-10)
-- 2026-07-20: No source (massport.com, CLEAR's page, TSA schedule tool, general web
-  search) gives concrete per-checkpoint open/close times for BOS — everything punts to
-  "checkpoints open ~2 hours before first departure, close after last scheduled
-  departure, check with your airline." Rather than guess, `tsa_app_bos_hours_monitor`
-  (Task Scheduler, every 15min offset :03/:18/:33/:48) polls Zensors' live `open` flag
-  per checkpoint/lane straight into a temporary `bos_hours_monitor` DuckDB table
-  (created via a direct Quack CREATE TABLE — Quack's remote ATTACH does support
-  CREATE TABLE/INSERT, it just doesn't show up in `duckdb_tables()` introspection).
-  Once ~2-4 weeks of data has accumulated, derive `airport_checkpoint_hours` rows for
-  all 7 BOS checkpoints from the open/closed distribution per checkpoint (same
-  approach as EWR Terminal B's 90-day NA-rate call), then **DROP TABLE
-  bos_hours_monitor**, delete `02_Scripts/xx_bos_hours_monitor.R`, and remove the
-  `tsa_app_bos_hours_monitor` scheduled task — none of this is meant to be permanent
-  infrastructure.
-
 #### Deployment
 - Add third chart for CLEAR lane wait times for airports that have CLEAR data (MIA; others TBD) — chart should only render when data exists for the selected airport/checkpoint combination
-
-#### Data Quality — LAS Checkpoint Hours Need to Be Set From Live Monitor Data (by 2026-08-19)
-- 2026-07-22: No source (harryreidairport.com, CLEAR's page, TSA schedule tool, general web
-  search) gives concrete per-checkpoint open/close times for LAS — same situation as BOS.
-  `tsa_app_las_hours_monitor` (Task Scheduler, every 15min offset :05/:20/:35/:50) polls
-  Zensors' live `open` flag per checkpoint/lane straight into a temporary `las_hours_monitor`
-  DuckDB table (created via a direct Quack CREATE TABLE). Once ~2-4 weeks of data has
-  accumulated, derive `airport_checkpoint_hours` rows for all 4 LAS checkpoints from the
-  open/closed distribution per checkpoint (same approach as BOS/EWR Terminal B), then
-  **DROP TABLE las_hours_monitor**, delete `02_Scripts/xx_las_hours_monitor.R`, and remove
-  the `tsa_app_las_hours_monitor` scheduled task — none of this is meant to be permanent
-  infrastructure.
 
 #### Data Quality — SLC Checkpoint Hours Need to Be Populated in the Database
 - 2026-07-22: SLC shipped 2026-07-22 with its single-airport-wide-reading judgment call
