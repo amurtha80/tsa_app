@@ -57,12 +57,20 @@ stale_threshold_minutes <- 20L   # 5-min cadence + retry pass; allow margin befo
 
 send_alert <- function(subject_suffix, detail_html) {
 
+  # Credential source differs by platform: desktop (Windows) has an
+  # interactive session available to store creds in R's keyring via
+  # blastula::create_smtp_creds_key() once; the Pi runs headless under
+  # systemd with no keystore, so it reads SMTP_PASSWORD from ~/.Renviron
+  # instead. Branch here rather than picking one, so this shared script
+  # works unmodified on both machines.
+  on_windows    <- Sys.info()[["sysname"]] == "Windows"
   smtp_user     <- Sys.getenv("SMTP_USER")
   alert_to      <- Sys.getenv("ALERT_EMAIL_TO")
   smtp_password <- Sys.getenv("SMTP_PASSWORD")
 
-  if (smtp_user == "" || alert_to == "" || smtp_password == "") {
-    cat("WARNING: email alert skipped — SMTP_USER, SMTP_PASSWORD, or ALERT_EMAIL_TO missing from .Renviron\n")
+  if (smtp_user == "" || alert_to == "" || (!on_windows && smtp_password == "")) {
+    cat("WARNING: email alert skipped — SMTP_USER, ALERT_EMAIL_TO",
+        if (!on_windows) ", or SMTP_PASSWORD", " missing from .Renviron\n", sep = "")
     return(invisible(NULL))
   }
 
@@ -85,11 +93,15 @@ send_alert <- function(subject_suffix, detail_html) {
       from        = smtp_user,
       to          = alert_to,
       subject     = glue("FlyASAP watchdog: {subject_suffix}"),
-      credentials = blastula::creds_envvar(
-        user         = smtp_user,
-        pass_envvar  = "SMTP_PASSWORD",
-        provider     = "gmail"
-      )
+      credentials = if (on_windows) {
+        blastula::creds_key(id = "gmail_creds")
+      } else {
+        blastula::creds_envvar(
+          user        = smtp_user,
+          pass_envvar = "SMTP_PASSWORD",
+          provider    = "gmail"
+        )
+      }
     )
 
     cat(glue("Alert email sent to {alert_to} at ", format(Sys.time(), "%a %b %d %X %Y")), "\n")

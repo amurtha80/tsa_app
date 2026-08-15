@@ -321,21 +321,26 @@ tryCatch({
   
   # Email Alert ----
   # Sends only when at least one check failed.
-  # Pi build: no Windows keystore / interactive session under systemd, so
-  # credentials come from ~/.Renviron via blastula::creds_envvar() instead of
-  # the desktop's creds_key() keystore lookup. Requires ~/.Renviron:
+  # Credential source differs by platform: desktop (Windows) has an
+  # interactive session available to store creds in R's keyring via
+  # blastula::create_smtp_creds_key() once; the Pi runs headless under
+  # systemd with no keystore, so it reads SMTP_PASSWORD from ~/.Renviron
+  # instead. Branch here rather than picking one, so this shared script
+  # works unmodified on both machines. Pi's ~/.Renviron also needs:
   #   SMTP_USER=your_gmail@gmail.com
   #   SMTP_PASSWORD=your_app_password   # Gmail App Password, not account password
   #   ALERT_EMAIL_TO=your_alert_destination@email.com
-  
+
   if (n_issues > 0) {
-    
+
+    on_windows    <- Sys.info()[["sysname"]] == "Windows"
     smtp_user     <- Sys.getenv("SMTP_USER")
     alert_to      <- Sys.getenv("ALERT_EMAIL_TO")
     smtp_password <- Sys.getenv("SMTP_PASSWORD")
 
-    if (smtp_user == "" || alert_to == "" || smtp_password == "") {
-      cat("WARNING: email alert skipped — SMTP_USER, SMTP_PASSWORD, or ALERT_EMAIL_TO missing from .Renviron\n")
+    if (smtp_user == "" || alert_to == "" || (!on_windows && smtp_password == "")) {
+      cat("WARNING: email alert skipped — SMTP_USER, ALERT_EMAIL_TO",
+          if (!on_windows) ", or SMTP_PASSWORD", " missing from .Renviron\n", sep = "")
     } else {
       
       tryCatch({
@@ -386,11 +391,15 @@ tryCatch({
           from        = smtp_user,
           to          = alert_to,
           subject     = glue("FlyASAP alert: {n_issues} scrape issue(s) on {yesterday}"),
-          credentials = blastula::creds_envvar(
-            user         = smtp_user,
-            pass_envvar  = "SMTP_PASSWORD",
-            provider     = "gmail"
-          )
+          credentials = if (on_windows) {
+            blastula::creds_key(id = "gmail_creds")
+          } else {
+            blastula::creds_envvar(
+              user        = smtp_user,
+              pass_envvar = "SMTP_PASSWORD",
+              provider    = "gmail"
+            )
+          }
         )
         
         cat(glue("Alert email sent to {alert_to} at ", format(Sys.time(), "%a %b %d %X %Y")), "\n")
