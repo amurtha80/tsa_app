@@ -5,6 +5,22 @@ FlyASAP — Airport Security Advance Planning
 
 ## 2026-08-15
 
+### Pi Cutover — Backup-Pull Script Reviewed, Confirmed Correct
+- Read `xx_backup_pull_from_pi.R` in full for the first time this round.
+  Confirmed it's a correct Pi→desktop delta pull (client to the Pi's Quack
+  server, watermarked `tsa_wait_times` sync, full-replace
+  `airport_checkpoint_hours` sync to sidestep NULL `entry_timestamp` rows) —
+  no code changes needed. Also confirms desktop's own `tsa_app_quack_server`
+  task will have no remaining consumer once desktop's scraper stops, since
+  this script never touches it.
+- Inspected the task's raw XML: Command/Arguments are clean (no corruption),
+  currently `LogonType InteractiveToken` + "At log on" trigger, Enabled.
+- While checking for Task Scheduler corruption risk before touching anything,
+  reconfirmed `tsa_app_watchdog`'s Action field is still corrupted (same
+  duplicated-path pattern first flagged 2026-08-13, `LastTaskResult
+  2147942667`/`0x8007010B`) — not fixed yet. Desktop's watchdog has been
+  silently blind since; Pi's own watchdog timer is healthy and unaffected.
+
 ### Pi Cutover — Enabled Remaining Timers, Fixed Merge-Introduced Production Regression
 - Enabled all 5 Pi systemd timers (`quack_server`, `scraper`, `watchdog`,
   `scraper_validate`, `nightly_summary_build`), all confirmed clean.
