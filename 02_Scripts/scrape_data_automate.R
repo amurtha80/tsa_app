@@ -1,4 +1,4 @@
-sink("C:/Users/james/Documents/R/tsa_app/runlog.txt", append = TRUE, type = "output")
+sink(here::here("runlog.txt"), append = TRUE, type = "output")
 
 # Package Management ----
 
