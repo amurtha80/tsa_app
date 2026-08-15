@@ -43,7 +43,7 @@ print("packages loaded")
  
 
 
-files <- list.files(path = "C:/Users/james/Documents/R/tsa_app/02_Scripts") |>
+files <- list.files(path = here::here("02_Scripts")) |>
   stringr::str_subset("_wait_times.R")
 
 ## Host-aware scraper filter -- SCRAPER_MODE unset/"all" runs every scraper
@@ -60,7 +60,7 @@ print("files object works")
 
 Sys.sleep(0.25)
 funcs <- tryCatch({
-  as.vector(purrr::map(here::here("C:/Users/james/Documents/R/tsa_app/02_Scripts", files), source))
+  as.vector(purrr::map(here::here("02_Scripts", files), source))
 }, error = function(e) {
   writeLines(paste("ERROR in funcs creation:", conditionMessage(e)), log_file, append = TRUE)
   writeLines(paste("Error occurred at:", Sys.time()), log_file, append = TRUE)
