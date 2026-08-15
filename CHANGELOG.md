@@ -51,6 +51,66 @@ FlyASAP — Airport Security Advance Planning
   retired `archive/*_scrape_v1.R` versions do), so both were pure overhead on
   every 5-minute cycle right before the chromote scrapers run.
 
+### Pi Scraper — Root-Caused the Widespread Silent Per-Cycle Gaps as the Same `quit()` Bug
+- After the fixes above, a full audit of all 21 non-LAX airports' scrape
+  history on the Pi found dozens of 20-210 minute gaps per airport, scattered
+  across the whole cutover window, almost none with a matching `ERROR in`/
+  `RETRY FAILED` runlog line. Confirmed this is the historical impact of the
+  now-fixed `quit()`-cascade bug rather than a new or Linux/Pi-specific issue:
+  per-airport kickoff rate across the full runlog history was ~30-40%, but
+  97-100% (38-40/39 cycles) in the stabilized post-fix window. Also confirmed
+  via a write/readback roundtrip test that duckdb's R driver writes a naive
+  `TIMESTAMP` column's absolute UTC instant regardless of the value's display
+  tzone — identical behavior on Windows and Linux — so an initial finding that
+  looked like a Pi-specific 4-hour timestamp anomaly was this same known,
+  already-handled convention (see `project_utc_timezone_storage_issue`), not a
+  bug.
+
+### Pi Scraper — Backfilled the 2026-08-13/14 Data Gap From the Desktop's Parallel Copy
+- The desktop's parallel-run copy for the same window was independently
+  confirmed clean (zero gaps >15 min across all 21 non-LAX airports, 287-288 of
+  a possible 288 cycles each over the trailing 24h) — it was not affected by
+  the `quit()` bug at any meaningful scale, so it was safe to use as the
+  backfill source instead of a full wipe-and-reseed.
+- Ran a dual-ATTACH anti-join (local `quack:localhost` for the desktop's own
+  DB, remote `quack:192.168.1.207` for the Pi's) matched on
+  `(airport, checkpoint, datetime)` for the window 2026-08-13 00:00 through
+  2026-08-14 21:00. Quack can't stream a cross-remote `INSERT...SELECT` in one
+  statement ("Multiple streaming scans... not currently supported") — worked
+  around by materializing the anti-join result into an R dataframe via
+  `dbGetQuery()`, then `dbAppendTable()`-ing it into the Pi.
+- **31,744 rows inserted** across all 21 affected airports (LAX excluded — no
+  data on either side, matches its known ongoing 403 outage). Verified from an
+  independent connection: row counts matched the pre-write count exactly, zero
+  duplicate `(airport, checkpoint, datetime)` groups introduced.
+- Diagnostic/backfill scripts archived at `02_Scripts/archive/xx_20260814_*.R`
+  for reference (gap-detection queries, tz roundtrip repro, anti-join count/
+  spot-check/insert/verify).
+
+### Nightly Summary Build — Fixed a `paws` Meta-Package renv Trap on the Pi
+- `xx_build_summary_DB.R`'s S3 push called `paws::s3()` (the bare `paws`
+  meta-package, which re-exports every AWS service's constructor). Loading its
+  namespace requires R to resolve *all* of `paws`'s `Imports:` — all ~14 AWS
+  service sub-packages — even though only S3 is ever used.
+- On the Pi, this silently triggered a from-source rebuild of all 14 packages
+  via renv on `tsa_app_nightly_summary_build`'s very first manual test run,
+  even though `paws.storage`/`paws.common` (all that's actually needed) were
+  already sitting in `/mnt/ssd/R/library` — renv's project-private library
+  just didn't know about them, since they were never installed *through* renv.
+  Matches the documented paws-meta-package trap from the Phase 0 spike
+  (`feedback_pi_prefer_prebuilt_packages`), just triggered by a different
+  script this time.
+- Fixed by switching to `paws.storage::s3()` (exports `s3()` directly, only
+  depends on `paws.common`) in both the desktop's committed copy and the Pi's
+  local copy. `renv::hydrate()` then linked `paws.storage` in from the
+  existing system library in 0.17 seconds — no compile needed.
+- `tsa_app_watchdog.service` and `tsa_app_scraper_validate.service` (drafted
+  earlier during the 2026-08-13 cutover but never enabled) were manually
+  tested clean on the Pi — validate even confirmed it can send a real email
+  from the Pi. `tsa_app_nightly_summary_build.service` confirmed clean after
+  the paws fix. None of the three timers are enabled yet — tracked in
+  `todo_list.txt`.
+
 ## 2026-08-13
 
 ### Quack Server — Task Scheduler Restart Outage Resolved
