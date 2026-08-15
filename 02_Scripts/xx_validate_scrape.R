@@ -1,4 +1,4 @@
-sink("C:/Users/james/Documents/R/tsa_app/runlog_validate.txt", append = TRUE, type = "output")
+sink(here::here("runlog_validate.txt"), append = TRUE, type = "output")
 cat(paste0("******-- xx_validate_scrape.R started at ", format(Sys.time(), "%a %b %d %X %Y"), " --******"), "\n")
 
 # xx_validate_scrape.R ----
@@ -321,25 +321,21 @@ tryCatch({
   
   # Email Alert ----
   # Sends only when at least one check failed.
-  # Prerequisites:
-  #   1. Run once interactively to store sending credentials in system keystore:
-  #        blastula::create_smtp_creds_key(
-  #          id       = "gmail_creds",
-  #          user     = "your_gmail@gmail.com",
-  #          provider = "gmail"
-  #        )
-  #      R will prompt for the 16-character App Password.
-  #   2. Ensure C:/Users/james/Documents/.Renviron contains:
-  #        SMTP_USER=your_gmail@gmail.com
-  #        ALERT_EMAIL_TO=your_alert_destination@email.com
+  # Pi build: no Windows keystore / interactive session under systemd, so
+  # credentials come from ~/.Renviron via blastula::creds_envvar() instead of
+  # the desktop's creds_key() keystore lookup. Requires ~/.Renviron:
+  #   SMTP_USER=your_gmail@gmail.com
+  #   SMTP_PASSWORD=your_app_password   # Gmail App Password, not account password
+  #   ALERT_EMAIL_TO=your_alert_destination@email.com
   
   if (n_issues > 0) {
     
-    smtp_user <- Sys.getenv("SMTP_USER")
-    alert_to  <- Sys.getenv("ALERT_EMAIL_TO")
-    
-    if (smtp_user == "" || alert_to == "") {
-      cat("WARNING: email alert skipped — SMTP_USER or ALERT_EMAIL_TO missing from .Renviron\n")
+    smtp_user     <- Sys.getenv("SMTP_USER")
+    alert_to      <- Sys.getenv("ALERT_EMAIL_TO")
+    smtp_password <- Sys.getenv("SMTP_PASSWORD")
+
+    if (smtp_user == "" || alert_to == "" || smtp_password == "") {
+      cat("WARNING: email alert skipped — SMTP_USER, SMTP_PASSWORD, or ALERT_EMAIL_TO missing from .Renviron\n")
     } else {
       
       tryCatch({
@@ -390,7 +386,11 @@ tryCatch({
           from        = smtp_user,
           to          = alert_to,
           subject     = glue("FlyASAP alert: {n_issues} scrape issue(s) on {yesterday}"),
-          credentials = blastula::creds_key(id = "gmail_creds")
+          credentials = blastula::creds_envvar(
+            user         = smtp_user,
+            pass_envvar  = "SMTP_PASSWORD",
+            provider     = "gmail"
+          )
         )
         
         cat(glue("Alert email sent to {alert_to} at ", format(Sys.time(), "%a %b %d %X %Y")), "\n")

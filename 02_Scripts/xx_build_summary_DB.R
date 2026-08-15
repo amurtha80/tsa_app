@@ -1,4 +1,4 @@
-sink(here::here("C:/Users/james/Documents/R/tsa_app/runlog_appdata_xfer.txt"), append = TRUE, type = "output")
+sink(here::here("runlog_appdata_xfer.txt"), append = TRUE, type = "output")
 
 # xx_build_summary_db.R ----
 # Overnight extraction script: reads tsa_app.duckdb, aggregates wait time data
@@ -37,8 +37,8 @@ print(glue("packages loaded at ", format(Sys.time(), "%a %b %d %X %Y")))
 
 # Paths ----
 
-path_summ    <- here::here("C:/Users/james/Documents/R/tsa_app/01_Data/tsa_app_summ.duckdb")
-path_parquet <- here::here("C:/Users/james/Documents/R/tsa_app/01_Data/tsa_app_summ.parquet")
+path_summ    <- here::here("01_Data", "tsa_app_summ.duckdb")
+path_parquet <- here::here("01_Data", "tsa_app_summ.parquet")
 
 
 # Connect ----
@@ -183,15 +183,24 @@ print(glue("{nrow(tsa_wait_time_summ)} rows written to tsa_app_summ.parquet at "
 # S3 Push ----
 # AWS credentials must be configured on this machine (IAM role, env vars,
 # or ~/.aws/credentials). paws picks them up automatically.
-# paws is installed here rather than via foo() above to avoid a known
+# paws.storage is installed here rather than via foo() above to avoid a known
 # conflict with glue 1.8.0 when loaded via require() at script startup.
+#
+# Use paws.storage::s3() directly rather than the bare paws meta-package --
+# paws re-exports every AWS service's constructor, so calling paws::s3()
+# forces R to resolve paws's full Imports: (all ~14 service sub-packages)
+# just to load the namespace, even though only S3 is ever used. This was
+# silently triggering multi-hour from-source builds of the unused service
+# packages on the Pi (see feedback_pi_prefer_prebuilt_packages / the paws
+# meta-package trap). paws.storage exports s3() itself and only depends on
+# paws.common.
 
-if (!requireNamespace("paws", quietly = TRUE)) {
-  install.packages("paws", repos = "https://cloud.r-project.org/")
+if (!requireNamespace("paws.storage", quietly = TRUE)) {
+  install.packages("paws.storage", repos = "https://cloud.r-project.org/")
 }
 
 tryCatch({
-  s3 <- paws::s3()
+  s3 <- paws.storage::s3()
   s3$put_object(
     Bucket = "flyasap-app-data",
     Key    = "tsa_app_summ.parquet",

@@ -24,7 +24,25 @@
 scrape_tsa_data_ewr <- function() {
   
   print(glue("kickoff EWR scrape ", format(Sys.time(), "%a %b %d %X %Y")))
-  
+
+  # Always tear down the default chromote object on exit, success or failure.
+  # See JFK_wait_times.R for why this must not only run at the bottom of the
+  # function -- safe_read_html_live()'s stop() skips that entirely, leaking a
+  # broken session into the next chromote airport script in this cycle.
+  on.exit({
+    tryCatch({
+      if (exists("page", inherits = FALSE) && !is.null(page)) {
+        try(page$session$close(), silent = TRUE)
+        try(page$session$parent$close(wait = 2), silent = TRUE)
+      }
+      if (chromote::has_default_chromote_object()) {
+        chromote::set_default_chromote_object(NULL)
+      }
+    }, error = function(e) {
+      message(Sys.time(), " | EWR teardown warning (non-fatal): ", e$message)
+    })
+  }, add = TRUE)
+
   # Define URL and initiate polite session
   url <- "https://www.newarkairport.com/"  # Update with the actual URL
   session <- polite::bow(url)
@@ -100,26 +118,12 @@ scrape_tsa_data_ewr <- function() {
   
   rm(results)
   rm(EWR_data, envir = .GlobalEnv)
-  
-  # June 2026 - New Tear-down Methodology to avoid Headless Chrome Temp files
-  # in Windows environment. This is due to changes in chromote between 2025 and
-  # 2026
-  tryCatch({
-    page$session$close()
-    page$session$parent$close(wait = 2)
-    if (chromote::has_default_chromote_object()) {
-      chromote::set_default_chromote_object(NULL)
-    }
-  }, error = function(e) {
-    message(Sys.time(), " | EWR teardown warning (non-fatal): ", e$message)
-  }, finally = {
-    rm(page)
-    rm(session)
-    rm(url)
-  })
-  
+
+  # Chromote teardown now handled by the on.exit() registered at the top of
+  # this function, so it runs on both success and failure paths.
+
   # gc()
-  
+
 }
 
 

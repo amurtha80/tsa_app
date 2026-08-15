@@ -1,4 +1,4 @@
-sink("C:/Users/james/Documents/R/tsa_app/runlog.txt", append = TRUE, type = "output")
+sink(here::here("runlog.txt"), append = TRUE, type = "output")
 
 # Package Management ----
 
@@ -19,7 +19,7 @@ foo <- function(x) {
 }
 
 ## Then install/load packages...
-foo(c('rvest', 'httr', 'httr2',  'RSelenium', 'jsonlite', 'duckdb', 'glue', 'DBI', 'netstat',
+foo(c('rvest', 'httr', 'httr2', 'jsonlite', 'duckdb', 'glue', 'DBI',
       'fs', 'chromote', 'here', 'polite', 'tidyverse'))
 
 # Sys.time()
@@ -38,7 +38,7 @@ print("packages loaded")
  
 
 
-files <- list.files(path = "C:/Users/james/Documents/R/tsa_app/02_Scripts") |>
+files <- list.files(path = here::here("02_Scripts")) |>
   stringr::str_subset("_wait_times.R")
 
 ## Host-aware scraper filter -- SCRAPER_MODE unset/"all" runs every scraper
@@ -55,7 +55,7 @@ print("files object works")
 
 Sys.sleep(0.25)
 funcs <- tryCatch({
-  as.vector(purrr::map(here::here("C:/Users/james/Documents/R/tsa_app/02_Scripts", files), source))
+  as.vector(purrr::map(here::here("02_Scripts", files), source))
 }, error = function(e) {
   writeLines(paste("ERROR in funcs creation:", conditionMessage(e)), log_file, append = TRUE)
   writeLines(paste("Error occurred at:", Sys.time()), log_file, append = TRUE)
@@ -124,8 +124,7 @@ safe_read_html_live <- function(url, wait = 2, exit_on_fail = TRUE) {
   if (is.null(page)) {
     message("Unable to read page after two attempts.")
     if (exit_on_fail) {
-      message("Exiting script safely.")
-      quit(save = "no", status = 0)
+      stop("Unable to read page after two attempts. Exiting function safely.")
     }
   }
   

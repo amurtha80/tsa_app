@@ -1,4 +1,4 @@
-sink("C:/Users/james/Documents/R/tsa_app/runlog_watchdog.txt", append = TRUE, type = "output")
+sink(here::here("runlog_watchdog.txt"), append = TRUE, type = "output")
 cat(paste0("******-- xx_watchdog_check.R started at ", format(Sys.time(), "%a %b %d %X %Y"), " --******"), "\n")
 
 # xx_watchdog_check.R ----
@@ -48,7 +48,7 @@ cat(glue("packages loaded at ", format(Sys.time(), "%a %b %d %X %Y")), "\n")
 
 # Config ----
 
-runlog_path             <- "C:/Users/james/Documents/R/tsa_app/runlog.txt"
+runlog_path             <- here::here("runlog.txt")
 stale_threshold_minutes <- 20L   # 5-min cadence + retry pass; allow margin before flagging
 
 
@@ -57,11 +57,12 @@ stale_threshold_minutes <- 20L   # 5-min cadence + retry pass; allow margin befo
 
 send_alert <- function(subject_suffix, detail_html) {
 
-  smtp_user <- Sys.getenv("SMTP_USER")
-  alert_to  <- Sys.getenv("ALERT_EMAIL_TO")
+  smtp_user     <- Sys.getenv("SMTP_USER")
+  alert_to      <- Sys.getenv("ALERT_EMAIL_TO")
+  smtp_password <- Sys.getenv("SMTP_PASSWORD")
 
-  if (smtp_user == "" || alert_to == "") {
-    cat("WARNING: email alert skipped — SMTP_USER or ALERT_EMAIL_TO missing from .Renviron\n")
+  if (smtp_user == "" || alert_to == "" || smtp_password == "") {
+    cat("WARNING: email alert skipped — SMTP_USER, SMTP_PASSWORD, or ALERT_EMAIL_TO missing from .Renviron\n")
     return(invisible(NULL))
   }
 
@@ -84,7 +85,11 @@ send_alert <- function(subject_suffix, detail_html) {
       from        = smtp_user,
       to          = alert_to,
       subject     = glue("FlyASAP watchdog: {subject_suffix}"),
-      credentials = blastula::creds_key(id = "gmail_creds")
+      credentials = blastula::creds_envvar(
+        user         = smtp_user,
+        pass_envvar  = "SMTP_PASSWORD",
+        provider     = "gmail"
+      )
     )
 
     cat(glue("Alert email sent to {alert_to} at ", format(Sys.time(), "%a %b %d %X %Y")), "\n")
