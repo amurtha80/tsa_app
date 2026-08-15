@@ -112,6 +112,64 @@ FlyASAP — Airport Security Advance Planning
   nightly summary build). Verified via manual run: 32 items deleted, 0
   failed.
 
+### Data Quality — JFK Terminal 1 PreCheck Double-Closure Fixed, LGA PreCheck Edge Cases Re-Verified
+- Rechecked the two 2026-07-12 recheck todos (JFK Terminal 1's 24hr PreCheck
+  judgment call, LGA's Terminal B early-open / Terminal A gap) against a full
+  month of fresh `tsa_wait_times` data. First analysis pass was wrong: raw
+  `datetime` is a genuine UTC instant (confirmed pre-existing finding, see
+  `project_utc_timezone_storage_issue`), and extracting hour directly from it
+  without converting to airport-local time shifted every reading by the
+  airport's UTC offset (4hrs for Eastern in August) — caught mid-session and
+  corrected via the same `force_tz(UTC) |> with_tz(timezone)` pattern already
+  used in `xx_build_summary_DB.R`.
+- **LGA Terminal B**: corrected data *confirms* the existing 03:00 PreCheck
+  open (flatline-zero wait 8pm-2am, real transition starting exactly 3am,
+  ramping to real traffic by 5-6am) — no change. **LGA Terminal A**: no fresh
+  data exists past 2026-05-04 (Spirit Airlines shutdown, `is_active=FALSE`
+  already set) — nothing to recheck, checkpoint is dormant.
+- **JFK Terminal 1**: corrected data shows a real, highly consistent
+  double-closure pattern — median `wait_time_pre_check` = 0 on 30-31 of 31
+  days (both weekday and weekend, same shape) at local hours 1-3am and 6-7am.
+  Calibrated against Terminal 8 (confirmed 4am-8pm hours), whose median
+  cleanly transitions exactly at its real open/close boundaries, confirming
+  the method works once the timezone bug is fixed. Pinned exact boundaries at
+  15-min-bucket resolution: two PreCheck windows, **08:00-01:00** (wraps) and
+  **03:30-06:00**, closed otherwise. General hours unchanged.
+- `airport_checkpoint_hours` only supported one open/close pair per
+  checkpoint per lane, so this also unblocks IAH Terminal D's known
+  split-shift gap (`project_windows_task_scheduler_gotchas`... see the
+  IAH Terminal D todo item) — added `window_seq INTEGER DEFAULT 1` and
+  `day_of_week VARCHAR` columns (additive `ALTER TABLE`, both desktop and Pi
+  copies, 123 rows unchanged on each, verified via `DESCRIBE`). The
+  append-only "latest row wins" convention is now "latest *batch* wins" —
+  multiple window rows sharing one `entry_timestamp` represent one
+  checkpoint's current (possibly multi-window, possibly day-of-week-varying)
+  hours.
+- Rewrote `xx_build_summary_DB.R`'s hours-gating: `hours_lookup` now keeps
+  every row in the latest batch instead of one row per checkpoint; each
+  lane's non-NA windows are nested into a per-checkpoint list-column; the
+  scalar `is_open()` was replaced with `is_open_lane(tod, weekday, windows)`
+  (`purrr::pmap_lgl` across the three lanes), TRUE if the window list is
+  empty (same "no known restriction" meaning as before) or any window whose
+  `day_of_week` is NA or matches the row's weekday contains `tod`.
+  **`app.R` needed zero changes** — it only ever consumed the pre-gated
+  `avg_time_std`/`avg_time_tsa_precheck`/`avg_time_clear`/`is_active`
+  columns from `tsa_wait_time_summ`, filtered by `weekday`/`bucket_time`,
+  both already in the exact vocabulary the new schema uses.
+- Regression-tested before going live: ran the original and rewritten logic
+  against the same data snapshot (via scratch copies, not the production
+  summary DB) — 75,194 rows, zero diffs across every checkpoint. Wrote JFK
+  Terminal 1's 2-row batch via the standard dual-write pattern (localhost +
+  Pi, before/after counts, independent-connection verify) — required
+  stopping and restarting the Quack server on both hosts first, since Quack's
+  ATTACH connection doesn't support `ALTER TABLE` (`Alter not implemented
+  yet` — new finding, same restriction class as the already-known UPDATE
+  block). Re-ran the live build afterward and confirmed JFK Terminal 1 now
+  correctly NAs out 01:15-03:15 and 06:15-07:45 and shows real values
+  everywhere else.
+- Insert script archived at
+  `02_Scripts/archive/xx_20260815_jfk_t1_hours_insert_EXECUTED.R`.
+
 ---
 
 ## 2026-08-14

@@ -29,7 +29,7 @@ foo <- function(x) {
 }
 
 foo(c("duckdb", "DBI", "here", "dplyr", "hms", "lubridate", "glue",
-      "nanoparquet"))
+      "nanoparquet", "purrr"))
 
 rm(foo)
 print(glue("packages loaded at ", format(Sys.time(), "%a %b %d %X %Y")))
@@ -65,18 +65,19 @@ print(glue("******-- Start summary build ", format(Sys.time(), "%a %b %d %X %Y")
 # open/close pair to a time-of-day plus a "wraps past midnight" flag (true
 # when close's date is one day after open's, e.g. DEN West 3:30 AM - 1:00 AM).
 # NULL open/close means "no known restriction" -- never filters that lane.
+#
+# Table is append-only: a correction writes an entire new *batch* of rows
+# (one row per open/close window, sharing one new entry_timestamp) rather
+# than updating in place -- a checkpoint needs 1..N window rows to represent
+# a plain single-window day, a same-day split shift (window_seq 1, 2, ...),
+# or a day-of-week-varying schedule (day_of_week set per row). Keep every
+# row in the latest batch per (airport, checkpoint), not just one.
 hours_lookup <- tbl(con_source, "airport_checkpoint_hours") |>
   collect() |>
   mutate(checkpoint = toupper(checkpoint)) |>
-  # Table is append-only (a correction adds a new dated row rather than
-  # updating in place), so take only the most recently entered row per
-  # checkpoint, ranked by entry_timestamp (real write-time, distinct from the
-  # schedule's own open/close columns -- those can't be used for ranking
-  # since same-day corrections would tie with the row they're replacing).
   group_by(airport, checkpoint) |>
-  slice_max(entry_timestamp, n = 1, with_ties = FALSE) |>
+  filter(entry_timestamp == max(entry_timestamp)) |>
   ungroup() |>
-  select(-entry_timestamp) |>
   mutate(
     open_gen_tod      = hms::as_hms(open_time_gen),
     close_gen_tod      = hms::as_hms(close_time_gen),
@@ -87,14 +88,58 @@ hours_lookup <- tbl(con_source, "airport_checkpoint_hours") |>
     open_clear_tod    = hms::as_hms(open_time_clear),
     close_clear_tod    = hms::as_hms(close_time_clear),
     wraps_clear        = as.Date(close_time_clear) > as.Date(open_time_clear)
-  ) |>
-  select(airport, checkpoint, is_active, starts_with("open_"), starts_with("close_"), starts_with("wraps_"))
+  )
 
-is_open <- function(tod, open_tod, close_tod, wraps) {
-  dplyr::case_when(
-    is.na(open_tod) | is.na(close_tod) ~ TRUE,
-    wraps                              ~ (tod >= open_tod | tod <= close_tod),
-    TRUE                                ~ (tod >= open_tod & tod <= close_tod)
+checkpoint_meta <- hours_lookup |>
+  group_by(airport, checkpoint) |>
+  summarise(is_active = dplyr::first(coalesce(is_active, TRUE)), .groups = "drop")
+
+# Nest each lane's window rows (dropping rows where that lane has no
+# open/close defined) into one list-column per checkpoint. An empty/NULL
+# list means "no known restriction" for that lane -- same meaning as the old
+# NULL-pair case, just resolved at the batch level instead of per-row, since
+# a checkpoint's other window rows may legitimately leave one lane NA (e.g.
+# a second PreCheck-only window doesn't also restate the general-lane pair).
+windows_gen <- hours_lookup |>
+  filter(!is.na(open_gen_tod), !is.na(close_gen_tod)) |>
+  select(airport, checkpoint, day_of_week,
+         open_tod = open_gen_tod, close_tod = close_gen_tod, wraps = wraps_gen) |>
+  group_by(airport, checkpoint) |>
+  summarise(windows_gen = list(pick(day_of_week, open_tod, close_tod, wraps)), .groups = "drop")
+
+windows_prechk <- hours_lookup |>
+  filter(!is.na(open_prechk_tod), !is.na(close_prechk_tod)) |>
+  select(airport, checkpoint, day_of_week,
+         open_tod = open_prechk_tod, close_tod = close_prechk_tod, wraps = wraps_prechk) |>
+  group_by(airport, checkpoint) |>
+  summarise(windows_prechk = list(pick(day_of_week, open_tod, close_tod, wraps)), .groups = "drop")
+
+windows_clear <- hours_lookup |>
+  filter(!is.na(open_clear_tod), !is.na(close_clear_tod)) |>
+  select(airport, checkpoint, day_of_week,
+         open_tod = open_clear_tod, close_tod = close_clear_tod, wraps = wraps_clear) |>
+  group_by(airport, checkpoint) |>
+  summarise(windows_clear = list(pick(day_of_week, open_tod, close_tod, wraps)), .groups = "drop")
+
+hours_checkpoint <- checkpoint_meta |>
+  left_join(windows_gen,    by = c("airport", "checkpoint")) |>
+  left_join(windows_prechk, by = c("airport", "checkpoint")) |>
+  left_join(windows_clear,  by = c("airport", "checkpoint"))
+
+# Multi-window, day-of-week-aware hours gate. `windows` is a tibble of
+# (day_of_week, open_tod, close_tod, wraps) rows for one (airport,
+# checkpoint, lane) batch, or NULL when that lane has no defined
+# restriction. TRUE if `windows` is NULL/empty, or any window whose
+# day_of_week is NA (applies every day) or matches `wd` contains `tod`.
+is_open_lane <- function(tod, wd, windows) {
+  if (is.null(windows) || nrow(windows) == 0) return(TRUE)
+  any(
+    (is.na(windows$day_of_week) | windows$day_of_week == wd) &
+      dplyr::if_else(
+        windows$wraps,
+        tod >= windows$open_tod | tod <= windows$close_tod,
+        tod >= windows$open_tod & tod <= windows$close_tod
+      )
   )
 }
 
@@ -111,26 +156,27 @@ tsa_wait_time_summ <- tbl(con_source, "tsa_wait_times") |>
   mutate(time_local = lubridate::with_tz(time, tzone = dplyr::first(timezone))) |>
   ungroup() |>
   mutate(checkpoint = toupper(checkpoint)) |>
-  left_join(hours_lookup, by = c("airport", "checkpoint")) |>
+  left_join(hours_checkpoint, by = c("airport", "checkpoint")) |>
   mutate(
     time_of_day = hms::as_hms(time_local),
+    weekday     = lubridate::wday(time_local, label = TRUE, abbr = TRUE),
+    weekday_chr = as.character(weekday),
     # is_active FALSE means the checkpoint itself is out of service for an
     # indefinite/unknown duration (e.g. an airline shutdown vacating a
     # terminal), not just closed for the day -- overrides the hours-of-day
-    # check entirely rather than participating in is_open().
+    # check entirely rather than participating in is_open_lane().
     wait_time           = if_else(coalesce(is_active, TRUE) &
-                                     is_open(time_of_day, open_gen_tod, close_gen_tod, wraps_gen),
+                                     purrr::pmap_lgl(list(time_of_day, weekday_chr, windows_gen), is_open_lane),
                                    wait_time, NA_real_),
     wait_time_pre_check = if_else(coalesce(is_active, TRUE) &
-                                     is_open(time_of_day, open_prechk_tod, close_prechk_tod, wraps_prechk),
+                                     purrr::pmap_lgl(list(time_of_day, weekday_chr, windows_prechk), is_open_lane),
                                    wait_time_pre_check, NA_real_),
     wait_time_clear     = if_else(coalesce(is_active, TRUE) &
-                                     is_open(time_of_day, open_clear_tod, close_clear_tod, wraps_clear),
+                                     purrr::pmap_lgl(list(time_of_day, weekday_chr, windows_clear), is_open_lane),
                                    wait_time_clear, NA_real_)
   ) |>
   mutate(
-    bucket_time = hms::as_hms(lubridate::ceiling_date(time_local, "15 mins")),
-    weekday     = lubridate::wday(time_local, label = TRUE, abbr = TRUE)
+    bucket_time = hms::as_hms(lubridate::ceiling_date(time_local, "15 mins"))
   ) |>
   group_by(airport, checkpoint, weekday, bucket_time) |>
   summarize(

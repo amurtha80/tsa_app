@@ -63,38 +63,22 @@ bigger decision, not urgent).
   `project_pi_nas_migration` memory for current desktop/Pi cutover status
   before assuming which copy is authoritative at cleanup time.
 
-#### Data Quality — IAH Terminal D Split-Shift Hours Not Representable in Schema
+#### Data Quality — IAH Terminal D Split-Shift Hours Not Yet Written (schema now supports it)
 - 2026-07-14: IAH's own page shows Terminal D running a split shift 4 of 7 days
   (e.g. 7:00a-11:30a + 4:30p-8:00p Sun/Mon/Wed/Fri; continuous 7:00a-8:00p
   Tue/Thu/Sat) — see the "IAH Terminal D TSA checkpoint hours" section of
-  `fly2houston.com/iah/security/`. `airport_checkpoint_hours` only stores one
-  open/close pair per checkpoint with no day-of-week dimension, so it can't model
-  the midday gap. `close_time_gen` was corrected to the outer bound (22:30, from
-  20:00) as part of the JSON scraper migration to fix a real evening-data-loss bug,
-  but this doesn't and can't fix the midday gap — the live `isOpen`/`isDisplayable`
-  flags from the new JSON API are what actually protect against that now. Revisit
-  if the schema ever needs day-of-week-aware hours (not just IAH D).
+  `fly2houston.com/iah/security/`. `close_time_gen` was corrected to the outer bound
+  (22:30, from 20:00) as part of the JSON scraper migration to fix a real
+  evening-data-loss bug, but that doesn't fix the midday gap — the live
+  `isOpen`/`isDisplayable` flags from the JSON API are what protect against that today.
+- 2026-08-15: `airport_checkpoint_hours` gained `window_seq`/`day_of_week` columns and
+  `xx_build_summary_DB.R`'s hours-gating was rewritten to support multi-window,
+  day-of-week-varying schedules (built to fix JFK Terminal 1's double-closure pattern,
+  general-purpose by design — see CHANGELOG 2026-08-15). The schema blocker described
+  above is resolved; IAH Terminal D's actual day-of-week window rows still need to be
+  derived and written (same harvest-checkpoint-names-then-write pattern as SLC/DTW).
 
 ### Medium Priority — Post-Launch Fixes
-
-#### Data Quality — JFK Terminal 1 24-Hour PreCheck Assumption Needs Recheck (by 2026-08-12)
-- 2026-07-12: TSA's schedule tool shows JFK Terminal 1 PreCheck closing twice overnight
-  (1-4am, 6-8am), but the checkpoint's own general hours (04:00-23:00, from
-  `04_Assets/tsa_checkpoint_hours.html`) don't cover the tool's claimed open windows in
-  that gap either — an unresolved conflict. Set to 24hr PreCheck as a judgment call
-  (terminals generally don't cycle open/closed multiple times a day) rather than
-  trusting either source outright. Revisit using ~1 month of fresh `tsa_wait_times`
-  scraping data (by 2026-08-12) to make a final decision — a same-length lookback done
-  2026-07-12 was inconclusive (see CHANGELOG 2026-07-12 (6) for why)
-
-#### Data Quality — LGA PreCheck Edge Cases Need Recheck (by 2026-08-12)
-- 2026-07-12: LGA PreCheck hours set to a 4am-8pm default across all 3 terminals per
-  project convention, except Terminal B, which TSA's schedule tool showed opening at
-  3am instead of 4am. Terminal A never showed a dedicated PreCheck listing anywhere in
-  the tool's full 24-hour sweep (despite having general hours) — PreCheck/CLEAR hours
-  for Terminal A were set to the 4am-8pm default as a judgment call, not a verified
-  finding. Revisit both the Terminal B early-open and the Terminal A gap using ~1
-  month of fresh `tsa_wait_times` scraping data (by 2026-08-12)
 
 #### Deployment
 - Add third chart for CLEAR lane wait times for airports that have CLEAR data (MIA; others TBD) — chart should only render when data exists for the selected airport/checkpoint combination
