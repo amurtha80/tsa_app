@@ -5,6 +5,27 @@ FlyASAP — Airport Security Advance Planning
 
 ## 2026-08-15
 
+### Data Quality — IAH Terminal D Split-Shift Hours Written (Multi-Window Schema)
+- Wrote 11 `airport_checkpoint_hours` rows for `IAH Terminal D` General lane
+  using the `window_seq`/`day_of_week` schema added earlier today for JFK
+  Terminal 1 (see below): Sun/Mon/Wed/Fri get two windows each (07:00-11:30
+  and 16:30-20:00), Tue/Thu/Sat get one continuous window (07:00-20:00) —
+  matching fly2houston.com/iah/security/'s posted "IAH Terminal D TSA
+  checkpoint hours" section, unchanged since first found 2026-07-14.
+- Data-first check confirmed it: a 42-day `tsa_wait_times` profile, once
+  correctly converted from the raw UTC `time` column to America/Chicago local
+  time (an initial pass using the raw `datetime` column was off by IAH's 5hr
+  UTC offset and wrongly looked continuous 24/7), showed hours with literal
+  zero variance (always exactly the 5-min floor reading) lining up almost
+  exactly with the posted closed windows, vs. real spread during posted-open
+  hours — including the half-hour opening/closing transitions inside hours 11
+  and 16. No PreCheck lane exists at Terminal D (100% NA the whole window),
+  left NA on every row. Replaces the single continuous 07:00-22:30 placeholder
+  row from the 2026-07-14 JSON migration (an outer-bound-only fix for an
+  evening data-loss bug, never a real fix for the midday gap). Written to
+  both desktop and Pi Quack servers, verified from an independent connection
+  on each. Closes the `todo_list.txt` "IAH Terminal D Split-Shift Hours" item.
+
 ### Data Quality — BOS and LAS Checkpoint Hours Derived From Live Monitor Data, Monitors Retired
 - Neither airport has a published checkpoint-hours schedule anywhere (airport
   site, TSA's schedule tool, CLEAR, general search) — that's why the

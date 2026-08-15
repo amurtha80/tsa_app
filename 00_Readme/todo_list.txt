@@ -63,21 +63,6 @@ bigger decision, not urgent).
   `project_pi_nas_migration` memory for current desktop/Pi cutover status
   before assuming which copy is authoritative at cleanup time.
 
-#### Data Quality — IAH Terminal D Split-Shift Hours Not Yet Written (schema now supports it)
-- 2026-07-14: IAH's own page shows Terminal D running a split shift 4 of 7 days
-  (e.g. 7:00a-11:30a + 4:30p-8:00p Sun/Mon/Wed/Fri; continuous 7:00a-8:00p
-  Tue/Thu/Sat) — see the "IAH Terminal D TSA checkpoint hours" section of
-  `fly2houston.com/iah/security/`. `close_time_gen` was corrected to the outer bound
-  (22:30, from 20:00) as part of the JSON scraper migration to fix a real
-  evening-data-loss bug, but that doesn't fix the midday gap — the live
-  `isOpen`/`isDisplayable` flags from the JSON API are what protect against that today.
-- 2026-08-15: `airport_checkpoint_hours` gained `window_seq`/`day_of_week` columns and
-  `xx_build_summary_DB.R`'s hours-gating was rewritten to support multi-window,
-  day-of-week-varying schedules (built to fix JFK Terminal 1's double-closure pattern,
-  general-purpose by design — see CHANGELOG 2026-08-15). The schema blocker described
-  above is resolved; IAH Terminal D's actual day-of-week window rows still need to be
-  derived and written (same harvest-checkpoint-names-then-write pattern as SLC/DTW).
-
 ### Medium Priority — Post-Launch Fixes
 
 #### Deployment
