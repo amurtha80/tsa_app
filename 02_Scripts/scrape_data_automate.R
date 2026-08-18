@@ -51,9 +51,18 @@ files <- list.files(path = here::here("02_Scripts")) |>
 ## sets chromote_only. See project_pi_nas_migration.
 CHROMOTE_SCRAPERS <- c("ATL_wait_times.R", "EWR_wait_times.R",
                        "JFK_wait_times.R", "LGA_wait_times.R")
+## chromote_batch_wait_times.R scrapes the same 4 airports as
+## CHROMOTE_SCRAPERS above, one shared browser instead of 4 separate
+## launches (built to fix a ~0.4% Pi success rate -- see
+## project_chromote_batch_scraper_design memory). It must never run
+## alongside the legacy 4 on the same host, or those airports get scraped
+## twice per cycle.
+BATCH_CHROMOTE_SCRAPER <- "chromote_batch_wait_times.R"
 scraper_mode <- Sys.getenv("SCRAPER_MODE", "all")
-if (scraper_mode == "non_chromote") files <- setdiff(files, CHROMOTE_SCRAPERS)
+if (scraper_mode == "all")           files <- setdiff(files, BATCH_CHROMOTE_SCRAPER)
+if (scraper_mode == "non_chromote")  files <- setdiff(files, c(CHROMOTE_SCRAPERS, BATCH_CHROMOTE_SCRAPER))
 if (scraper_mode == "chromote_only") files <- intersect(files, CHROMOTE_SCRAPERS)
+if (scraper_mode == "chromote_batch") files <- setdiff(files, CHROMOTE_SCRAPERS)
 
 print("files object works")
 
