@@ -5,6 +5,33 @@ FlyASAP — Airport Security Advance Planning
 
 ## 2026-08-18
 
+### Data Quality — DTW Checkpoint Hours Populated (Desktop + Pi)
+- Added 7 `airport_checkpoint_hours` rows (one window per day-of-week) for
+  DTW's McNamara checkpoint, closing the backstop-hours gap left when the
+  scraper shipped 2026-07-22. Evans left with no rows (24/7 unrestricted
+  default) — see below.
+- Data-first diagnosis (27 days of live `tsa_wait_times`, UTC `time`
+  converted to `America/Detroit` — DTW is Eastern, not Central) directly
+  contradicted the posted metroairport.com text. The site claims McNamara
+  has "at least one checkpoint open 24/7" and Evans "closes daily from
+  10:45pm until 2:45am." Live data showed the opposite: McNamara had a
+  clean, repeatable 80–100% exact-zero-reading window every single night
+  (≥75% zero-rate threshold, ~22:00–04:00, Wed/Sat ~21:00–04:00), while
+  Evans's zero-readings were sparse and inconsistent (1–3hr, varying day to
+  day, never exceeding ~95% zero-rate) — judged as ordinary low-traffic
+  quiet periods (a handful of walk-ups reading `wait_time=0`) rather than a
+  real closure, per user's read of the data.
+- McNamara windows use the SLC-style floor/ceil 30-min buffer (open 03:30,
+  close 22:30 most days; close 21:30 Wed/Sat) and mirror General into
+  PreCheck, since DTW's scraper duplicates one shared reading into both
+  fields (no distinct PreCheck signal, same convention as SLC/MCO/SFO). No
+  CLEAR lane. Evans intentionally received zero rows rather than an explicit
+  24/7 row, relying on the existing "no rows = unrestricted" schema default.
+- Written via the JFK T1/IAH Terminal D/SLC multi-window schema
+  (`window_seq`/`day_of_week`) to both desktop (localhost) and the Pi
+  (192.168.1.207, live authoritative Quack server) in one batch, verified
+  from an independent connection on both hosts.
+
 ### Data Quality — SLC Checkpoint Hours Populated (Desktop + Pi)
 - Added 14 `airport_checkpoint_hours` rows (Checkpoint 1 + Checkpoint 2, one
   window per day-of-week each) for SLC, closing the backstop-hours gap left

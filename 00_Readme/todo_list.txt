@@ -54,13 +54,6 @@ both machines, bigger decision, not urgent).
 #### Deployment
 - Add third chart for CLEAR lane wait times for airports that have CLEAR data (MIA; others TBD) — chart should only render when data exists for the selected airport/checkpoint combination
 
-#### Data Quality — DTW Checkpoint Hours Need to Be Populated in the Database
-- 2026-07-22: DTW scraper (`DTW_wait_times.R`) shipped with no live open/closed signal
-  in its payload and no `airport_checkpoint_hours` backstop rows. Once live for long
-  enough, harvest the exact checkpoint name strings it writes (`Evans` / `McNamara`)
-  and set hours from metroairport.com's own posted hours — same deferred pattern used
-  for BOS's hours-monitor approach.
-
 ### New Airports (Lower Priority — Post MVP)
 - **BWI** - `bwiairport.com/`; https://bwiairport.com/wp-content/themes/bwitheme/ajaxcall.php?action=get_waitTimes_data
 - **CVG** - `cvgairport.com` Zensors
@@ -74,16 +67,24 @@ both machines, bigger decision, not urgent).
   uses the legacy `httr` package (confirmed via project-wide grep). Low priority —
   refactor to `httr2` for consistency once other higher-priority work is clear.
 
-#### Data Source — Investigate TSA's Own Android/Mobile Wait-Times App as a Backup Feed
-- TSA's own Android app publishes checkpoint wait time data on its site, discovered while
-  researching LAX (2026-07-11) — worth scoping as a fallback data source for airports where
-  the airport's own site only has partial coverage (e.g. LAX only publishing TBIT)
-- Granularity/quality looked worse than what individual airport sites (or this app) already
-  provide, so this is a backup source, not a primary one — don't replace any existing scraper
-  with it, just evaluate whether it's usable as a fallback when an airport site has gaps
-- Scoping first: confirm what data/endpoint backs it, what airports/checkpoints it covers,
-  and whether it's scrapable before committing to build anything against it
-  
+#### Fallback Historical-Average Data for No-Coverage Airports (ORD, TPA, LAX-if-still-down)
+- 2026-08-15: Scoped the "MyTSA app as backup feed" idea (superseded, this replaces that
+  todo item). Old public API confirmed dead via curl (302s to tsa.gov homepage). No
+  third-party site actually scrapes the app for LAX/ORD — they show a disclaimed historical
+  hourly pattern instead, since neither airport has a live feed at all. User pulled up the
+  real app and confirmed it has the same: an "Estimated Wait Time" gauge (range, airport-wide,
+  + FAA Delay + PreCheck lane status) and a day-of-week/hour-of-day historical bar chart.
+  Decision: a disclaimed historical-average fallback is wanted for ORD (no scraper exists)
+  and TPA (same), and as a temporary stopgap for LAX while `flylax.com/wait-times` stays
+  403 (see the LAX outage item above).
+- Next step: mitmproxy capture of the app's real traffic (user-executed) to find the actual
+  endpoint(s) behind the gauge and the historical chart — full step-by-step plan, including
+  new-table design (`airport_fallback_hourly_avg`, not `tsa_wait_times`) and the new
+  UI disclaimer-tier work, is written up in
+  `C:\Users\james\.claude\plans\want-you-to-do-silly-waterfall.md`.
+- Related to the "No-Coverage Airport Banner — ORD, TPA" item below — that item's
+  `airport_choices`/`summ_data` decoupling is a prerequisite for this.
+
 #### No-Coverage Airport Banner — ORD, TPA, and Future "No Live Data" Airports (Low Priority)
 - 2026-07-16: LAX's `airport_coverage_notes` banner (see CHANGELOG 2026-07-16 "App —
   LAX Partial-Coverage UI Banner") currently handles *partial* coverage (an airport has
