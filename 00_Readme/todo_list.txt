@@ -54,12 +54,6 @@ both machines, bigger decision, not urgent).
 #### Deployment
 - Add third chart for CLEAR lane wait times for airports that have CLEAR data (MIA; others TBD) — chart should only render when data exists for the selected airport/checkpoint combination
 
-#### Data Quality — SLC Checkpoint Hours Need to Be Populated in the Database
-- 2026-07-22: SLC shipped 2026-07-22 with its single-airport-wide-reading judgment call
-  (see `SLC_wait_times.R`) but no `airport_checkpoint_hours` backstop rows were ever
-  added. Needs the same "harvest `SELECT DISTINCT checkpoint` from live data,
-  cross-reference the airport's own hours page" treatment already applied to PHL/MCO/etc.
-
 #### Data Quality — DTW Checkpoint Hours Need to Be Populated in the Database
 - 2026-07-22: DTW scraper (`DTW_wait_times.R`) shipped with no live open/closed signal
   in its payload and no `airport_checkpoint_hours` backstop rows. Once live for long

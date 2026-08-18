@@ -3,6 +3,31 @@ FlyASAP — Airport Security Advance Planning
 
 ---
 
+## 2026-08-18
+
+### Data Quality — SLC Checkpoint Hours Populated (Desktop + Pi)
+- Added 14 `airport_checkpoint_hours` rows (Checkpoint 1 + Checkpoint 2, one
+  window per day-of-week each) for SLC, closing the backstop-hours gap left
+  when the scraper shipped 2026-07-22.
+- Data-first diagnosis (27 days of live `tsa_wait_times`, UTC `time` column
+  converted to `America/Denver`) showed both checkpoints consistently
+  closing ~20:00–22:00 nightly (Checkpoint 2 later on Mondays, ~23:00) —
+  this doesn't match the posted TSA text (Checkpoint 1 "3:30am–1am",
+  Checkpoint 2 "6am–5pm") on either open or close, for 27 straight days.
+  User reviewed a derived per-day-of-week open/close table side-by-side with
+  the posted hours and chose to trust the live data over the stale-looking
+  posted text.
+- Hours values are the per-day-of-week median open/close from the live data,
+  rounded per user's instruction: open floored down to the prior 30-min
+  mark, close ceiled up to the next 30-min mark (buffer margin). General and
+  PreCheck windows are identical, since SLC's scraper duplicates one
+  shared airport-wide reading into both fields (no distinct PreCheck
+  signal) — same convention as MCO/SFO. No CLEAR lane at SLC.
+- Written via the JFK T1/IAH Terminal D multi-window schema
+  (`window_seq`/`day_of_week`), to both desktop (localhost) and the Pi
+  (192.168.1.207, live authoritative Quack server) in one batch, verified
+  from an independent connection on both hosts.
+
 ## 2026-08-15
 
 ### Data Quality — `tsa_wait_times` Duplicate Rows Deduped (Desktop + Pi)
