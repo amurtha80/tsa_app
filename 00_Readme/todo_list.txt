@@ -62,11 +62,6 @@ both machines, bigger decision, not urgent).
 
 ### Longer Term Updates | Fixes | Enhancements
 
-#### Refactor Remaining `httr`-Based Scraper to `httr2`
-- 2026-07-22: All current scrapers use `httr2` except `DEN_wait_times.R`, which still
-  uses the legacy `httr` package (confirmed via project-wide grep). Low priority —
-  refactor to `httr2` for consistency once other higher-priority work is clear.
-
 #### Fallback Historical-Average Data for No-Coverage Airports (ORD, TPA, LAX-if-still-down)
 - 2026-08-15: Scoped the "MyTSA app as backup feed" idea (superseded, this replaces that
   todo item). Old public API confirmed dead via curl (302s to tsa.gov homepage). No

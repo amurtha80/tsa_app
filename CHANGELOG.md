@@ -5,6 +5,18 @@ FlyASAP — Airport Security Advance Planning
 
 ## 2026-08-18
 
+### Scraper — DEN Refactored from `httr` to `httr2`
+- `DEN_wait_times.R` was the last live scraper on the legacy `httr` package
+  (`GET`/`add_headers`/`content`+`fromJSON`); converted to `httr2`
+  (`request`/`req_headers`/`req_perform`/`resp_body_json`), matching the
+  convention used by all other 21 `*_wait_times.R` scrapers (e.g. DCA).
+- Verified in scratchpad that `resp_body_json(simplifyVector = TRUE)`
+  reproduces the same nested data-frame structure `fromJSON` produced, and
+  that the existing `upper_bound()` range-parsing logic yields identical
+  output against a live API pull. `dbAppendTable` write path/table/columns
+  unchanged — no DB schema or write-logic risk in this change.
+- Dropped the now-unused `jsonlite` library from the file's header comment.
+
 ### Data Quality — DTW Checkpoint Hours Populated (Desktop + Pi)
 - Added 7 `airport_checkpoint_hours` rows (one window per day-of-week) for
   DTW's McNamara checkpoint, closing the backstop-hours gap left when the

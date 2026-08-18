@@ -1,8 +1,7 @@
-# install.packages(c("DBI", "httr", "jsonlite", "tidyverse", "duckdb",
+# install.packages(c("DBI", "httr2", "tidyverse", "duckdb",
 #  "lubridate", "glue", "here"))
 
-# library(httr, verbose = FALSE, warn.conflicts = FALSE)
-# library(jsonlite, verbose = FALSE, warn.conflicts = FALSE)
+# library(httr2, verbose = FALSE, warn.conflicts = FALSE)
 # library(duckdb, verbose = FALSE, warn.conflicts = FALSE)
 # library(lubridate, verbose = FALSE, warn.conflicts = FALSE)
 # library(glue, verbose = FALSE, warn.conflicts = FALSE)
@@ -29,17 +28,17 @@ scrape_tsa_data_den <- function() {
   ua      <- "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"
   api_key <- "vqw8ruvwqpv02pqu938bh5p028"
   
-  response <- GET(
-    api_url,
-    add_headers(
-      `User-Agent`  = ua,
-      `Referer`     = "https://www.flydenver.com/security/",
-      `Origin`      = "https://www.flydenver.com",
+  req <- request(api_url) |>
+    req_headers(
+      `user-agent`  = ua,
+      `referer`     = "https://www.flydenver.com/security/",
+      `origin`      = "https://www.flydenver.com",
       `x-api-key`   = api_key
     )
-  )
-  
-  raw <- fromJSON(content(response, "text", encoding = "UTF-8"), flatten = FALSE)
+
+  response <- req_perform(req)
+
+  raw <- resp_body_json(response, simplifyVector = TRUE)
   
   
   # Parse checkpoints ----
@@ -101,6 +100,7 @@ scrape_tsa_data_den <- function() {
   rm(api_url)
   rm(ua)
   rm(api_key)
+  rm(req)
   rm(response)
   rm(raw)
   rm(upper_bound)
