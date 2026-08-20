@@ -5,20 +5,25 @@ FlyASAP — Airport Security Advance Planning
 
 ## 2026-08-20
 
-### Housekeeping — `renv.lock` duckdb Version Reconciled with Pi
+### Housekeeping — `renv.lock` Fully Reconciled with Pi (Closes Post-Cutover Tech Debt Item)
 - Spot-checked `renv.lock` against the Pi (production host) for `duckdb` and
   `paws.analytics`/`paws.storage`. Found `duckdb` installed on Pi at `1.5.5`
   vs `1.5.4.2` recorded in `renv.lock`; updated the lockfile via
   `renv::record("duckdb@1.5.5")` to match Pi as ground truth.
 - Confirmed `paws.storage` (the package actually used, in
-  `xx_build_summary_DB.R` for the S3 parquet push) is aligned at `0.10.0` on
-  both Pi and in `renv.lock`.
-- Confirmed `paws.analytics` (`0.10.0` in `renv.lock`) is unused anywhere in
-  the codebase and not installed on Pi — a stale leftover entry. Left in
-  `renv.lock` as-is (not removed) per decision this session.
-- This was a targeted spot-fix, not a full reconciliation — the broader
-  `renv.lock`-vs-Pi drift (~48 package mismatches, R 4.5.1 vs 4.6.1) noted in
-  the existing todo item is still outstanding.
+  `xx_build_summary_DB.R` for the S3 parquet push) was already aligned at
+  `0.10.0` on both Pi and in `renv.lock`.
+- Followed up with a full `renv::snapshot()` pass run directly on the Pi
+  against its live library, resolving the complete ~48-package drift noted
+  in the post-cutover tech debt todo item: R version bumped `4.5.1 -> 4.6.1`
+  to match installed, ~47 CRAN packages bumped to their installed versions
+  (DBI, dbplyr, fs, ggplot2, httr, lubridate, Rcpp, readr, tibble, xml2,
+  etc.), and the 12 unused `paws.*` sub-packages (`paws`, `paws.analytics`,
+  `paws.compute`, `paws.database`, etc. — none installed, none referenced in
+  code) dropped from the lockfile entirely. `renv::status()` on Pi now
+  reports "No issues found."
+- Committed directly from Pi (`/mnt/ssd/tsa_app`) and pulled back to
+  desktop/GitHub same session. Todo item removed — fully resolved.
 
 ### Infrastructure — Pi Cutover Finalized, Desktop Decommissioned to Backup-Only
 - Desktop's `tsa_app_scraper` stopped and disabled — the parallel-run
