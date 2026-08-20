@@ -5,6 +5,21 @@ FlyASAP — Airport Security Advance Planning
 
 ## 2026-08-20
 
+### Housekeeping — `renv.lock` duckdb Version Reconciled with Pi
+- Spot-checked `renv.lock` against the Pi (production host) for `duckdb` and
+  `paws.analytics`/`paws.storage`. Found `duckdb` installed on Pi at `1.5.5`
+  vs `1.5.4.2` recorded in `renv.lock`; updated the lockfile via
+  `renv::record("duckdb@1.5.5")` to match Pi as ground truth.
+- Confirmed `paws.storage` (the package actually used, in
+  `xx_build_summary_DB.R` for the S3 parquet push) is aligned at `0.10.0` on
+  both Pi and in `renv.lock`.
+- Confirmed `paws.analytics` (`0.10.0` in `renv.lock`) is unused anywhere in
+  the codebase and not installed on Pi — a stale leftover entry. Left in
+  `renv.lock` as-is (not removed) per decision this session.
+- This was a targeted spot-fix, not a full reconciliation — the broader
+  `renv.lock`-vs-Pi drift (~48 package mismatches, R 4.5.1 vs 4.6.1) noted in
+  the existing todo item is still outstanding.
+
 ### Infrastructure — Pi Cutover Finalized, Desktop Decommissioned to Backup-Only
 - Desktop's `tsa_app_scraper` stopped and disabled — the parallel-run
   comparison window (open since 2026-08-13) is closed. Chromote reliability

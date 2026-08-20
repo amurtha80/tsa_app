@@ -11,7 +11,10 @@ RShiny Mobile App TSA Historical Wait Times
 **Separate, unrelated pre-existing tech debt (not part of cutover):**
 `renv.lock` drift on the Pi (R 4.5.1 in the lockfile vs R 4.6.1 installed,
 ~48 package version mismatches — real fix is a `renv::snapshot()` pass on
-both machines, bigger decision, not urgent).
+both machines, bigger decision, not urgent). 2026-08-20: `duckdb` spot-fixed
+(1.5.4.2 → 1.5.5, matched to Pi) as part of an unrelated duckdb/paws
+alignment check; `paws.storage` confirmed already aligned. Remaining ~47
+mismatches still outstanding.
 
 #### Outage — LAX `wait-times` Page Returning "Access Denied" (0 rows since 2026-08-07)
 - 2026-08-08: LAX scraper (`LAX_wait_times.R`) returned 0 rows the day prior.
