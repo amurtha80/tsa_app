@@ -7,12 +7,7 @@ RShiny Mobile App TSA Historical Wait Times
 
 ### High Priority — Post-Launch Fixes
 
-#### Update DEVELOPMENT.md for Pi-as-Primary Architecture
-Pi cutover is fully complete (2026-08-20) — see CHANGELOG.md same date and
-`project_pi_nas_migration`/`project_pi_cutover_session3_status` memory for
-history. `DEVELOPMENT.md` still needs updating to reflect Pi-as-primary
-(per CLAUDE.md, prompt for review before editing).
-
+#### Post-Cutover Tech Debt
 **Separate, unrelated pre-existing tech debt (not part of cutover):**
 `renv.lock` drift on the Pi (R 4.5.1 in the lockfile vs R 4.6.1 installed,
 ~48 package version mismatches — real fix is a `renv::snapshot()` pass on
