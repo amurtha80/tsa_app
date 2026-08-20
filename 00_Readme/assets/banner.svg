@@ -1,0 +1,13 @@
+<svg width="1200" height="300" viewBox="0 0 1200 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="FlyASAP — Know before you go.">
+  <rect width="1200" height="300" fill="#2C3E7F"/>
+
+  <!-- plane mark (Material Design "flight" glyph, well-formed single path) -->
+  <g transform="translate(118,118) scale(2.6)" fill="#18BC9C">
+    <path d="M20.56 3.91c-.59-.59-1.54-.59-2.12 0l-3.02 3.02-6.36-1.55a1 1 0 00-.94.27l-1 1a1 1 0 00.2 1.58l4.68 2.34-2.19 2.19-2.06-.32a1 1 0 00-.85.28l-.85.85a1 1 0 00.09 1.49l2.59 1.87 1.87 2.59a1 1 0 001.49.09l.85-.85a1 1 0 00.28-.85l-.32-2.06 2.19-2.19 2.34 4.68a1 1 0 001.58.2l1-1a1 1 0 00.27-.94l-1.55-6.36 3.02-3.02c.59-.58.59-1.53 0-2.12z"/>
+  </g>
+
+  <text x="230" y="150" font-family="Georgia, 'Times New Roman', serif" font-size="58" fill="#FFFFFF">Know before you go.</text>
+  <text x="230" y="196" font-family="Verdana, Arial, sans-serif" font-size="21" fill="#D7DEF2">Pick your airport, day, and time — see how long TSA security usually takes.</text>
+
+  <text x="230" y="240" font-family="Verdana, Arial, sans-serif" font-size="15" letter-spacing="2" fill="#18BC9C">FLYASAP.APP</text>
+</svg>

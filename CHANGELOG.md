@@ -5,6 +5,18 @@ FlyASAP — Airport Security Advance Planning
 
 ## 2026-08-20
 
+### Housekeeping — README Rewritten for GitHub
+- Replaced the 2-line README stub with a real project README: hero banner
+  (hand-authored SVG at `00_Readme/assets/banner.svg`, using the app's own
+  Navy/Teal brand palette and its in-app hero copy — "Know before you go."),
+  factual badge row (R/Shiny/DuckDB + honest "no tests yet" placeholders),
+  screenshot placeholders (`00_Readme/assets/screenshot-desktop.png` /
+  `screenshot-mobile.png`, pending user-supplied images), architecture
+  summary (Pi scrape -> DuckDB/Quack -> nightly parquet -> S3 -> EC2),
+  tech stack, and current 22-airport coverage list (LAX flagged as
+  temporarily down per the open outage item above, not a scraper bug).
+- Closes the "Update and format README for GitHub" housekeeping todo item.
+
 ### Housekeeping — `renv.lock` Fully Reconciled with Pi (Closes Post-Cutover Tech Debt Item)
 - Spot-checked `renv.lock` against the Pi (production host) for `duckdb` and
   `paws.analytics`/`paws.storage`. Found `duckdb` installed on Pi at `1.5.5`

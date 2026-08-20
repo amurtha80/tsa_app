@@ -80,5 +80,4 @@ RShiny Mobile App TSA Historical Wait Times
   change needed, just a data row per the append-only convention.
 
 ### Housekeeping
-- Update and format README for GitHub
 - Standardize scraping function naming convention
