@@ -7,27 +7,11 @@ RShiny Mobile App TSA Historical Wait Times
 
 ### High Priority — Post-Launch Fixes
 
-#### Pi Cutover — Master Checklist (updated 2026-08-15)
-Full cutover-to-Pi / desktop-to-backup-only migration status. See
-`project_pi_nas_migration` memory and CHANGELOG.md (2026-08-13 through
-2026-08-15 entries) for what's already been done — not restated here.
-
-**Outstanding, in rough order:**
-1. Observe several days of stable Pi-only operation (all 5 systemd jobs)
-   before fully trusting it.
-2. Stop desktop's `tsa_app_scraper` (the parallel comparison run) — wait for
-   #1 first.
-3. Once desktop's scraper is actually stopped (#2), enable
-   `tsa_app_backup_pull_from_pi` (GUI or `Enable-ScheduledTask` from an
-   elevated window — this tool's shell can't do it, see gotchas item 21).
-   Trigger/logon-type already switched to At-startup/Password via GUI
-   2026-08-15, task left disabled pending #2 — verified via raw XML
-   (`<BootTrigger />`, `<LogonType>Password</LogonType>`,
-   `<Enabled>false</Enabled>`, Command/Arguments unchanged/clean).
-4. Once desktop is backup-only, decide its final footprint (likely just the
-   backup-pull task).
-5. Update `DEVELOPMENT.md` to reflect Pi-as-primary architecture once cutover
-   is final (per CLAUDE.md, prompt for review before editing).
+#### Update DEVELOPMENT.md for Pi-as-Primary Architecture
+Pi cutover is fully complete (2026-08-20) — see CHANGELOG.md same date and
+`project_pi_nas_migration`/`project_pi_cutover_session3_status` memory for
+history. `DEVELOPMENT.md` still needs updating to reflect Pi-as-primary
+(per CLAUDE.md, prompt for review before editing).
 
 **Separate, unrelated pre-existing tech debt (not part of cutover):**
 `renv.lock` drift on the Pi (R 4.5.1 in the lockfile vs R 4.6.1 installed,

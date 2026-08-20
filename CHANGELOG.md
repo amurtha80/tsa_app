@@ -3,6 +3,25 @@ FlyASAP — Airport Security Advance Planning
 
 ---
 
+## 2026-08-20
+
+### Infrastructure — Pi Cutover Finalized, Desktop Decommissioned to Backup-Only
+- Desktop's `tsa_app_scraper` stopped and disabled — the parallel-run
+  comparison window (open since 2026-08-13) is closed. Chromote reliability
+  monitoring on 2026-08-19 showed a full day (~180 cycles) with no sustained
+  gaps, satisfying the bar set in `project_chromote_reliability_before_cutover`.
+- `tsa_app_backup_pull_from_pi` enabled (trigger/logon-type were already
+  switched to At-startup/Password via GUI on 2026-08-15).
+- Desktop's `tsa_app_watchdog`, `tsa_app_scraper_validate`, and
+  `tsa_app_nightly_summary_build` stopped and disabled — all 3 duplicated
+  jobs already running on the Pi's own systemd timers since 2026-08-15.
+- `tsa_app_quack_server` deliberately left running on the desktop (not
+  disabled) for ad-hoc direct-write convenience — not part of the scheduled
+  pipeline any more.
+- Desktop's final footprint is now just `tsa_app_backup_pull_from_pi`
+  (scheduled) + `tsa_app_quack_server` (left running, on-demand use only).
+  Verified via `Get-ScheduledTask` from an independent read-only check.
+
 ## 2026-08-18
 
 ### Scraper — DEN Refactored from `httr` to `httr2`
