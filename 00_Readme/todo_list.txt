@@ -27,6 +27,17 @@ RShiny Mobile App TSA Historical Wait Times
 #### Deployment
 - Add third chart for CLEAR lane wait times for airports that have CLEAR data (MIA; others TBD) — chart should only render when data exists for the selected airport/checkpoint combination
 
+#### Add Proactive Duplicate Check to `xx_backup_pull_from_pi.R`
+- 2026-08-20: `tsa_wait_times` sync uses a pure watermark INSERT (`WHERE datetime >
+  local_max`) with no unique constraint on the backup table and no dedup/conflict check —
+  safety currently relies entirely on the Pi's `datetime` column staying append-only/
+  immutable, which the script assumes but never verifies. Manually confirmed clean (no
+  full-row or `airport`/`checkpoint`/`datetime` business-key duplicates) after the
+  post-cutover backup catch-up pull (5-day gap, 214,273 rows), but that was a one-off
+  check, not a standing safeguard. Add either a `UNIQUE`/`PRIMARY KEY` constraint on
+  `(airport, checkpoint, datetime)` or a post-pull assertion (`HAVING COUNT(*) > 1`) that
+  fails loudly if violated.
+
 ### New Airports (Lower Priority — Post MVP)
 - **BWI** - `bwiairport.com/`; https://bwiairport.com/wp-content/themes/bwitheme/ajaxcall.php?action=get_waitTimes_data
 - **CVG** - `cvgairport.com` Zensors
