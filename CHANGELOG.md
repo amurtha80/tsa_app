@@ -3,6 +3,18 @@ FlyASAP — Airport Security Advance Planning
 
 ---
 
+## 2026-08-21
+
+### Housekeeping — Delete-Temp-Files Timer Rescheduled
+- `tsa_app_delete_temp_files.timer` moved from 03:15 to 03:14 local time.
+  Found via runlog diagnosis that the 03:15 cleanup could race a
+  still-running scraper cycle and delete its live `Rtmp*` working dir out
+  from under it (chromote nests its session inside R's own `Rtmp*` dir on
+  the Pi) — caused a one-time 0/4 chromote batch failure (ATL/EWR/JFK/LGA)
+  on 2026-08-21 that self-healed on the next cycle. Moving cleanup to
+  :14 gives the prior scraper cycle a ~4-minute buffer to finish before
+  cleanup runs (~25s), and finishes before the :15 cycle starts.
+
 ## 2026-08-20
 
 ### Housekeeping — README Rewritten for GitHub

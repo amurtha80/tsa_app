@@ -1,8 +1,8 @@
 [Unit]
-Description=Run FlyASAP temp-dir cleanup daily at 03:15 (after nightly summary build)
+Description=Run FlyASAP temp-dir cleanup daily at 03:14 (after nightly summary build)
 
 [Timer]
-OnCalendar=*-*-* 03:15:00
+OnCalendar=*-*-* 03:14:00
 AccuracySec=1min
 Persistent=true
 
