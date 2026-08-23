@@ -39,14 +39,17 @@
 # intervening teardown share one browser process (same
 # --remote-debugging-port), so no low-level chromote API is needed here.
 #
-# DUPLICATION NOTICE: the parsing logic for each airport below is COPIED from
-# ATL_wait_times.R / EWR_wait_times.R / JFK_wait_times.R / LGA_wait_times.R,
-# not shared with them (deliberate choice -- see
-# project_chromote_batch_scraper_design memory). Those 4 files are left fully
-# untouched and independently runnable so a future hardware upgrade can pivot
-# back to one-airport-per-script with zero rework. If any of those 4 sites'
-# HTML layout changes and a parser needs fixing, the matching parser in THIS
+# DUPLICATION NOTICE: EWR/JFK/LGA's parsing logic below is COPIED from
+# EWR_wait_times.R / JFK_wait_times.R / LGA_wait_times.R, not shared with
+# them (deliberate choice -- see project_chromote_batch_scraper_design
+# memory). Those 3 files are left fully untouched and independently
+# runnable so a future hardware upgrade can pivot back to
+# one-airport-per-script with zero rework. If any of those 3 sites' HTML
+# layout changes and a parser needs fixing, the matching parser in THIS
 # file needs the identical fix -- they will not stay in sync automatically.
+# ATL_wait_times.R was renamed to ATL_wait_times_DISABLED.R on 2026-08-22
+# (dropped out of the orchestrator's glob) once atl.com went behind
+# Cloudflare -- there is no legacy ATL script left to stay in sync with.
 #
 ####  --------------------------------------------------------------------- ####
 
@@ -105,67 +108,160 @@ scrape_tsa_data_chromote_batch <- function() {
   # keeps them local to this function's scope only.
   ####  ---------------------------------------------------------------- ####
 
-  parse_atl <- function(page) {
-    tsa_terminal <- page |>
-      rvest::html_elements("div h1") |>
-      rvest::html_text() |>
-      stringr::str_trim() |>
-      tail(2)
+  ####  ---------------------------------------------------------------- ####
+  # ATL -- fully isolated path, NOT part of the shared-browser flow below.
+  #
+  # atl.com relaunched its wait-times page on 2026-08-22 behind a Cloudflare
+  # managed challenge ("Just a moment..."). A plain httr2/curl request
+  # cannot pass it under any header combination -- confirmed directly
+  # (403 Forbidden even with a full realistic Chrome header set) -- because
+  # the challenge requires executing JS to compute a proof-of-work token.
+  # A real headless Chrome CAN pass it, but only if its User-Agent string
+  # doesn't contain "HeadlessChrome" (chromote's raw default does; rvest's
+  # read_html_live() already overrides it to a clean string internally, and
+  # that alone is sufficient -- no manual UA/launch-arg override needed or
+  # wanted, see below).
+  #
+  # Even past Cloudflare, ATL's new checkpoint cards render via a delayed
+  # client-side AJAX call, not at Page.loadEventFired, and that render is
+  # meaningfully less reliable than EWR/JFK/LGA (~60-70% success per
+  # attempt in repeated scratchpad testing 2026-08-22, vs. those three's
+  # near-100%). A hung/never-resolving attempt is a real risk here in a way
+  # it isn't for the other three, so this MUST run in its own bounded
+  # subprocess rather than inline in the shared browser used below:
+  #   - callr::r(..., timeout=) guarantees a hard wall-clock cap and kills
+  #     the whole subprocess tree if exceeded, so a stuck ATL attempt can
+  #     never stall the rest of the batch (confirmed: a raw
+  #     read_html_live() call can hang past chromote's own internal
+  #     timeout with no error ever thrown).
+  #   - Even on ordinary success/error returns (no timeout), chromote's own
+  #     close()/on.exit patterns were observed leaving orphaned
+  #     zygote/renderer/gpu child processes behind on the Pi in repeated
+  #     testing -- graceful close(), processx kill_tree(), and
+  #     ps::ps_kill_tree() (wrong API -- that function takes a marker
+  #     string, not a handle) were all tried and all left zombies on some
+  #     runs. The only approach that was 100% clean across ~20 repeated
+  #     trials (successes, thrown errors, AND forced callr timeouts) is an
+  #     outer-process PID diff: snapshot chrome-related PIDs before and
+  #     after the callr call, hard-kill whatever is new. Safe here because
+  #     scrape_one() below runs airports sequentially, never concurrently,
+  #     so nothing else can spawn a matching process in that window.
+  atl_chrome_pids <- function() {
+    out <- tryCatch(
+      system("ps aux | grep -i chrom | grep -v grep | awk '{print $2}'",
+             intern = TRUE, ignore.stderr = TRUE),
+      error = function(e) character(0)
+    )
+    out[grepl("^[0-9]+$", out)]  # keep only well-formed numeric PIDs
+  }
 
-    tsa_checkpoint <- page |>
-      rvest::html_elements("div h2") |>
-      rvest::html_text() |>
-      stringr::str_trim()
+  scrape_atl_isolated <- function() {
+    atl_job <- function() {
+      library(chromote); library(rvest); library(stringr)
+      library(dplyr); library(glue); library(lubridate)
 
-    n_domestic <- length(tsa_checkpoint) - 1
-    n_intl     <- 1
+      options(chromote.headless = "new")
 
-    tsa_terminal_checkpoint <- c(
-      paste0(tsa_terminal[1], " ", tsa_checkpoint[seq_len(n_domestic)]),
-      paste0(tsa_terminal[2], " ", tsa_checkpoint[length(tsa_checkpoint)])
-    ) |>
-      stringr::str_squish()
+      parse_atl <- function(page) {
+        # .atl-wt-card cards populate via client-side AJAX after the load
+        # event -- html_elements() on a live page does NOT auto-wait for a
+        # selector to appear, so poll for it (observed up to ~14s delay).
+        deadline <- Sys.time() + 20
+        cards <- rvest::html_elements(page, ".atl-wt-card")
+        while (length(cards) == 0 && Sys.time() < deadline) {
+          Sys.sleep(0.5)
+          cards <- rvest::html_elements(page, ".atl-wt-card")
+        }
+        if (length(cards) == 0) {
+          stop("ATL: no .atl-wt-card elements found after 20s wait (Cloudflare block or page structure change)")
+        }
 
-    tsa_time_raw <- page |>
-      rvest::html_elements("button span") |>
-      rvest::html_text() |>
-      stringr::str_trim()
+        # data-checkpoint (stable, ATL-assigned machine id) -> existing
+        # tsa_wait_times checkpoint name, so history stays continuous
+        # across the redesign.
+        checkpoint_map <- c(
+          main        = "DOMESTIC MAIN",
+          north       = "DOMESTIC NORTH",
+          lower_north = "DOMESTIC LOWER NORTH",
+          south       = "DOMESTIC SOUTH",
+          intl_main   = "INT'L MAIN"
+        )
 
-    tsa_time <- readr::parse_number(tsa_time_raw, na = c("", "N/A", "Closed", "X"))
+        rows <- purrr::map_dfr(cards, function(card) {
+          cp_id <- rvest::html_elements(card, "[data-checkpoint]") |>
+            rvest::html_attr("data-checkpoint")
+          sr_text <- rvest::html_elements(card, ".atl-wt-sr-only") |>
+            rvest::html_text() |>
+            stringr::str_squish()
 
-    if (length(tsa_time) != length(tsa_terminal_checkpoint)) {
-      stop(glue(
-        "ATL length mismatch: {length(tsa_terminal_checkpoint)} checkpoints, ",
-        "{length(tsa_time)} times. Raw button spans: ",
-        paste(tsa_time_raw, collapse = " | ")
-      ))
+          if (length(cp_id) != 1 || length(sr_text) != 1) {
+            stop(glue("ATL card parse failure: cp_id={paste(cp_id, collapse=',')} sr_text={paste(sr_text, collapse=',')}"))
+          }
+          if (!cp_id %in% names(checkpoint_map)) {
+            stop(glue("ATL: unrecognized data-checkpoint id '{cp_id}' -- new checkpoint added on site?"))
+          }
+
+          # sr-only text is the single most reliable source, e.g. "North
+          # checkpoint: 0 minute wait, Low, open." or "Main checkpoint:
+          # Closed." -- no PreCheck-only distinction exists anywhere on
+          # the new page (confirmed: zero "recheck" matches in the full
+          # rendered HTML), unlike the old page's PRECHECK ONLY h3 label,
+          # so wait_time_pre_check is always NA going forward.
+          is_closed <- stringr::str_detect(sr_text, stringr::regex("closed", ignore_case = TRUE))
+          wait_time <- if (is_closed) NA_real_ else readr::parse_number(sr_text)
+
+          tibble::tibble(checkpoint = checkpoint_map[[cp_id]], wait_time = wait_time)
+        })
+
+        if (nrow(rows) != length(checkpoint_map)) {
+          stop(glue(
+            "ATL length mismatch: {nrow(rows)} checkpoint rows parsed, ",
+            "{length(checkpoint_map)} expected."
+          ))
+        }
+
+        tibble::tibble(
+          airport             = "ATL",
+          checkpoint          = rows$checkpoint,
+          datetime            = lubridate::now(tzone = "America/New_York"),
+          date                = lubridate::today(),
+          time                = Sys.time() |>
+            with_tz(tzone = "America/New_York") |>
+            floor_date(unit = "minute"),
+          timezone            = "America/New_York",
+          wait_time           = rows$wait_time,
+          wait_time_priority  = NA_real_,
+          wait_time_pre_check = NA_real_,
+          wait_time_clear     = NA_real_
+        )
+      }
+
+      page <- tryCatch(read_html_live("https://www.atl.com/times/"), error = function(e) NULL)
+      if (is.null(page)) {
+        Sys.sleep(2)
+        page <- read_html_live("https://www.atl.com/times/")
+      }
+      result <- parse_atl(page)
+      try(page$session$close(), silent = TRUE)
+      result
     }
 
-    checkpoint_h3 <- page |>
-      rvest::html_elements("div h3") |>
-      rvest::html_text() |>
-      stringr::str_trim() |>
-      tail(length(tsa_terminal_checkpoint))
+    pids_before <- atl_chrome_pids()
+    # on.exit (not code after the call) so cleanup runs whether callr::r()
+    # returns normally OR throws (subprocess error or hard timeout) --
+    # letting the error propagate is required so scrape_one()'s own
+    # tryCatch below sees the failure and the batch's retry passes work.
+    on.exit({
+      pids_after <- atl_chrome_pids()
+      leaked <- setdiff(pids_after, pids_before)
+      if (length(leaked) > 0) {
+        message(Sys.time(), " | ATL cleaning up ", length(leaked), " leaked chrome PID(s): ",
+                paste(leaked, collapse = ", "))
+        system(paste("kill -9", paste(leaked, collapse = " ")), ignore.stdout = TRUE, ignore.stderr = TRUE)
+      }
+    }, add = TRUE)
 
-    is_precheck_only <- grepl("PRECHECK ONLY", checkpoint_h3, ignore.case = TRUE)
-
-    wait_time <- dplyr::if_else(is_precheck_only, NA_real_, as.numeric(tsa_time))
-    wait_time_pre_check <- dplyr::if_else(is_precheck_only, as.numeric(tsa_time), NA_real_)
-
-    tibble::tibble(
-      airport             = "ATL",
-      checkpoint          = tsa_terminal_checkpoint,
-      datetime            = lubridate::now(tzone = "America/New_York"),
-      date                = lubridate::today(),
-      time                = Sys.time() |>
-        with_tz(tzone = "America/New_York") |>
-        floor_date(unit = "minute"),
-      timezone            = "America/New_York",
-      wait_time           = wait_time,
-      wait_time_priority  = NA_real_,
-      wait_time_pre_check = wait_time_pre_check,
-      wait_time_clear     = NA_real_
-    )
+    callr::r(atl_job, timeout = 45)
   }
 
   parse_pa_table <- function(page, airport_code) {
@@ -229,7 +325,7 @@ scrape_tsa_data_chromote_batch <- function() {
   }
 
   airports <- list(
-    ATL = list(url = "https://www.atl.com/times/",         parse = parse_atl),
+    ATL = list(url = "https://www.atl.com/times/",          parse = NULL),  # routed through scrape_atl_isolated() in scrape_one() below, not this generic path
     EWR = list(url = "https://www.newarkairport.com/",      parse = parse_ewr),
     JFK = list(url = "https://www.jfkairport.com",           parse = parse_jfk),
     LGA = list(url = "https://www.laguardiaairport.com",     parse = parse_lga)
@@ -271,13 +367,16 @@ scrape_tsa_data_chromote_batch <- function() {
   # tab (NOT the whole browser -- see final on.exit above). Returns TRUE/FALSE.
   scrape_one <- function(code, attempt) {
     t0 <- Sys.time()
-    url <- airports[[code]]$url
-    parse_fn <- airports[[code]]$parse
 
     result <- tryCatch({
-      page <- safe_read_html_live(url)
-      data <- parse_fn(page)
-      try(page$session$close(), silent = TRUE)
+      data <- if (code == "ATL") {
+        scrape_atl_isolated()
+      } else {
+        page <- safe_read_html_live(airports[[code]]$url)
+        d <- airports[[code]]$parse(page)
+        try(page$session$close(), silent = TRUE)
+        d
+      }
       dbAppendTable(con_write, name = "tsa_wait_times", value = data)
       list(success = TRUE, n = nrow(data), error_message = NA_character_)
     }, error = function(e) {

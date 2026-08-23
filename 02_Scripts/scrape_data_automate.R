@@ -24,8 +24,12 @@ foo <- function(x) {
 ## every 5-minute cycle was pure overhead right before the chromote scrapers
 ## run, on a resource-constrained Pi where that overhead has measurably
 ## contributed to chromote launch flakiness under full load.
+## callr added 2026-08-22 for chromote_batch_wait_times.R's isolated ATL
+## scrape -- runs in its own subprocess with a hard wall-clock timeout so a
+## stuck Cloudflare challenge can't stall the rest of the batch. See
+## project_atl_cloudflare_redesign_fix memory.
 foo(c('rvest', 'httr', 'httr2', 'jsonlite', 'duckdb', 'glue', 'DBI',
-      'fs', 'chromote', 'here', 'polite', 'tidyverse'))
+      'fs', 'chromote', 'here', 'polite', 'tidyverse', 'callr'))
 
 # Sys.time()
 # require('polite')
