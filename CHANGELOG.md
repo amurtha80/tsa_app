@@ -3,6 +3,64 @@ FlyASAP — Airport Security Advance Planning
 
 ---
 
+## 2026-08-23
+
+### Fix — ATL Scraper Restored After atl.com Cloudflare-Protected Redesign
+- 2026-08-22: atl.com relaunched its wait-times page behind a Cloudflare
+  managed challenge, taking ATL fully offline (0 rows) for ~18 hours
+  starting ~06:51 that morning — undetected until manually caught, since
+  the watchdog only checks scraper freshness, not per-airport success.
+- Root cause: a plain httr2/curl request cannot pass Cloudflare's managed
+  challenge under any header set (confirmed 403 even with a full realistic
+  Chrome header set) — only a real browser engine executing JS can compute
+  the required proof-of-work token. chromote's raw default User-Agent
+  contains the literal string "HeadlessChrome", which Cloudflare flags and
+  blocks outright. rvest's `read_html_live()` already overrides this to a
+  clean, non-Headless UA internally, so no manual UA/launch-arg spoofing
+  was needed once confirmed (several attempts, e.g.
+  `chromote::set_chrome_args()` with a custom `--user-agent`, never
+  actually reached the spawned browser process — confirmed via `ps aux`).
+- New page structure: Elementor-based `.atl-wt-card` blocks keyed by a
+  stable `data-checkpoint` id (`main`, `north`, `lower_north`, `south`,
+  `intl_main`), mapped directly onto the existing `tsa_wait_times`
+  checkpoint names — same 5 checkpoints, no history reconciliation needed.
+  Cards render via delayed client-side AJAX, so `parse_atl()` now polls
+  for `.atl-wt-card` up to 20s instead of relying on the load event. No
+  PreCheck-only lane exists on the new page (the old page occasionally ran
+  DOMESTIC SOUTH PreCheck-only per historical data) — `wait_time_pre_check`
+  is now always NA for ATL going forward, a legitimate source-driven
+  behavior change, not a bug.
+- Reliability: ATL's new page is noticeably less reliable than EWR/JFK/LGA
+  and was observed hanging past chromote's own internal timeout with no
+  error ever thrown. ATL now runs in its own `callr::r(..., timeout = 45)`
+  subprocess inside `chromote_batch_wait_times.R`, isolated from the
+  shared browser used for EWR/JFK/LGA, so a hung ATL attempt can never
+  stall the rest of the batch. Confirmed live overnight: a ~70-minute
+  cluster of ATL `callr` timeouts (02:06–03:13 on 2026-08-23) correctly
+  degraded those cycles to `3/4 succeeded (still failed: ATL)` without
+  affecting EWR/JFK/LGA, then self-recovered.
+- Zombie-process cleanup: graceful `close()`, `processx` `kill_tree()`,
+  and `ps::ps_kill_tree()` (wrong API — takes a marker string, not a
+  handle) all left orphaned Chrome child processes behind on some runs,
+  true even of the existing EWR/JFK/LGA `close_shared_browser()` pattern
+  already in production. Settled on an outer-process PID diff (`ps aux`
+  snapshot before/after the `callr::r()` call, `kill -9` on the diff)
+  registered in `on.exit(..., add = TRUE)` so it fires on every exit path
+  — success, thrown error, and timeout alike. Verified across ~20
+  scratchpad trials and confirmed clean (0 leaked processes) through the
+  overnight timeout cluster above.
+- `callr` added to the package auto-install/load list in
+  `scrape_data_automate.R`.
+- `ATL_wait_times.R` (legacy, already excluded from execution by
+  `SCRAPER_MODE=chromote_batch` via filename match) was briefly renamed
+  to `ATL_wait_times_DISABLED.R` for clarity, then reverted back to the
+  standard naming convention the same day once confirmed the rename was
+  purely cosmetic and never affected which scraper actually runs.
+- Deployed and pushed from the Pi (production host), pulled to desktop.
+  See `project_atl_cloudflare_redesign_fix` memory for full debugging
+  detail, and `04_Assets/chromote_scraper_transition.html` for a visual
+  walkthrough of the before/after scraper architecture.
+
 ## 2026-08-21
 
 ### Housekeeping — Delete-Temp-Files Timer Rescheduled
