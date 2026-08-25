@@ -3,6 +3,38 @@ FlyASAP — Airport Security Advance Planning
 
 ---
 
+## 2026-08-24
+
+### Fix — Pi SD Card Near-Capacity (95%) from Leaked Chrome Temp Profiles
+- Daily checkin found the Pi's SD card (`/dev/mmcblk0p2`, root) at 95-96%
+  used (1.2GB free), up from ~70% at initial setup, despite no new package
+  installs since the Pi cutover.
+- Root cause: `zz_delete_temp_files.R` (run nightly at 03:14 via the
+  already-correctly-installed `tsa_app_delete_temp_files` systemd timer)
+  only ever matched `/tmp/Rtmp*`, based on a 2026-08-14 investigation that
+  predates the arm64 chromote fix. On the Pi, chromote runs through the
+  snap-confined chromium binary (no arm64 Chrome-for-Testing builds
+  exist), which sandboxes its per-session profile dirs to
+  `~/snap/chromium/common/chromium-headless/scoped_dir*` instead of
+  `/tmp` — a path the script never targeted. 775 orphaned profile dirs
+  (8.3GB) had accumulated there uncleaned since 2026-08-15.
+- Fix: `zz_delete_temp_files.R` now scans both `/tmp/Rtmp*` and the snap
+  chromium `scoped_dir*` path on Linux (Windows behavior unchanged).
+  Manually cleared the existing backlog, then verified the fixed script
+  live on the Pi — it correctly caught newly-created `scoped_dir*` folders
+  from a subsequent test run.
+- Also cleared ~7 disabled prior-revision snap packages (chromium,
+  firefox, core22, core24, cups, gnome-42-2204, mesa-2404, snapd) via
+  `sudo snap remove <name> --revision=<rev>`, freeing an additional
+  ~1.2GB from `/var/lib/snapd/snaps`. This is expected periodic snap
+  auto-refresh residue (retains 2 revisions per package, snapd's
+  minimum), not a new leak — will recur gradually and isn't scripted.
+- Net result: SD card usage 95-96% → 67% (9.4GB free), steady-state.
+- Confirmed the DB (`tsa_app.duckdb`) and repo were already correctly
+  located on the M.2 SSD (`/mnt/ssd`, 111GB free) — the bloat was
+  entirely leaked temp data, not project data in the wrong place, so no
+  file relocation was needed.
+
 ## 2026-08-23
 
 ### Fix — ATL Scraper Restored After atl.com Cloudflare-Protected Redesign
