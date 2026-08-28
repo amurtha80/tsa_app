@@ -3,6 +3,30 @@ FlyASAP — Airport Security Advance Planning
 
 ---
 
+## 2026-08-28
+
+### Data — SFO Checkpoint B Renamed to "Checkpoint B - Departure Level"
+- Overnight scrape-validation email flagged a drop-off: `SFO Checkpoint B`
+  present on 7/7 prior days, absent on 2026-08-26. Root cause: flysfo.com
+  relabeled the checkpoint on its live page — `SFO_wait_times.R` reads the
+  checkpoint name directly from the table's first cell with no hardcoded
+  name map, so the rename flowed straight through as a "new" checkpoint,
+  `Checkpoint B - Departure Level`, first appearing 2026-08-25 19:02:07,
+  one clean cutover minute after the old name's last row (18:55:47) — same
+  physical lane, no data actually missing, no overlap between the two eras.
+- To keep 12-month aggregation from treating the same lane as two separate
+  checkpoints, renamed all history rather than leaving both names in place
+  (per [[project-clt-checkpoint-rename-completion]] pattern): stopped
+  `tsa_app_quack_server`, direct-connected, ran a same-turn verified SELECT
+  (8,875 matched) before the scoped `UPDATE tsa_wait_times SET
+  checkpoint='Checkpoint B - Departure Level' WHERE airport='SFO' AND
+  checkpoint='Checkpoint B'`, and the equivalent rename on the single
+  matching `airport_checkpoint_hours` row so hours-based filtering carries
+  over. Restarted the Quack server and verified the merge (9,672 rows,
+  matching every other SFO checkpoint) from an independent client
+  connection. Manually re-ran `xx_build_summary_DB.R` so the summary
+  parquet reflects the merge immediately rather than at the 2am job.
+
 ## 2026-08-24
 
 ### Fix — Pi SD Card Near-Capacity (95%) from Leaked Chrome Temp Profiles
