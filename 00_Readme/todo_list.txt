@@ -22,6 +22,24 @@ RShiny Mobile App TSA Historical Wait Times
   200/table-restored; if LAX moves the page, update `page_url` in
   `LAX_wait_times.R` accordingly.
 
+#### Outage — SFO Not Publishing Live Checkpoint Wait Times (since ~2026-08-31 20:47)
+- 2026-08-31: `SFO_wait_times.R` began failing every cycle
+  (`no valid checkpoint rows parsed from table.flysfo-checkpoints-table --
+  page markup may have changed`), flagged by the overnight validation run as
+  a row-count drop (246 rows vs. 1576 7-day avg, 16%). Confirmed via direct
+  browser visit (both Claude-in-Chrome and user's own device) that
+  `flysfo.com/passengers/flight-info/security-wait-times` itself now shows
+  "No checkpoint wait time data is available at this time." — not a scraper
+  selector/markup break, the site has stopped publishing the feed. No XHR/API
+  call backs the block either, so there's no alternate live source to switch
+  to right now. Scraper's guard is working as intended (errors instead of
+  writing empty/malformed rows). Added a `SFO` entry to `airport_coverage_notes`
+  in `app.R` so the app shows a banner explaining historical data is
+  unaffected, current wait times are just paused (see CHANGELOG 2026-08-31).
+  Action: periodically recheck the page for the table's return; no code
+  change needed once flySFO restores the feed (selector is unchanged) —
+  just remove the `SFO` line from `airport_coverage_notes`.
+
 ### Medium Priority — Post-Launch Fixes
 
 #### Deployment

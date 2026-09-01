@@ -3,6 +3,25 @@ FlyASAP — Airport Security Advance Planning
 
 ---
 
+## 2026-08-31
+
+### Data — SFO Live Feed Outage, Coverage-Note Banner Added
+- Overnight validation (Check 2, row-count drop) flagged SFO: 246 rows on
+  2026-08-30 vs. a 1576-row 7-day average (16%). Runlog showed
+  `SFO_wait_times.R` failing every cycle since ~20:47 the prior evening with
+  "no valid checkpoint rows parsed from table.flysfo-checkpoints-table."
+  Confirmed via a live browser visit (Claude-in-Chrome, then corroborated by
+  the user's own device) that `flysfo.com/passengers/flight-info/security-wait-times`
+  itself now displays "No checkpoint wait time data is available at this
+  time." — the site has stopped publishing the feed; no markup/selector
+  change and no alternate XHR/API endpoint backs the block. Scraper's
+  existing guard is behaving correctly (errors rather than writing
+  empty/malformed rows), so no code fix was needed there.
+- Added an `SFO` entry to `airport_coverage_notes` in `app.R` (same pattern
+  as LAX's partial-coverage banner) explaining that historical data is
+  unaffected and current wait times will resume once flySFO restores its
+  feed. Tracked as an ongoing monitor item in `todo_list.txt`.
+
 ## 2026-08-28
 
 ### Data — SFO Checkpoint B Renamed to "Checkpoint B - Departure Level"
