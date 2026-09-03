@@ -3,6 +3,60 @@ FlyASAP — Airport Security Advance Planning
 
 ---
 
+## 2026-09-02
+
+### Data — DFW Checkpoint A12 Marked Inactive (Terminal A Construction)
+- Nightly `xx_validate_scrape.R` Check 3 flagged DFW checkpoint A12 as absent
+  on 2026-09-01 after 7/7 prior days present. DB history confirmed a clean
+  drop-off (no error/degraded state) starting 2026-09-01, still absent as of
+  2026-09-02; live LocusLabs `dynamic-poi` feed confirms A12 is no longer in
+  the venue's `security.checkpoint` POI list (28 checkpoints returned, A12
+  not among them — only A7/A21/A35 remain in the "A" pier).
+- No official DFW/TSA notice names A12 directly, but DFW's own construction
+  page reports concessions near Gate A13 (A12's immediate neighbor) closed
+  for the ongoing Terminal A expansion (140,000 sq ft, 10 new gates, opening
+  later in 2026) — most likely explanation is construction-driven checkpoint
+  consolidation, not an airline pullout (unlike the LGA Terminal A/Spirit
+  case). Treated as reversible, not a permanent removal.
+- Inserted one new `airport_checkpoint_hours` row for DFW A12 with
+  `is_active = FALSE` (append-only convention, hours columns carried forward
+  as NULL/unchanged), following the LGA Terminal A pattern.
+- **Bug fix**: `xx_build_summary_DB.R`'s `hours_lookup` used
+  `filter(entry_timestamp == max(entry_timestamp))` to select each
+  checkpoint's latest hours batch. This silently dropped the *entire* group
+  whenever a checkpoint with a NULL `entry_timestamp` (i.e., no hours data —
+  true for all 15 DFW checkpoints) received a new correction row with a real
+  timestamp, since `NA == max(c(NA, real))` evaluates to `NA` for every row
+  in the group. Found while verifying the A12 insert would actually take
+  effect — confirmed via a live test that the old expression zeroed out the
+  group. Fixed to
+  `filter(entry_timestamp == max(entry_timestamp, na.rm = TRUE) | all(is.na(entry_timestamp)))`,
+  verified against three cases (mixed NA/real, single-NA-only group,
+  multi-window same-timestamp batch).
+
+## 2026-09-01
+
+### Deploy — SFO Coverage-Note Banner Live on EC2
+- Committed the SFO banner change (`6a1b756`) and pushed to `origin/main`.
+- Deployed per the standard manual process (see `DEVELOPMENT.md`): SSH'd into
+  the EC2 box, `git pull --ff-only origin main` (fast-forwarded from
+  `f2d78de`, 2 commits behind), `sudo systemctl restart shiny-server`.
+  Verified live on flyasap.app — SFO shows the new banner, LAX's existing
+  banner unaffected.
+
+### Dev Environment — Desktop Shiny App Deps Reinstalled for R 4.6.1
+- Local `shiny::runApp()` failed to start (`rlang` DLL `LoadLibrary
+  failure`), then failed to render charts ("Graphics API version mismatch"),
+  while verifying the SFO banner visually before deploy. Root cause: the
+  desktop's R runtime is 4.6.1, but `rlang`/`shiny`/`dplyr`/`ggplot2`'s
+  graphics backend (`ragg`/`systemfonts`/`textshaping`) aren't tracked in
+  `renv.lock` (app-only deps, not scraper deps), so R fell back to stale
+  binaries left over in the personal library from before the R 4.5.1→4.6.1
+  upgrade. Reinstalled the affected packages via plain `install.packages()`,
+  which correctly targeted the renv project library. No change to the R
+  version itself — purely a leftover-binary issue, confirmed app renders
+  correctly afterward.
+
 ## 2026-08-31
 
 ### Data — SFO Live Feed Outage, Coverage-Note Banner Added

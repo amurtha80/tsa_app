@@ -76,7 +76,12 @@ hours_lookup <- tbl(con_source, "airport_checkpoint_hours") |>
   collect() |>
   mutate(checkpoint = toupper(checkpoint)) |>
   group_by(airport, checkpoint) |>
-  filter(entry_timestamp == max(entry_timestamp)) |>
+  # plain `== max(entry_timestamp)` silently drops the whole group once any
+  # correction row is added to a checkpoint that previously had no hours data
+  # (NA vs. real timestamp both compare to NA and get filtered out) -- na.rm
+  # picks the real latest row, with the all(is.na(...)) branch preserving
+  # single-row NA-only groups (checkpoints with no hours restriction at all).
+  filter(entry_timestamp == max(entry_timestamp, na.rm = TRUE) | all(is.na(entry_timestamp))) |>
   ungroup() |>
   mutate(
     open_gen_tod      = hms::as_hms(open_time_gen),
