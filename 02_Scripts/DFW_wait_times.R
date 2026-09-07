@@ -64,6 +64,16 @@ scrape_tsa_data_dfw <- function() {
     )
   })
 
+  # LocusLabs relabeled this POI's name field from "A12 Checkpoint" to
+  # "A7 Checkpoint" on 2026-09-01 (same physical lane, dfwairport.com's own
+  # site still displays "A12" -- confirmed 2026-09-07). Remap here so it keeps
+  # landing under the checkpoint's established, site-matching label until
+  # LocusLabs reverts the name upstream. Remove this line (and the historical
+  # backfill note in CHANGELOG.md) if/when the feed's name field goes back to
+  # "A12 Checkpoint" on its own.
+  mine <- mine |>
+    dplyr::mutate(checkpoint = dplyr::if_else(checkpoint == "A7", "A12", checkpoint))
+
   mine <- mine |>
     dplyr::mutate(
       lane_type = dplyr::case_when(
