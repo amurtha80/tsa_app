@@ -91,4 +91,10 @@ RShiny Mobile App TSA Historical Wait Times
   change needed, just a data row per the append-only convention.
 
 ### Housekeeping
+- DFW: one stray `tsa_wait_times` row (airport='DFW', checkpoint='A7',
+  datetime 2026-09-07 16:45:45 UTC) still needs merging to checkpoint='A12'
+  — written by the last scrape cycle before the A7->A12 relabel fix
+  deployed. Needs a direct (non-Quack) connection on the Pi, so requires
+  stopping/restarting `tsa_app_quack_server` around the write (sudo,
+  user-run). See CHANGELOG 2026-09-07 "DFW A12 Checkpoint Relabel Fix".
 - Standardize scraping function naming convention

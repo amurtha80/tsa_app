@@ -5,6 +5,32 @@ FlyASAP — Airport Security Advance Planning
 
 ## 2026-09-07
 
+### Scraper — DFW A12 Checkpoint Relabel Fix (LocusLabs Feed, Not a Real Closure)
+- User reported dfwairport.com's own site showing live wait times for
+  checkpoint A12, contradicting the 2026-09-02 `is_active = FALSE` call
+  (previously attributed to Terminal A construction, see that date's entry).
+  Investigation found LocusLabs' `dynamic-poi` feed silently renamed this
+  POI's `name` field from "A12 Checkpoint" to "A7 Checkpoint" at
+  2026-09-01 03:32 (7 minutes after A12's last row), while dfwairport.com's
+  own map widget kept displaying "A12" for the same physical lane — a
+  same-POI relabel, not a closure, matching the SFO Checkpoint B rename
+  precedent from 2026-08-28.
+- Merged 1,886 mislabeled `A7` rows in `tsa_wait_times` back to `A12`
+  (direct connection on the Pi, Quack server stopped/restarted around the
+  write, verified from an independent connection afterward). Reactivated
+  DFW A12 in `airport_checkpoint_hours` (`is_active = TRUE`,
+  `entry_timestamp = CURRENT_TIMESTAMP`).
+- Fixed `DFW_wait_times.R` to remap `checkpoint == "A7"` back to `"A12"`
+  at scrape time, so it keeps landing under the site-matching label until
+  LocusLabs reverts the name upstream. Deployed to the Pi (git pull)
+  between scrape cycles; confirmed the next live cycle wrote a fresh
+  `A12` row correctly.
+- Also found and fixed unrelated config drift on the Pi during this
+  session: `tsa_app_quack_server.service` was not enabled for boot
+  persistence (relying on staying up since a manual start on 2026-08-17)
+  — now `enabled`, and a stale unit-file-changed warning was cleared with
+  `daemon-reload`.
+
 ### App — SFO Coverage-Note Banner Removed (Feed Restored)
 - flysfo.com resumed publishing live checkpoint wait times. Confirmed against
   `tsa_wait_times` (via `tsa_app_backup.duckdb`): the outage was a single
