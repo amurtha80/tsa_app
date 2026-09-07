@@ -70,8 +70,7 @@ checkpoints_by_airport <- summ_data |>
 # airport: add a new named element — no other code changes needed.
 
 airport_coverage_notes <- c(
-  LAX = "flyLAX currently publishes live wait times for the TBIT (International) checkpoint only. LAX has additional checkpoints at most other terminals that are not yet available here.",
-  SFO = "flySFO is not currently publishing live checkpoint wait times. Historical data below is unaffected; current wait times will resume once flySFO restores its feed."
+  LAX = "flyLAX currently publishes live wait times for the TBIT (International) checkpoint only. LAX has additional checkpoints at most other terminals that are not yet available here."
 )
 
 

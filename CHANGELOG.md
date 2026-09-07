@@ -3,6 +3,21 @@ FlyASAP — Airport Security Advance Planning
 
 ---
 
+## 2026-09-07
+
+### App — SFO Coverage-Note Banner Removed (Feed Restored)
+- flysfo.com resumed publishing live checkpoint wait times. Confirmed against
+  `tsa_wait_times` (via `tsa_app_backup.duckdb`): the outage was a single
+  ~45-hour gap in SFO rows from 2026-08-30 10:21 to 2026-09-01 07:19
+  (America/Los_Angeles), matching `SFO_wait_times.R`'s `stop()` guard tripping
+  every cycle while the site showed no data. Scraper has written continuous
+  data at the normal ~83% non-null rate since 2026-09-01 07:19 with no further
+  outages (small transient gaps of <2hrs on 9/1, 9/2, 9/4 are ordinary scrape
+  hiccups, not feed drops).
+- Removed the `SFO` entry from `airport_coverage_notes` in `app.R` (added
+  2026-08-31, see that date's entry above); LAX's partial-coverage banner is
+  unaffected. Removed the corresponding outage item from `todo_list.txt`.
+
 ## 2026-09-02
 
 ### Data — DFW Checkpoint A12 Marked Inactive (Terminal A Construction)
