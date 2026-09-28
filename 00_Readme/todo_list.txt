@@ -91,6 +91,20 @@ RShiny Mobile App TSA Historical Wait Times
   change needed, just a data row per the append-only convention.
 
 ### Housekeeping
+- Apply the `tsa_app_delete_temp_files.timer` schedule change (once-daily
+  03:14 -> 4x/day 03,09,15,21:14) on the Pi via sudo — command prepared
+  2026-09-27, not yet run (no passwordless sudo on the Pi). See CHANGELOG
+  2026-09-27 "Pi Watchdog Alert Traced to Chromium Temp-Profile Disk Leak
+  Recurrence."
+- After the above lands, monitor `~/snap/chromium/common/chromium-headless/scoped_dir*`
+  growth on the Pi for a few days to confirm 4x/day cleanup actually keeps
+  root SD card usage stable — if it still creeps toward full, revisit the
+  static `--user-data-dir` chromote fix idea (rejected for now, see same
+  CHANGELOG entry for why).
+- `xx_watchdog_check.R`'s alert email text still says "check Task Scheduler
+  history for logon/credential errors (Event 104/101)" — stale from before
+  the 2026-08-20 Pi cutover; update to point at `journalctl -u
+  tsa_app_scraper.service` / systemd instead.
 - DFW: one stray `tsa_wait_times` row (airport='DFW', checkpoint='A7',
   datetime 2026-09-07 16:45:45 UTC) still needs merging to checkpoint='A12'
   — written by the last scrape cycle before the A7->A12 relabel fix

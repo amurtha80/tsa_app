@@ -3,6 +3,60 @@ FlyASAP — Airport Security Advance Planning
 
 ---
 
+## 2026-09-27
+
+### Infra — Pi Watchdog Alert Traced to Chromium Temp-Profile Disk Leak Recurrence
+- 6:30 PM ET `tsa_app_watchdog` email flagged the scraper stalled >20 min.
+  Diagnosed via SSH on the Pi (`journalctl -u tsa_app_scraper.service`):
+  root SD card (`/dev/mmcblk0p2`) hit 100% full, causing 3 consecutive
+  scraper cycles (18:15/18:20/18:25) to hard-fail (`renv.lock` write errors,
+  `Fatal error: cannot create 'R_TempDir'`) — that gap tripped the watchdog.
+  Note: the watchdog email's "check Task Scheduler / Event 104-101" text is
+  stale boilerplate from before the 2026-08-20 Pi cutover and should be
+  updated to point at `journalctl`/systemd instead.
+- Root cause: recurrence of the `scoped_dir*` chromium temp-profile leak
+  first fixed 2026-08-24 (see CHANGELOG 2026-08-24). The nightly
+  `tsa_app_delete_temp_files` timer (03:14 only) was catching it, but the
+  leak volume (497→679 orphaned dirs/day over the last 5 days) was
+  outpacing one cleanup pass/day, filling the disk before the next run.
+  Confirmed via chromote's own source (`R/chrome.R` on GitHub) that this is
+  expected upstream behavior, not a scraper bug: Chrome's temp/profile dirs
+  are created via `tempfile()` with no cleanup logic anywhere in
+  `Chrome$close()` or any finalizer — cleanup is left entirely to the OS,
+  and neither Windows `%TEMP%` (why this also happened on the desktop
+  pre-migration) nor the Pi's snap-confined
+  `~/snap/chromium/common/chromium-headless/scoped_dir*` path get automatic
+  OS cleanup.
+- Immediate fix: manually deleted 427 orphaned `scoped_dir*` folders
+  (7.3GB) after confirming no live chromium process held them; freed root
+  from 100% to 74% used. Re-ran `zz_delete_temp_files.R` to catch the
+  remainder (209 more items).
+- Standing fix: `tsa_app_delete_temp_files.timer`'s `OnCalendar` changed
+  from once-daily (`03:14:00`) to 4x/day (`03,09,15,21:14:00`) — requires
+  the user to apply via sudo on the Pi (no passwordless sudo configured).
+  Considered but rejected pinning a static `--user-data-dir` for chromote
+  (per the reference note in `02_Scripts/xx_chromote_perm_cache_directory.R`)
+  since reusing one profile across cycles risks a `SingletonLock`/"user
+  data directory already in use" failure if a prior cycle's Chrome process
+  didn't fully exit — trades a disk problem for an intermittent scrape
+  failure. Revisit only if 4x/day cleanup proves insufficient.
+
+## 2026-09-08
+
+### Infra — EC2 Parquet Pull Timer Moved to 3:30 AM ET (Fixed Pull-Before-Push Race)
+- User reported DFW A12 still showing "not currently in use" on the live
+  site the morning after the 2026-09-07 relabel fix. Diagnosed as a timing
+  race, not a deploy miss: EC2's `tsa-parquet-pull.timer` fired at 3:00 AM
+  ET / 07:00 UTC, but the Windows nightly build didn't finish pushing
+  `tsa_app_summ.parquet` to `s3://flyasap-app-data/` until 07:20 UTC that
+  same morning — EC2 pulled 20 minutes too early and served the prior
+  day's stale parquet all day.
+- Manually re-ran `tsa-parquet-pull.service` on EC2 to grab the
+  already-fresh S3 object; confirmed A12 live afterward.
+- Moved `tsa-parquet-pull.timer`'s `OnCalendar` from `03:00:00` to
+  `03:30:00 America/New_York` to give the Windows build a 30-minute
+  cushion before EC2 pulls.
+
 ## 2026-09-07
 
 ### Scraper — DFW A12 Checkpoint Relabel Fix (LocusLabs Feed, Not a Real Closure)
