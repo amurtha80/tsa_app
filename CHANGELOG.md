@@ -3,6 +3,45 @@ FlyASAP — Airport Security Advance Planning
 
 ---
 
+## 2026-10-08
+
+### Infra — Pi/Desktop Health Check: Scheduled Tasks, DuckDB, Disk, Backup Sync
+- Full diagnostic pass across the Pi (production host) and desktop (backup-only):
+  all 5 Pi systemd timers confirmed enabled and firing on schedule, live DuckDB
+  queried over Quack (7.5M+ rows, all 21 active airports current to the last
+  scrape cycle; LAX stale since 2026-08-06 is the known flylax.com outage, no
+  action needed), root SD card at a stable 76-80% (well clear of the Sept 100%
+  incident), and the desktop's `tsa_app_backup_pull_from_pi` boot-triggered task
+  confirmed running/catching up correctly by design (desktop isn't kept on 24/7).
+- Compared the frozen pre-cutover desktop DB file (`tsa_app.duckdb`, last written
+  2026-08-20 14:00:43, 65MB) against the current backup file (60MB) after noticing
+  the size gap despite the backup having equal-or-more rows at the same cutoff.
+  Row-level anti-join confirmed no real data loss — ~164K apparent mismatches were
+  all same-event rows with few-second timestamp jitter from the Aug 13-20 parallel
+  desktop+Pi scraper comparison window, not missing data. The 5MB+ size difference
+  is DuckDB file fragmentation: the frozen file absorbed years of in-place
+  UPDATE/DELETE/ALTER TABLE operations (every historical dedup/relabel/correction
+  in this project ran directly against it), while the backup file only ever
+  receives append-only INSERTs and has near-zero dead space. No fix applied
+  (not worth compacting a 65MB file with no symptom), but documented the
+  copy-out/copy-in compaction method here in case it's needed later: ATTACH both
+  the old file (read-only) and a new empty file, `CREATE TABLE new AS SELECT *
+  FROM old.table` per table, then swap the new file into place. Requires a direct
+  (non-Quack) connection, so the relevant `tsa_app_quack_server` must be stopped
+  first — same rule as every other live-write op in this project.
+- Housekeeping landed same session: removed 7 disabled snap package revisions
+  from the Pi (~1.2GB reclaimed, sudo run interactively by the user), fixed the
+  `tsa_app_delete_temp_files.timer`'s `Description=` text (stale "daily at 03:14"
+  → actual "4x/day at 03,09,15,21:14") since the cadence bump from 2026-09-27 had
+  already been applied but the comment never updated, and fixed
+  `xx_watchdog_check.R`'s alert-email text and header comment which still
+  referenced pre-cutover Windows Task Scheduler/Event 104-101 — now points at
+  `journalctl -u tsa_app_scraper.service` / `systemctl status
+  tsa_app_quack_server` on the Pi instead. Corresponding `todo_list.txt` lines
+  removed. Pi's repo pulled to pick up the watchdog fix (takes effect on its
+  next 30-min run, no service restart needed since it's timer-triggered, not
+  resident).
+
 ## 2026-09-27
 
 ### Infra — Pi Watchdog Alert Traced to Chromium Temp-Profile Disk Leak Recurrence
