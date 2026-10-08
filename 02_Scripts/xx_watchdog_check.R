@@ -14,7 +14,7 @@ cat(paste0("******-- xx_watchdog_check.R started at ", format(Sys.time(), "%a %b
 #   2. the Quack server (zz_database.R) accepts a connection — it holds no log of
 #      its own, so a silent crash there would otherwise be invisible
 #
-# Schedule: Windows Task Scheduler, every 30 minutes
+# Schedule: Pi systemd timer (tsa_app_watchdog.timer), every 30 minutes
 # Runtime: seconds
 # Inputs:  runlog.txt (read-only), Quack server connection
 # Outputs: runlog_watchdog.txt (always written)
@@ -143,8 +143,8 @@ tryCatch({
       detail_html = glue(
         "No new scraper run in <strong>{round(minutes_since_last_run, 1)} minutes</strong> ",
         "(threshold: {stale_threshold_minutes} min). tsa_app_scraper may have stopped launching — ",
-        "check Task Scheduler history for logon/credential errors (Event 104/101) first, per the ",
-        "2026-07-17 outage."
+        "check `journalctl -u tsa_app_scraper.service` on the Pi for launch/credential errors first, ",
+        "per the 2026-07-17 outage."
       )
     )
   } else {
@@ -153,8 +153,8 @@ tryCatch({
 
 
   ## Check 2 — Quack server liveness ----
-  # A dead zz_database.R server would fail every scraper cycle even with a
-  # healthy Task Scheduler credential, and it keeps no log of its own.
+  # A dead zz_database.R server would fail every scraper cycle even with the
+  # systemd timer firing normally, and it keeps no log of its own.
 
   quack_ok <- tryCatch({
     con <- dbConnect(duckdb::duckdb())
@@ -174,7 +174,7 @@ tryCatch({
     cat("ALERT: Quack server unreachable\n")
     send_alert(
       subject_suffix = "Quack server unreachable",
-      detail_html = "Could not connect to the Quack server (zz_database.R) via the standard TOKEN-based ATTACH. It may have crashed or is not running — check the tsa_app_quack_server Task Scheduler job status."
+      detail_html = "Could not connect to the Quack server (zz_database.R) via the standard TOKEN-based ATTACH. It may have crashed or is not running — check `systemctl status tsa_app_quack_server` on the Pi."
     )
   } else {
     cat("Check 2 (Quack server liveness): OK\n")
