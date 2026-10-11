@@ -24,6 +24,17 @@ RShiny Mobile App TSA Historical Wait Times
 
 ### Medium Priority — Post-Launch Fixes
 
+#### App Default Day/Time Uses Server Clock (`Sys.time()`), Not the Selected Airport's Local Time
+- 2026-10-10: `app.R` lines ~99-106 derive `default_day` and `default_time` from
+  `Sys.time()` (server clock, evaluated at top level of app.R). Not verified yet:
+  (a) what timezone the EC2 host runs in, (b) whether top-level evaluation means the
+  default is computed once per R process rather than per user session (so it could be
+  stale), and (c) that the default should follow the *selected airport's* local time
+  (e.g. a viewer of SEA should default to Pacific "now"). Found while fixing the summary
+  build's Chicago-clock bug (see High Priority item above); kept separate because it is an
+  app-side change, not a build change. Fix the build tz first so the buckets the app reads
+  are truly airport-local, then revisit this default.
+
 #### Deployment
 - Add third chart for CLEAR lane wait times for airports that have CLEAR data (MIA; others TBD) — chart should only render when data exists for the selected airport/checkpoint combination
 

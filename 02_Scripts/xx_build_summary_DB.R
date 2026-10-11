@@ -52,6 +52,7 @@ dbExecute(con_source, glue(
   "ATTACH 'quack:localhost' AS remote_db (TYPE quack, TOKEN '{Sys.getenv('DUCKDB_QUACK_TOKEN')}')"
 ))
 dbExecute(con_source, "USE remote_db;")
+dbExecute(con_source, "INSTALL icu; LOAD icu;")   # needed for timezone(); not bundled in the R duckdb build
 
 con_summ   <- dbConnect(duckdb::duckdb(), dbdir = path_summ,   read_only = FALSE)
 
@@ -148,65 +149,87 @@ is_open_lane <- function(tod, wd, windows) {
   )
 }
 
-tsa_wait_time_summ <- tbl(con_source, "tsa_wait_times") |>
-  collect() |>
-  # `time` is a genuine UTC instant (DuckDB's TIMESTAMP_S column is naive;
-  # the R driver drops tz on write). Force-tag UTC explicitly, then convert
-  # to each row's true airport-local wall clock via the `timezone` column
-  # before bucketing, so charts reflect airport-local time of day.
-  mutate(time = lubridate::force_tz(time, tzone = "UTC")) |>
-  # Keep rolling 365-day window from most recent scraped date
-  filter(date >= max(date, na.rm = TRUE) - 365) |>
-  group_by(timezone) |>
-  mutate(time_local = lubridate::with_tz(time, tzone = dplyr::first(timezone))) |>
-  ungroup() |>
-  mutate(checkpoint = toupper(checkpoint)) |>
-  left_join(hours_checkpoint, by = c("airport", "checkpoint")) |>
-  mutate(
-    time_of_day = hms::as_hms(time_local),
-    weekday     = lubridate::wday(time_local, label = TRUE, abbr = TRUE),
-    weekday_chr = as.character(weekday),
-    # is_active FALSE means the checkpoint itself is out of service for an
-    # indefinite/unknown duration (e.g. an airline shutdown vacating a
-    # terminal), not just closed for the day -- overrides the hours-of-day
-    # check entirely rather than participating in is_open_lane().
-    wait_time           = if_else(coalesce(is_active, TRUE) &
-                                     purrr::pmap_lgl(list(time_of_day, weekday_chr, windows_gen), is_open_lane),
-                                   wait_time, NA_real_),
-    wait_time_pre_check = if_else(coalesce(is_active, TRUE) &
-                                     purrr::pmap_lgl(list(time_of_day, weekday_chr, windows_prechk), is_open_lane),
-                                   wait_time_pre_check, NA_real_),
-    wait_time_clear     = if_else(coalesce(is_active, TRUE) &
-                                     purrr::pmap_lgl(list(time_of_day, weekday_chr, windows_clear), is_open_lane),
-                                   wait_time_clear, NA_real_)
-  ) |>
-  mutate(
-    bucket_time = hms::as_hms(lubridate::ceiling_date(time_local, "15 mins"))
-  ) |>
-  group_by(airport, checkpoint, weekday, bucket_time) |>
-  summarize(
-    avg_time_std          = ceiling(mean(wait_time,          na.rm = TRUE)),
-    max_time_std          = max(wait_time,                   na.rm = TRUE),
-    avg_time_tsa_precheck = ceiling(mean(wait_time_pre_check, na.rm = TRUE)),
-    max_time_tsa_precheck = max(wait_time_pre_check,         na.rm = TRUE),
-    avg_time_clear        = ceiling(mean(wait_time_clear,    na.rm = TRUE)),
-    max_time_clear        = max(wait_time_clear,             na.rm = TRUE),
-    # Constant per (airport, checkpoint) via the left_join above -- carried
-    # through so app.R can distinguish "closed right now" from "checkpoint
-    # out of service indefinitely" without a second lookup.
-    is_active              = dplyr::first(coalesce(is_active, TRUE)),
-    .groups = "drop"
-  ) |>
-  # Inf/-Inf from max/mean over all-NA groups → replace with NA
-  mutate(across(
-    c(avg_time_std, max_time_std,
-      avg_time_tsa_precheck, max_time_tsa_precheck,
-      avg_time_clear, max_time_clear),
-    \(x) if_else(is.infinite(x) | is.nan(x), NA_real_, as.double(x))
-  )) |>
-  # Store bucket_time as "HH:MM:SS" character — hms writes as raw seconds in
-  # DuckDB which breaks comparisons on read. Parsed back to hms in app.R.
-  mutate(bucket_time = as.character(bucket_time))
+# Extract, convert to each airport's OWN local time, filter to 365 days, bucket -- all in DuckDB.
+# timezone(<per-row tz>, ...) is evaluated per row, so every airport gets its own local clock
+# (the previous group_by(timezone)/with_tz/ungroup left one tzone attr = America/Chicago for all rows).
+# Quack rejects multiple streaming scans in one statement, so max(date) is fetched separately.
+max_date <- as.character(dbGetQuery(con_source, "SELECT max(date) FROM tsa_wait_times")[[1]])
+
+dbExecute(con_source, glue("
+  CREATE OR REPLACE TEMP TABLE wt AS
+  WITH base AS (
+    SELECT airport, upper(checkpoint) AS checkpoint, date,
+           wait_time, wait_time_pre_check, wait_time_clear,
+           timezone(timezone, \"time\"::TIMESTAMP AT TIME ZONE 'UTC') AS tl,
+           \"time\"::TIMESTAMP AS u, timezone AS tzname
+    FROM tsa_wait_times
+    WHERE date >= DATE '{max_date}' - 365
+  )
+  SELECT airport, checkpoint,
+         strftime(tl, '%a') AS weekday,
+         (hour(tl) * 3600 + minute(tl) * 60 + second(tl))::INTEGER AS tod_s,
+         -- ceil to 15 min on the UTC instant, then convert to local: matches lubridate::ceiling_date on a
+         -- tz-aware POSIXct across DST gaps (01:55 EST on spring-forward day rolls to 03:00 EDT, not 02:00)
+         strftime(timezone(tzname, (CASE WHEN u = time_bucket(INTERVAL 15 MINUTE, u)
+                                         THEN u ELSE time_bucket(INTERVAL 15 MINUTE, u) + INTERVAL 15 MINUTE END) AT TIME ZONE 'UTC'),
+                  '%H:%M:%S') AS bucket_time,
+         wait_time, wait_time_pre_check, wait_time_clear
+  FROM base
+"))
+
+# Hours-gate inputs: small tables derived from hours_lookup above.
+dbWriteTable(con_source, "meta",
+  checkpoint_meta |> transmute(airport, checkpoint, is_active = coalesce(is_active, TRUE)),
+  temporary = TRUE, overwrite = TRUE)
+win <- bind_rows(
+  hours_lookup |> filter(!is.na(open_gen_tod),    !is.na(close_gen_tod))    |>
+    transmute(lane = "gen", airport, checkpoint, day_of_week, open_s = as.numeric(open_gen_tod),    close_s = as.numeric(close_gen_tod),    wraps = wraps_gen),
+  hours_lookup |> filter(!is.na(open_prechk_tod), !is.na(close_prechk_tod)) |>
+    transmute(lane = "pre", airport, checkpoint, day_of_week, open_s = as.numeric(open_prechk_tod), close_s = as.numeric(close_prechk_tod), wraps = wraps_prechk),
+  hours_lookup |> filter(!is.na(open_clear_tod),  !is.na(close_clear_tod))  |>
+    transmute(lane = "clr", airport, checkpoint, day_of_week, open_s = as.numeric(open_clear_tod),  close_s = as.numeric(close_clear_tod),  wraps = wraps_clear)
+)
+dbWriteTable(con_source, "win", win, temporary = TRUE, overwrite = TRUE)
+
+# Hours gate, evaluated once per distinct (airport, checkpoint, weekday, time-of-day).
+# Same semantics as the old is_open_lane(): no windows for the lane => open; else open if any window
+# (day_of_week NA = every day, or equal to weekday) contains the time of day (wrap-past-midnight aware).
+# is_active FALSE closes the lane outright.
+lane_sql <- function(L, out) glue("
+  (coalesce(m.is_active, TRUE) AND
+   CASE WHEN NOT EXISTS (SELECT 1 FROM win w WHERE w.lane = '{L}' AND w.airport = c.airport AND w.checkpoint = c.checkpoint)
+        THEN TRUE
+        ELSE EXISTS (SELECT 1 FROM win w
+                     WHERE w.lane = '{L}' AND w.airport = c.airport AND w.checkpoint = c.checkpoint
+                       AND (w.day_of_week IS NULL OR w.day_of_week = c.weekday)
+                       AND CASE WHEN w.wraps THEN (c.tod_s >= w.open_s OR c.tod_s <= w.close_s)
+                                ELSE (c.tod_s >= w.open_s AND c.tod_s <= w.close_s) END)
+   END) AS {out}")
+dbExecute(con_source, glue("
+  CREATE OR REPLACE TEMP TABLE gate AS
+  SELECT c.airport, c.checkpoint, c.weekday, c.tod_s,
+         {lane_sql('gen', 'g_gen')}, {lane_sql('pre', 'g_pre')}, {lane_sql('clr', 'g_clr')}
+  FROM (SELECT DISTINCT airport, checkpoint, weekday, tod_s FROM wt) c
+  LEFT JOIN meta m USING (airport, checkpoint)
+"))
+
+# All-NA group => NULL (was Inf/-Inf/NaN -> NA); ceiling(mean) and max as double.
+tsa_wait_time_summ <- dbGetQuery(con_source, "
+  SELECT w.airport, w.checkpoint, w.weekday, w.bucket_time,
+         ceil(avg(CASE WHEN g.g_gen THEN w.wait_time END))::DOUBLE            AS avg_time_std,
+         max(CASE WHEN g.g_gen THEN w.wait_time END)::DOUBLE                  AS max_time_std,
+         ceil(avg(CASE WHEN g.g_pre THEN w.wait_time_pre_check END))::DOUBLE  AS avg_time_tsa_precheck,
+         max(CASE WHEN g.g_pre THEN w.wait_time_pre_check END)::DOUBLE        AS max_time_tsa_precheck,
+         ceil(avg(CASE WHEN g.g_clr THEN w.wait_time_clear END))::DOUBLE      AS avg_time_clear,
+         max(CASE WHEN g.g_clr THEN w.wait_time_clear END)::DOUBLE            AS max_time_clear,
+         any_value(coalesce(m.is_active, TRUE))                               AS is_active
+  FROM wt w
+  JOIN gate g USING (airport, checkpoint, weekday, tod_s)
+  LEFT JOIN meta m USING (airport, checkpoint)
+  GROUP BY w.airport, w.checkpoint, w.weekday, w.bucket_time")
+# weekday stays an ordered factor (Sun < ... < Sat), as before
+tsa_wait_time_summ$weekday <- factor(tsa_wait_time_summ$weekday,
+  levels = c("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"), ordered = TRUE)
 
 print(glue("{nrow(tsa_wait_time_summ)} rows aggregated"))
 

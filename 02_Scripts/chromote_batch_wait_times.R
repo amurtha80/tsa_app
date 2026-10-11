@@ -261,7 +261,7 @@ scrape_tsa_data_chromote_batch <- function() {
       }
     }, add = TRUE)
 
-    callr::r(atl_job, timeout = 45)
+    callr::r(atl_job, timeout = 75)
   }
 
   parse_pa_table <- function(page, airport_code) {

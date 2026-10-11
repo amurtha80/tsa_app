@@ -3,6 +3,29 @@ FlyASAP — Airport Security Advance Planning
 
 ---
 
+## 2026-10-11
+
+### Infra — Nightly Summary Build Rewritten in DuckDB SQL; Per-Airport Local Time Fix
+- `xx_build_summary_DB.R` (lines formerly 151-209): extract, 365-day filter, local-time
+  conversion, 15-min bucketing, hours gate and aggregation now run in DuckDB SQL instead
+  of collecting 7.6M rows into R. Pi build time ~85 min -> ~2.5 min (the per-row
+  `pmap_lgl(is_open_lane)` loop was ~61 min). Hours gate is evaluated once per distinct
+  (airport, checkpoint, weekday, time-of-day) and joined back. Needs
+  `INSTALL icu; LOAD icu;` (added). `max(date)` fetched separately because Quack rejects
+  multiple scans in one statement. S3 push and output schema unchanged.
+- Fixed latent bug: `group_by(timezone) |> with_tz() |> ungroup()` left one tzone
+  (America/Chicago) on the whole column, so every airport was bucketed and hours-gated on
+  Chicago's clock. Now `timezone(<row tz>, ...)` per row. Charts shift: Eastern +1h,
+  Mountain -1h, Pacific/Phoenix -2h, Central (DFW/IAH/MSP) unchanged.
+- Verified: 0 mismatches over 534,163 cells vs independent per-airport R ground truth
+  (desktop, frozen input); candidate vs prototype 0 differences on frozen Pi input.
+  DST-gap case (MCO 2026-03-08 01:55) handled by ceiling on the UTC instant.
+- `chromote_batch_wait_times.R`: ATL `callr::r` timeout 45 -> 75s (successes take 38-44s;
+  45s cap was timing out during the old long build window).
+- Rollback copies: `/home/jmurtha80/swap_backup_20261011/` on the Pi.
+
+---
+
 ## 2026-10-08
 
 ### Infra — Pi/Desktop Health Check: Scheduled Tasks, DuckDB, Disk, Backup Sync
