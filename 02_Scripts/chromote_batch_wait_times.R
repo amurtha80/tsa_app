@@ -155,8 +155,43 @@ scrape_tsa_data_chromote_batch <- function() {
     out[grepl("^[0-9]+$", out)]  # keep only well-formed numeric PIDs
   }
 
-  scrape_atl_isolated <- function() {
-    atl_job <- function() {
+  # Diagnostic page snapshots (added 2026-10-13) -- see
+  # project_20261012_chromote_batch_hang_and_failure_snapshot_plan memory.
+  # kind = "fail": timestamped file, newest 25 kept per airport.
+  # kind = "good": overwrites {code}_LAST_GOOD.html, baseline to diff against.
+  # MUST stay self-contained (:: only, no free variables): it is also passed
+  # into the ATL callr subprocess, which cannot see this function's scope.
+  # Never throws -- a snapshot problem must not turn into a scrape failure.
+  snapshot_dir <- here::here("01_Data", "failed_pages")
+
+  save_page_snapshot <- function(page, code, kind = "fail", attempt = NA, note = "", dir) {
+    try({
+      dir.create(dir, recursive = TRUE, showWarnings = FALSE)
+      setTimeLimit(elapsed = 10, transient = TRUE)
+      on.exit(setTimeLimit(elapsed = Inf), add = TRUE)
+
+      html <- paste(as.character(rvest::html_elements(page, "html")), collapse = "\n")
+      note <- gsub("--", "- -", gsub("[\r\n]+", " ", note))
+      header <- sprintf("<!-- %s %s kind=%s attempt=%s note=%s -->\n",
+                        code, format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z"), kind, attempt, note)
+
+      fname <- if (kind == "good") {
+        sprintf("%s_LAST_GOOD.html", code)
+      } else {
+        sprintf("%s_%s_a%s.html", code, format(Sys.time(), "%Y%m%d_%H%M%S"), attempt)
+      }
+      writeLines(c(header, html), file.path(dir, fname), useBytes = TRUE)
+
+      if (kind == "fail") {
+        old <- sort(list.files(dir, pattern = sprintf("^%s_[0-9]{8}_[0-9]{6}_a", code)))
+        if (length(old) > 25) unlink(file.path(dir, head(old, length(old) - 25)))
+      }
+    }, silent = TRUE)
+    invisible(NULL)
+  }
+
+  scrape_atl_isolated <- function(attempt = NA) {
+    atl_job <- function(snap, snap_dir, attempt) {
       library(chromote); library(rvest); library(stringr)
       library(dplyr); library(glue); library(lubridate)
 
@@ -241,7 +276,12 @@ scrape_tsa_data_chromote_batch <- function() {
         Sys.sleep(2)
         page <- read_html_live("https://www.atl.com/times/")
       }
-      result <- parse_atl(page)
+      result <- tryCatch(parse_atl(page), error = function(e) {
+        snap(page, "ATL", "fail", attempt, conditionMessage(e), snap_dir)
+        try(page$session$close(), silent = TRUE)
+        stop(e)
+      })
+      snap(page, "ATL", "good", dir = snap_dir)
       try(page$session$close(), silent = TRUE)
       result
     }
@@ -261,7 +301,9 @@ scrape_tsa_data_chromote_batch <- function() {
       }
     }, add = TRUE)
 
-    callr::r(atl_job, timeout = 75)
+    snap_fn <- save_page_snapshot
+    environment(snap_fn) <- globalenv()  # drop this scope (incl. DB connection) from the serialized copy
+    callr::r(atl_job, args = list(snap = snap_fn, snap_dir = snapshot_dir, attempt = attempt), timeout = 75)
   }
 
   parse_pa_table <- function(page, airport_code) {
@@ -368,9 +410,11 @@ scrape_tsa_data_chromote_batch <- function() {
   scrape_one <- function(code, attempt) {
     t0 <- Sys.time()
 
+    page <- NULL  # assigned inside the tryCatch below so the error handler can snapshot it
+
     result <- tryCatch({
       data <- if (code == "ATL") {
-        scrape_atl_isolated()
+        scrape_atl_isolated(attempt)
       } else {
         # Hard wall-clock cap: an unbounded read_html_live() hung the whole
         # orchestrator for 2.5hrs on 2026-10-12 (EWR retry pass A).
@@ -378,6 +422,7 @@ scrape_tsa_data_chromote_batch <- function() {
         on.exit(setTimeLimit(elapsed = Inf), add = TRUE)
         page <- safe_read_html_live(airports[[code]]$url)
         d <- airports[[code]]$parse(page)
+        save_page_snapshot(page, code, "good", dir = snapshot_dir)
         try(page$session$close(), silent = TRUE)
         setTimeLimit(elapsed = Inf)
         d
@@ -385,7 +430,17 @@ scrape_tsa_data_chromote_batch <- function() {
       dbAppendTable(con_write, name = "tsa_wait_times", value = data)
       list(success = TRUE, n = nrow(data), error_message = NA_character_)
     }, error = function(e) {
-      list(success = FALSE, n = 0, error_message = conditionMessage(e))
+      msg <- conditionMessage(e)
+      # Skip snapshot on the 45s timeout (browser likely stuck); no page at all
+      # (load failed) has nothing to save. Otherwise save, then close the tab --
+      # a failed parse previously left its tab open.
+      if (!is.null(page)) {
+        if (!grepl("elapsed time limit", msg, fixed = TRUE)) {
+          save_page_snapshot(page, code, "fail", attempt, msg, snapshot_dir)
+        }
+        try(page$session$close(), silent = TRUE)
+      }
+      list(success = FALSE, n = 0, error_message = msg)
     })
 
     duration <- as.numeric(difftime(Sys.time(), t0, units = "secs"))
