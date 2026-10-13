@@ -372,9 +372,14 @@ scrape_tsa_data_chromote_batch <- function() {
       data <- if (code == "ATL") {
         scrape_atl_isolated()
       } else {
+        # Hard wall-clock cap: an unbounded read_html_live() hung the whole
+        # orchestrator for 2.5hrs on 2026-10-12 (EWR retry pass A).
+        setTimeLimit(elapsed = 45, transient = TRUE)
+        on.exit(setTimeLimit(elapsed = Inf), add = TRUE)
         page <- safe_read_html_live(airports[[code]]$url)
         d <- airports[[code]]$parse(page)
         try(page$session$close(), silent = TRUE)
+        setTimeLimit(elapsed = Inf)
         d
       }
       dbAppendTable(con_write, name = "tsa_wait_times", value = data)
