@@ -421,6 +421,18 @@ scrape_tsa_data_chromote_batch <- function() {
         setTimeLimit(elapsed = 45, transient = TRUE)
         on.exit(setTimeLimit(elapsed = Inf), add = TRUE)
         page <- safe_read_html_live(airports[[code]]$url)
+        # PA tables render rows before cell data (all-NA General -> parse error,
+        # ~5% of first attempts, snapshot-confirmed 2026-10-15). Poll up to 5s.
+        deadline <- Sys.time() + 5
+        repeat {
+          # DOM nodes can be swapped mid-read ("No node with given id found"); treat as not ready
+          ready <- tryCatch(
+            any(grepl("min|No Wait", rvest::html_text2(rvest::html_elements(page, "td")))),
+            error = function(e) FALSE
+          )
+          if (ready || Sys.time() >= deadline) break
+          Sys.sleep(0.5)
+        }
         d <- airports[[code]]$parse(page)
         save_page_snapshot(page, code, "good", dir = snapshot_dir)
         try(page$session$close(), silent = TRUE)
