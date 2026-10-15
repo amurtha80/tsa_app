@@ -24,6 +24,14 @@ RShiny Mobile App TSA Historical Wait Times
 
 ### Medium Priority — Post-Launch Fixes
 
+#### Remove Failure-Snapshot Code from `chromote_batch_wait_times.R`
+- 2026-10-15: Poll-for-populated-table fix (a0d155c) deployed 08:35 EDT; 0 EWR/JFK/LGA
+  `is.character` failures in the first ~4.5hrs (~9 expected at the old rate). If still
+  0 after ~24-48hrs, remove `save_page_snapshot()`, `snapshot_dir`, the `atl_job` snapshot
+  wrapper and the `scrape_one` snapshot calls; delete `01_Data/failed_pages/` on the Pi.
+  Keep the 45s `setTimeLimit` and the 5s poll. Then run the Pi temp-file/cycle check and
+  update the memory file `project_20261012_chromote_batch_hang_and_failure_snapshot_plan`.
+
 #### App Default Day/Time Uses Server Clock (`Sys.time()`), Not the Selected Airport's Local Time
 - 2026-10-10: `app.R` lines ~99-106 derive `default_day` and `default_time` from
   `Sys.time()` (server clock, evaluated at top level of app.R). Not verified yet:

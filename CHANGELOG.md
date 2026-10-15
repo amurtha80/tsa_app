@@ -3,6 +3,29 @@ FlyASAP — Airport Security Advance Planning
 
 ---
 
+## 2026-10-15
+
+### Scraper — Chromote Batch: Hang Guard, Failure Snapshots, Table-Ready Poll
+- 2026-10-12: Pi scraper hung 2.5hrs in the EWR retry pass (unbounded `read_html_live()`;
+  systemd never started the next cycle). Killed the PID. `chromote_batch_wait_times.R`
+  `scrape_one()` non-ATL path now wrapped in `setTimeLimit(elapsed = 45, transient = TRUE)`
+  (c049917).
+- Added failure snapshots (602ac90): `save_page_snapshot()` writes the page HTML to
+  `01_Data/failed_pages/{AIRPORT}_{ts}_a{n}.html` on parse failure (pruned to newest 25 per
+  airport) and overwrites `{AIRPORT}_LAST_GOOD.html` after each success. ATL snapshots from
+  inside its `callr` job. Failed non-ATL parses now also close their tab.
+- Root cause of the chronic ~5% EWR/JFK/LGA `is.character(x)` first-attempt failure, from 75
+  snapshots: the Port Authority table renders rows before cell data (24/75 snapshots show
+  all-NA cells; the rest filled in before serialization). Fix (a0d155c): poll up to 5s
+  (0.5s steps) for a cell containing "min"/"No Wait" before parsing; `html_elements()` wrapped
+  in `tryCatch` because nodes can be swapped mid-read ("No node with given id found").
+  `as.character()` coercion rejected (would write all-NA rows).
+- Pi scratch test: 9/9 populated, waits 0.4-1.5s, 6/9 not ready immediately. After deploy:
+  53/53 cycles 4/4, 0 EWR/JFK/LGA failures in ~4.5hrs.
+- Snapshot code to be removed once the fix is confirmed (see `todo_list.txt`).
+
+---
+
 ## 2026-10-11
 
 ### Infra — Nightly Summary Build Rewritten in DuckDB SQL; Per-Airport Local Time Fix
