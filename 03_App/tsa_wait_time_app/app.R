@@ -608,6 +608,7 @@ server <- function(input, output, session) {
         bucket_time >= start_hms,
         bucket_time <= end_hms
       ) |>
+      arrange(bucket_time) |>
       mutate(
         highlight    = if_else(bucket_time == central_bucket, "Central", "Other"),
         bucket_label = format(as.POSIXlt(bucket_time), "%I:%M\n%p") |>

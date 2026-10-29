@@ -226,7 +226,8 @@ tsa_wait_time_summ <- dbGetQuery(con_source, "
   FROM wt w
   JOIN gate g USING (airport, checkpoint, weekday, tod_s)
   LEFT JOIN meta m USING (airport, checkpoint)
-  GROUP BY w.airport, w.checkpoint, w.weekday, w.bucket_time")
+  GROUP BY w.airport, w.checkpoint, w.weekday, w.bucket_time
+  ORDER BY w.airport, w.checkpoint, w.weekday, w.bucket_time")
 # weekday stays an ordered factor (Sun < ... < Sat), as before
 tsa_wait_time_summ$weekday <- factor(tsa_wait_time_summ$weekday,
   levels = c("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"), ordered = TRUE)
