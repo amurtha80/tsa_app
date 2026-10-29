@@ -3,6 +3,38 @@ FlyASAP — Airport Security Advance Planning
 
 ---
 
+## 2026-10-28
+
+### Summary Build + App — Out-of-Sequence Chart Bars Fix
+- Symptom: chart bars out of time order (ATL / Domestic Main / Mon: 9:00 AM was the 2nd bar, 8:00 AM last).
+- Root cause: the 2026-10-11 SQL rewrite of `xx_build_summary_DB.R` (7327b1c) lost the implicit row order of the old `group_by/summarize`; the SQL `GROUP BY` returns arbitrary order, and `app.R` builds the x-axis factor from parquet row order. Confirmed on Pi and EC2 parquet: 791 of 795 (airport/checkpoint/weekday) groups unsorted.
+- Fix (297b5d6): `ORDER BY airport, checkpoint, weekday, bucket_time` added to the build's final SELECT; `arrange(bucket_time)` added to `filtered_data()` in `app.R` as a backstop.
+- Deployed: Pi pulled and build re-run (75,876 rows, 2m51s, S3 push OK, parquet verified 0 of 795 groups unsorted). EC2 pulled (9 commits, only `app.R` +1 line relevant to the app) and shiny-server restarted; user confirmed charts correct. EC2 picks up the sorted parquet at the 3:30 AM pull.
+- EC2 `.git/objects` had 106 root-owned files from a past `sudo git`, causing `git fetch` to fail with "failed to write object"; fixed with `sudo chown -R ubuntu:ubuntu .git`.
+- Process lapse: the rewrite changed output structure beyond the requested scope (speed + tz fix), violating Surgical Changes. Parity testing compared values per cell, not row order. Future rewrites of the parquet-producing step must diff structure (row order, dtypes) against the prior parquet.
+
+## 2026-10-18
+
+### Tooling — Claude Code Subagents Added (`.claude/agents/`)
+- Added 5 scoped subagents, drafted from `00_Readme/tsa-app-subagent-plan_1.md`:
+  `data-explorer` (haiku, read-only — codebase/log inspection), `data-pipeline`
+  (sonnet — scraper code under `02_Scripts/`, excludes `archive/`), `shiny-builder`
+  (sonnet — `03_App/tsa_wait_time_app/`), `deploy-ops` (sonnet — systemd units +
+  SSH ops on Pi/EC2, states the sudo asymmetry between hosts explicitly), and
+  `feature-planner` (opus, read/write-plan-only — scopes multi-file feature work
+  before handoff to the other agents).
+- Verified live via Claude Code against the Pi and EC2 before scoping `deploy-ops`:
+  EC2 (`ubuntu@3.21.184.42`) has working SSH + passwordless sudo; the Pi has SSH but
+  no sudo (deliberate, unchanged by this task).
+- Each long-running agent's prompt includes a checkpoint/handoff convention: no tool
+  exposes live rate-limit/usage-window state to an agent, so instead of threshold
+  detection, agents time-box to ~4.5hrs elapsed and write a `00_Readme/handoff_<task>.md`
+  file if work is incomplete, rather than assuming context carries into a new session.
+- `.claude/agents/` added to `.gitignore`, matching the existing local-only pattern for
+  `CLAUDE.md`/`DEVELOPMENT.md`/`STYLEGUIDE.md` — these files won't appear on a fresh
+  `git pull`; copy manually to any machine doing Claude Code work (desktop + MSI
+  laptop today).
+
 ## 2026-10-15
 
 ### Scraper — Chromote Batch: Hang Guard, Failure Snapshots, Table-Ready Poll
