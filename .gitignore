@@ -10,6 +10,7 @@ flyasap_windows_accessKeys.csv
 CLAUDE.md
 DEVELOPMENT.md
 STYLEGUIDE.md
+.claude/agents/
 
 01_Data/
 _RSelenium_CLT_tsa_times.R
