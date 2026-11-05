@@ -57,6 +57,49 @@ RShiny Mobile App TSA Historical Wait Times
   `(airport, checkpoint, datetime)` or a post-pull assertion (`HAVING COUNT(*) > 1`) that
   fails loudly if violated.
 
+#### Reconcile Desktop Backup (`tsa_app_backup.duckdb`) With Pi Production DB
+- 2026-11-04: Pi-vs-backup validation (read-only, cutoff = backup max datetime
+  2026-11-05 03:26:44 UTC) found the backup is complete by date/airport coverage but not
+  row-identical. Root cause: `xx_backup_pull_from_pi.R` is append-only by `datetime`
+  watermark, so Pi-side UPDATEs/DELETEs never propagate.
+- Confirmed Facts (read-only queries run 2026-11-04, scripts in session scratchpad):
+  - Rows <= cutoff: Pi 8,362,070 / backup 8,372,544; both 22 airports, same min/max datetime.
+  - Exact-duplicate rows: Pi 0 / backup 9,560 (ATL 8,900 + IAH 1,782 backup-only rows; Pi
+    deduped, backup never was).
+  - SFO relabel: Pi has 8,816 rows 'Checkpoint B - Departure Level'; backup has 8,814 still
+    'Checkpoint B'.
+  - DFW relabel: Pi has 1,337 rows 'A12'; backup has 1,335 still 'A7'.
+  - Pi-only rows 2026-08-13 19:20-19:25 (146, outside ATL/IAH/SFO/DFW); backup-only 2 rows
+    2025-04-14 21:00-21:05.
+  - `airport_checkpoint_hours`: 159 rows both sides, 0 EXCEPT differences.
+  - Backup file is a separate direct-connection file (not served by the desktop Quack
+    server), so rebuilding it is not a production write.
+- Plan (recommended: rebuild, not patch -- backup is derivative, patching 4 drift types
+  by hand is more error-prone than re-copying):
+  1. Pre-check: confirm `tsa_app_backup_pull_from_pi` is not running (Get-ScheduledTask)
+     and no process holds `01_Data/tsa_app_backup.duckdb`.
+  2. Rename existing file to `tsa_app_backup_pre_reconcile_YYYYMMDD.duckdb` (keep as
+     fallback until step 6 passes).
+  3. Dry-run first: SELECT COUNT(*) FROM Pi `tsa_wait_times` via Quack; print, don't write.
+  4. New script (scratch name, e.g. `xx_backup_rebuild_from_pi.R`, not auto-wired): direct
+     connect (`con_write` naming, standard path), ATTACH Pi Quack (DISABLE_SSL, token from
+     .Renviron), `CREATE TABLE tsa_wait_times AS SELECT * FROM remote_pi.tsa_wait_times`
+     (+ `airport_checkpoint_hours`). Preserve column order/types (see DESCRIBE: 11 cols).
+     Expect ~1-3 min; run in chunks by month if Quack streaming limits bite.
+  5. Cutoff-compare against Pi from an independent connection: row counts, per-airport
+     SUM(wait_time), per-day counts, `EXCEPT ALL` both directions after materializing the
+     Pi subset locally (streaming-scan limitation); target 0/0 rows, 0 duplicates.
+  6. Only after step 5 passes, delete the fallback file; re-enable normal pull task
+     behavior (no change needed -- watermark resumes from new MAX(datetime)).
+  7. Prevent recurrence: (a) add a periodic full-reconcile / label-drift check to the
+     backup script (e.g. monthly per-airport count + checksum compare, log mismatch), or
+     (b) re-run this rebuild after any Pi-side UPDATE/DELETE (document in CHANGELOG
+     entries for relabels/dedupes). Pair with the duplicate-check item above.
+- Also open: confirm whether the 2026-08-15 dedupe ran against `tsa_app.duckdb` instead of
+  the backup file (backup still had dupes) -- likely explains ATL/IAH drift.
+- Related: Housekeeping DFW stray A7 row (below) still on the Pi; resolve before or fold
+  into the rebuild so the backup picks up the merged label.
+
 ### New Airports (Lower Priority — Post MVP)
 - **BWI** - `bwiairport.com/`; https://bwiairport.com/wp-content/themes/bwitheme/ajaxcall.php?action=get_waitTimes_data
 - **CVG** - `cvgairport.com` Zensors
